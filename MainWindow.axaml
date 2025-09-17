@@ -1,0 +1,184 @@
+<Window           Name="Default"
+                  xmlns="https://github.com/avaloniaui"
+                  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                  xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                  mc:Ignorable="d"
+                  d:DesignWidth="600" 
+                  d:DesignHeight="325"
+                  Width="610"
+                  Height="500"
+                  x:Class="sb1_sb2_sb3_xml_to_Csharp_converter.MainWindow"
+                  Title="sb1_sb2_sb3_xml_to_Csharp_converter"
+                  CanResize="False"
+                  RequestedThemeVariant="Default"
+                  
+>
+<Canvas Name="CanvasBackground">
+    
+    <Label        Name="Text1"
+                  Content="Please Select the File you want to convert or write it down here:"
+                  Width="500"
+                  Height="25"
+                  Canvas.Top="25"
+                  Canvas.Left="15"
+    />
+
+    <TextBox      Name="FileFolderNameTextBox"
+                  Watermark="Your File, it should be a .sb, .sb2, .sb3, .xml File"
+              
+                  Width="500"
+                  Height="20"
+                  Canvas.Top="50"
+                  Canvas.Left="15"
+    />
+
+    <Button       Name="fileSearcher"
+                  Click="FileSearcherVoid"
+                  ClickMode="Press"
+                  Content="..."
+                  
+                  Width="30"
+                  Height="30"
+                  Canvas.Top="50"
+                  Canvas.Right="50"
+                  
+    />
+
+    <Label        Name="Text2"
+                  Content="Please select the Folder where your converted Project should be stored:"
+                  
+                  Width="500"
+                  Height="25"
+                  Canvas.Top="87"
+                  Canvas.Left="15"/>
+
+    <TextBox      Name="FolderNameTextBox"
+                  Watermark="Your Folder"
+                  
+                  Width="500"
+                  Height="20"
+                  Canvas.Top="115"
+                  Canvas.Left="15"
+    />
+
+    <Button       Name="folderSearcher"
+                  Click="FolderSearcherVoid"
+                  ClickMode="Press"
+                  Content="..."
+                  
+                  Width="30"
+                  Height="30"
+                  Canvas.Top="115"
+                  Canvas.Right="50"
+    />
+   <Label         Name="IconText"
+                  Content="Please select the Icon File if necessary:"
+                  Width="500"
+                  Height="20"
+                  Canvas.Left="15"
+                  Canvas.Top="150"/>
+  
+   <TextBox       Name="IconTextBox"
+                  Watermark="the Icon of the Application (Not necessary)"
+                  Width="500"
+                  Height="20"
+                  Canvas.Left="15"
+                  Canvas.Top="180"
+                  
+   />
+  <Button         Name="IconButton"
+                  Click="IconSearcherVoid"
+                  ClickMode="Press"
+                  Content="..."
+                  
+                  Width="30"
+                  Height="30"
+                  Canvas.Top="180"
+                  Canvas.Right="50"
+   />
+    
+   
+    
+    <CheckBox     Name="WindowsCheckBox"
+                  Content="Windows"
+                  
+                  Width="90"
+                  Height="10"
+                  Canvas.Top="220"
+                  Canvas.Left="30"
+    />
+    
+    <CheckBox     Name="LinuxCheckBox"
+                  Content="Linux"
+                  
+                  Width="90"
+                  Height="10"
+                  Canvas.Top="220"
+                  Canvas.Left="130"
+    />
+    
+    <CheckBox     Name="X64CheckBox"
+                  Content="x-64"
+                  
+                  Width="90"
+                  Height="10"
+                  Canvas.Top="220"
+                  Canvas.Right="100"
+    />
+    
+    <CheckBox     Name="X32CheckBox"
+                  Content="x-32"
+                  
+                  Width="90"
+                  Height="10"
+                  Canvas.Top="250"
+                  Canvas.Right="100"
+    />
+  
+    <CheckBox     Name="Arm64CheckBox"
+                  Content="arm-64"
+           
+                  Width="90"
+                  Height="10"
+                  Canvas.Top="280"
+                  Canvas.Right="100"
+    />
+    
+    <ProgressBar Name="ProgressBarConverter"
+                 
+                  Canvas.Top="320"
+                  Canvas.Left="15"
+                  Width="500"
+                  Height="25"
+                  Minimum="0"
+                  Maximum="100"
+                  ShowProgressText="True"
+    >
+    </ProgressBar>
+    
+    <Button       Name="csonvertButton"
+                  Content="Convert!"
+                  
+                  Click="ConvertButton"
+                  ClickMode="Press"
+                  Width="75"
+                  Height="30"
+                  Canvas.Top="360"
+                  Canvas.Left="200"
+    />
+
+    <Button       Name="GithubRepo"
+                  Content="This Project was made by: Daiko Games"
+                  
+                  Click="GithubLinkPressed"
+                  ClickMode="Press"
+                  Width="300"
+                  Height="30"
+                  Canvas.Top="400"
+                  Canvas.Left="10"
+    />
+    
+  </Canvas>
+  
+</Window>
