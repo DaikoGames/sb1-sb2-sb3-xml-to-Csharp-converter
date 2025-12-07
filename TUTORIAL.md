@@ -8,15 +8,8 @@ it converts Scratch 1, Scratch 2, Scratch 3, and Snap! Projects into executables
 
 Before I dive more into it i just wanted to say on what **Platform**s it is **support**ed:
 
-Currently it's only **Windows and Linux - no Mac OS**,
-
-WHY: as its closed source and I would have to pay 99 Euros a year for an open source Project of which i will not get Money from (for developer License)
-
-HOWEVER - there are multiple ways to run the Project on other platforms: i do think a virtual Machine of Windows can be run on mac with Oracle VirtualBox - find it here: .
-
-Wine has not been tested by me, and I don´t know how to set it up so the Emulator emulates the file Explorer accordingly to the "Filer", if it can be done pls. tell me how I Need to know
-
-
+Currently it's only **Windows and Linux - Mac OS too!**,
+My Programs are not signed, so you have to accept that there is a warning by your computer. It is not a virus, don´t worry XD!
 
 What I used for the Conversion:
 
@@ -37,5 +30,6 @@ Ok, so for the conversion from .sb/.sb2/.sb3 to .xml you just have to let the Sn
 Windows: dotnet: https://dotnet.microsoft.com/en-us/download
 
 **Linux: dotnet: there is a tutorial on the .NET Website: https://learn.microsoft.com/en-us/dotnet/core/install/linux**
+       **LibVLC: there is a tutorial there: https://github.com/videolan/libvlcsharp/blob/3.x/docs/linux-setup.md**
 
 The good thing with the C# converter its  already packaged - currently we didn´t build it for flatpak, but once we reach 1.0 we will think about that too :) if it is possible!

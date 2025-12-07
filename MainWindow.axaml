@@ -10,7 +10,7 @@
                   Height="500"
                   x:Class="sb1_sb2_sb3_xml_to_Csharp_converter.MainWindow"
                   Title="sb1_sb2_sb3_xml_to_Csharp_converter"
-                  CanResize="False"
+                  CanResize="True"
                   RequestedThemeVariant="Default"
                   
 >
@@ -116,6 +116,15 @@
                   Height="10"
                   Canvas.Top="220"
                   Canvas.Left="130"
+    />
+
+    <CheckBox     Name="MacOSCheckBox"
+                  Content="MacOS"
+                  
+                  Width="90"
+                  Height="10"
+                  Canvas.Top="220"
+                  Canvas.Left="230"
     />
     
     <CheckBox     Name="X64CheckBox"
