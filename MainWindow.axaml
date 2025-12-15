@@ -7,7 +7,7 @@
                   d:DesignWidth="600" 
                   d:DesignHeight="325"
                   Width="610"
-                  Height="500"
+                  Height="600"
                   x:Class="sb1_sb2_sb3_xml_to_Csharp_converter.MainWindow"
                   Title="sb1_sb2_sb3_xml_to_Csharp_converter"
                   CanResize="True"
@@ -19,7 +19,7 @@
     <Label        Name="Text1"
                   Content="Please Select the File you want to convert or write it down here:"
                   Width="500"
-                  Height="25"
+                  Height="30"
                   Canvas.Top="25"
                   Canvas.Left="15"
     />
@@ -29,7 +29,7 @@
               
                   Width="500"
                   Height="20"
-                  Canvas.Top="50"
+                  Canvas.Top="55"
                   Canvas.Left="15"
     />
 
@@ -40,7 +40,7 @@
                   
                   Width="30"
                   Height="30"
-                  Canvas.Top="50"
+                  Canvas.Top="55"
                   Canvas.Right="50"
                   
     />
@@ -49,8 +49,8 @@
                   Content="Please select the Folder where your converted Project should be stored:"
                   
                   Width="500"
-                  Height="25"
-                  Canvas.Top="87"
+                  Height="30"
+                  Canvas.Top="95"
                   Canvas.Left="15"/>
 
     <TextBox      Name="FolderNameTextBox"
@@ -58,7 +58,7 @@
                   
                   Width="500"
                   Height="20"
-                  Canvas.Top="115"
+                  Canvas.Top="125"
                   Canvas.Left="15"
     />
 
@@ -69,22 +69,22 @@
                   
                   Width="30"
                   Height="30"
-                  Canvas.Top="115"
+                  Canvas.Top="125"
                   Canvas.Right="50"
     />
    <Label         Name="IconText"
                   Content="Please select the Icon File if necessary:"
                   Width="500"
-                  Height="20"
+                  Height="30"
                   Canvas.Left="15"
-                  Canvas.Top="150"/>
+                  Canvas.Top="165"/>
   
    <TextBox       Name="IconTextBox"
                   Watermark="the Icon of the Application (Not necessary)"
                   Width="500"
                   Height="20"
                   Canvas.Left="15"
-                  Canvas.Top="180"
+                  Canvas.Top="195"
                   
    />
   <Button         Name="IconButton"
@@ -94,18 +94,48 @@
                   
                   Width="30"
                   Height="30"
-                  Canvas.Top="180"
+                  Canvas.Top="195"
                   Canvas.Right="50"
    />
     
-   
+   <Label         Name="SnapinatorOrNot"
+                  Content="Should the converter use Snapinator or the default Scratch Way?:"
+                  Width="500"
+                  Height="30"
+                  Canvas.Left="15"
+                  Canvas.Top="235"/>
     
+    <CheckBox Name="SnapinatorCheckBox"
+              Content="Snapinator"
+              Width="110"
+              Height="10"
+              Canvas.Top="260"
+              Canvas.Left="30"
+    />
+
+    <CheckBox Name="ScratchCheckBox"
+              Content="Scratch"
+              Width="90"
+              Height="10"
+              Canvas.Top="260"
+              Canvas.Left="150"
+              
+    />
+
+    <Label Name="OSTextAndCPU"
+           Content="Please select the OS you want to build it for and what architecture:"
+           Width="500"
+           Height="30"
+           Canvas.Top="290"
+           Canvas.Left="15"
+
+           />
     <CheckBox     Name="WindowsCheckBox"
                   Content="Windows"
                   
                   Width="90"
                   Height="10"
-                  Canvas.Top="220"
+                  Canvas.Top="320"
                   Canvas.Left="30"
     />
     
@@ -114,7 +144,7 @@
                   
                   Width="90"
                   Height="10"
-                  Canvas.Top="220"
+                  Canvas.Top="320"
                   Canvas.Left="130"
     />
 
@@ -123,7 +153,7 @@
                   
                   Width="90"
                   Height="10"
-                  Canvas.Top="220"
+                  Canvas.Top="320"
                   Canvas.Left="230"
     />
     
@@ -132,7 +162,7 @@
                   
                   Width="90"
                   Height="10"
-                  Canvas.Top="220"
+                  Canvas.Top="320"
                   Canvas.Right="100"
     />
     
@@ -141,7 +171,7 @@
                   
                   Width="90"
                   Height="10"
-                  Canvas.Top="250"
+                  Canvas.Top="350"
                   Canvas.Right="100"
     />
   
@@ -150,13 +180,13 @@
            
                   Width="90"
                   Height="10"
-                  Canvas.Top="280"
+                  Canvas.Top="380"
                   Canvas.Right="100"
     />
     
     <ProgressBar Name="ProgressBarConverter"
                  
-                  Canvas.Top="320"
+                  Canvas.Top="410"
                   Canvas.Left="15"
                   Width="500"
                   Height="25"
@@ -173,7 +203,7 @@
                   ClickMode="Press"
                   Width="75"
                   Height="30"
-                  Canvas.Top="360"
+                  Canvas.Top="440"
                   Canvas.Left="200"
     />
 
@@ -182,9 +212,9 @@
                   
                   Click="GithubLinkPressed"
                   ClickMode="Press"
-                  Width="300"
+                  Width="330"
                   Height="30"
-                  Canvas.Top="400"
+                  Canvas.Top="500"
                   Canvas.Left="10"
     />
     
