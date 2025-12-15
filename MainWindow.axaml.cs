@@ -62,6 +62,7 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         //Velopack Build and run stuff is not working
+        VelopackApp.Build().Run();
         Task.Run(() => UpdateChecker());
         Core.Initialize();
         this.Icon = new WindowIcon(Path.Combine(AppDomain.CurrentDomain.BaseDirectory + "ConverterIcon", "Converter.ico"));
