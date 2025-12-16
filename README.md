@@ -1,12 +1,19 @@
+INFORMATIONS: 
 For this Project I used multiple Nuget Packages: 
 Magick.NET: https://github.com/dlemstra/Magick.NET
 Newtonsoft.Json: https://www.newtonsoft.com/json
 Svg: https://github.com/svg-net/SVG
 LibVLC: https://github.com/videolan/libvlcsharp
 AND I used Snapinator: https://github.com/snapinator/snapinator.github.io
-ALSO: you have to install Dotnet yourself: https://dotnet.microsoft.com/en-us/download
-
+Install Dotnet yourself: https://dotnet.microsoft.com/en-us/download
 I also made executables now to self installable with Velopack,and self updatable
 Velopack: https://github.com/velopack/velopack
+The updating Link that is needed is produced with Octokit: https://github.com/octokit/octokit.net
 
-for further and for support you can join the discord server: https://discord.gg/dvJwx5Mzzj
+If you want to build the project from source you can use the Compile Windows.bat CompileLinux.sh or CompileMacOS, based on your OS. 
+You don´t need to run CompileInstallerWindows.bat, CompileInstallerLinux.sh or CompileInstallerMacOS.sh, as they are Scripts for making Sandalone Installers out of the Projects. 
+
+for further questions and for support you can join the discord server: https://discord.gg/dvJwx5Mzzj
+
+Building the apps itself takes 10-15 minutes
+Building all the installers takes 17 - 20 minutes on x64 windows
