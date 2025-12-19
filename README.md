@@ -6,9 +6,8 @@ Svg: https://github.com/svg-net/SVG
 LibVLC: https://github.com/videolan/libvlcsharp
 AND I used Snapinator: https://github.com/snapinator/snapinator.github.io
 Install Dotnet yourself: https://dotnet.microsoft.com/en-us/download
-I also made executables now to self installable with Velopack,and self updatable
+I also made executables now to self installable with Velopack
 Velopack: https://github.com/velopack/velopack
-The updating Link that is needed is produced with Octokit: https://github.com/octokit/octokit.net
 
 If you want to build the project from source you can use the Compile Windows.bat CompileLinux.sh or CompileMacOS, based on your OS. 
 You don´t need to run CompileInstallerWindows.bat, CompileInstallerLinux.sh or CompileInstallerMacOS.sh, as they are Scripts for making Sandalone Installers out of the Projects. 
