@@ -5,7 +5,6 @@ using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Styling;
-using ExCSS;
 //Gotta check if I still need SVG when I have ImageMagick
 using ImageMagick;
 using LibVLCSharp.Avalonia;
@@ -28,12 +27,14 @@ using System.Xml;
 using System.Xml.Linq;
 using Velopack;
 using System.Net;
+using SkiaSharp;
+using ImageMagick.Drawing;
 
 namespace sb1_sb2_sb3_xml_to_Csharp_converter;
 
+//One of my biggest issues is that bools are written as , even though they need .
 public partial class MainWindow : Window
 {
-
     public bool windows = false;
     public bool linux = false;
     public bool MacOs = false;
@@ -411,6 +412,7 @@ public partial class MainWindow : Window
 
     //The automation of converting .sb3 Files to .xml FIles isn´t working properly - so the conversion from .sb to .sb3 or .sb2 to .sb3 with Auto Hot Key - its probably because of the path - I will take a closer look to that.
     //Ok so i found out a thing, the thing is that the Neutralino app needs to be full screen and a click needs to be simulated. Gotta tell the user to relax lol XD
+
     public async Task sbfiles(string Extension) //This doesn´t work bc of Scratch i need to find me failure :/ lol XD
     {
         //ok i have to figure out something else, good i have an idea - the user chooses the path of where it should be converted, the program gets opened via cmd, and the user has to do it himself, when the program is over the user just closes the application and the conversion starts - waay better than automation tools
@@ -908,7 +910,7 @@ public partial class MainWindow : Window
 
     string LastName;
 
-    private async void Designer(string JSON, string extension) //This works properly :)
+    private async Task Designer(string JSON, string extension) //This works properly :)
     {
         
         string DefaultGameFolder = Path.Combine(Foldername, ApplicationName);
@@ -926,7 +928,8 @@ public partial class MainWindow : Window
         //Setting up the basics of the Form1.Designer.cs
         string WindowEditorFile = Path.Combine(DefaultGameFolder, "MainWindow.axaml"); //IT FINALLY WORKS :) - porting to Avalonia --> not completely working tho
         string WindowCsFile = Path.Combine(DefaultGameFolder, "MainWindow.axaml.cs");
-        File.WriteAllText(WindowEditorFile, "<Window          xmlns=\"https://github.com/avaloniaui\"");
+        File.AppendAllText(WindowEditorFile, "<Window             Name=\"Default\""); //Es fehlt hier was
+        File.AppendAllText(WindowEditorFile, "\n                  xmlns=\"https://github.com/avaloniaui\"");
         File.AppendAllText(WindowEditorFile, "\n                  xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\"");
         File.AppendAllText(WindowEditorFile, "\n                  xmlns:d=\"http://schemas.microsoft.com/expression/blend/2008\"");
         File.AppendAllText(WindowEditorFile, "\n                  xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\"");
@@ -970,6 +973,7 @@ public partial class MainWindow : Window
 
         if (ICON != null)
         {
+            //Gotta add a watermark LOL
             if (ICON.Contains("ico"))
             {
                 ImageNameN = Path.Combine(GameFolder, "Game.ico");
@@ -1163,9 +1167,8 @@ public partial class MainWindow : Window
                         if (jsonline.Contains("\"@name\":") && NextisImageName == true)
                         {
                             string ImageName = jsonline.Replace("\"@name\":", "").Replace("\"", "").Replace(",", "").Trim();
-                            using (System.Drawing.Image PNGimage = System.Drawing.Image.FromFile(Path.Combine(GameFolder, File.ReadAllLines(JSON).Skip(Line - 1).Take(1).First().Replace("\"@name\":", "").Replace("\"", "").Replace(",", "").Trim() + ".png")))
+                            using (var PNGimage = new MagickImage(Path.Combine(GameFolder, File.ReadAllLines(JSON).Skip(Line - 1).Take(1).First().Replace("\"@name\":", "").Replace("\"", "").Replace(",", "").Trim() + ".png")))
                             {
-                                // need half of the width and height and gotta - that to the converted coordinates : IT WORKS :)
                                 string RoughPNGwidth = Convert.ToString(PNGimage.Width);
                                 string RoughPNGheight = Convert.ToString(PNGimage.Height);
                                 double PNGwidth = Convert.ToDouble(RoughPNGwidth);
@@ -1181,11 +1184,10 @@ public partial class MainWindow : Window
                                 //THESE COORDINATE SYSTEMS ARE DIFFERENT -need to understand canvas coordinate system correctly
                                 File.AppendAllText(WindowEditorFile, "\n                  Canvas.Left=\"" + (240 + XCOORDINATE - ((PNGwidth * ScALE) / 2)) + "\"");
                                 File.AppendAllText(WindowEditorFile, "\n                  Canvas.Top=\"" + (180 + (-YCOORDINATE) - ((PNGheight * ScALE) / 2)) + "\"");
-                                File.AppendAllText(WindowEditorFile, ">");
-                                //Now here the clarifications - this will be harder than expected :( but its doable :)
+                                File.AppendAllText(WindowEditorFile, ">"); 
                                 File.AppendAllText(WindowEditorFile, "\n           </Image>");
                             }
-                            File.AppendAllText(WindowCsFile, ImageName + ".png\"));");
+                            File.AppendAllText(WindowCsFile, "@" + ImageName + ".png\"));");
                             //Now write the whole thing into the File
                             NextisImageName = false;
                         }
@@ -1223,8 +1225,73 @@ public partial class MainWindow : Window
                 }
             }
             Line = 0;
-            //ok i got an idea - take the x and y coordinates for each Objects and just make xValues and yValues and write them
-            File.AppendAllText(WindowCsFile, "\n await Task.Start(() => Game());}");
+
+            List<string> TextList = new List<string>();
+            foreach(string jsonline in JsonLines)
+            {
+                // This has serious bugs, going to do that maybe in a week :( don´t have time cuz of school LMAO
+                Line = Line + 1;
+                
+                if (jsonline.Contains("\"bubble\"") |  jsonline.Contains("\"doThink\""))
+                {
+                    string Text = File.ReadAllLines(JSON).Skip(Line).Take(1).First().Replace("\"l\": ", "").Replace("\"", "").Replace(",", "").Trim();
+                    TextNumber = TextNumber + 1;
+                    string FileNameTitle = Text.Replace(" ", "_").Replace("°", "").Replace("^", "").Replace("!", "").Replace("\"", "").Replace("§", "").Replace("$", "").Replace("%", "").Replace("&", "").Replace("/", "").Replace("{", "").Replace("(", "").Replace("[", "").Replace(")", "").Replace("]", "").Replace("=", "").Replace("}", "").Replace("?", "").Replace("\\", "").Replace("`", "").Replace("´", "").Replace("@", "").Replace("*", "").Replace("+", "").Replace("~", "").Replace("'", "").Replace("#", "").Replace(">", "").Replace("<", "").Replace("|", "").Replace(";", "").Replace(",", "").Replace(":", "").Replace(".", "").Replace("-", "").Replace("_", "").Trim();
+                    string FileName = Path.Combine(GameFolder, FileNameTitle + ".png");
+                    if (!File.Exists(FileName))
+                    {
+                        using var ImagePath = new MagickImage(MagickColors.Transparent, 480, 360);
+                        new Drawables()
+                            .FontPointSize(67)
+                            .Font("Calibri")
+                            .FillColor(MagickColors.Black)
+                            .TextAlignment(ImageMagick.TextAlignment.Center)
+                            .Text(240, 180, Text)
+                            .Draw(ImagePath);
+                            ImagePath.Write(FileName);
+                    }
+
+                    File.AppendAllText(WindowEditorFile, "\n           <Image Name=\"Image" + TextNumber + "\"");
+                    File.AppendAllText(WindowEditorFile, "\n                  Width=\"" + 240 + "\"");
+                    File.AppendAllText(WindowEditorFile, "\n                  Height=\"" + 180 + "\"");
+                    File.AppendAllText(WindowEditorFile, "\n                  Canvas.Left=\"" + 240 + "\"");
+                    File.AppendAllText(WindowEditorFile, "\n                  Canvas.Top=\"" + 180 + "\"");
+                    File.AppendAllText(WindowEditorFile, ">");
+                    File.AppendAllText(WindowEditorFile, "\n           </Image>");
+                    File.AppendAllText(WindowCsFile, "\n img" + TextNumber + ".Source = new Bitmap(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @\"" + FileName + "\");");
+                }
+
+                if (jsonline.Contains("\"doSayFor\"") | jsonline.Contains("\"doThinkFor\""))
+                {
+                    string Text = File.ReadAllLines(JSON).Skip(Line + 1).Take(1).First().Replace("\"l\": [", "").Replace("\"", "").Replace(",", "").Trim();
+                    TextNumber = TextNumber + 1;
+                    string FileNameTitle = Text.Replace(" ", "_").Replace("°", "").Replace("^", "").Replace("!", "").Replace("\"", "").Replace("§", "").Replace("$", "").Replace("%", "").Replace("&", "").Replace("/", "").Replace("{", "").Replace("(", "").Replace("[", "").Replace(")", "").Replace("]", "").Replace("=", "").Replace("}", "").Replace("?", "").Replace("\\", "").Replace("`", "").Replace("´", "").Replace("@", "").Replace("*", "").Replace("+", "").Replace("~", "").Replace("'", "").Replace("#", "").Replace(">", "").Replace("<", "").Replace("|", "").Replace(";", "").Replace(",", "").Replace(":", "").Replace(".", "").Replace("-", "").Replace("_", "").Trim();
+                    string FileName = Path.Combine(GameFolder, FileNameTitle + ".png");
+                    if (!File.Exists(FileName))
+                    {
+                        using var ImagePath = new MagickImage(MagickColors.Transparent, 480, 360);
+                        new Drawables()
+                            .FontPointSize(67)
+                            .Font("Calibri")
+                            .FillColor(MagickColors.Black)
+                            .TextAlignment(ImageMagick.TextAlignment.Center)
+                            .Text(240, 180, Text)
+                            .Draw(ImagePath);
+                        ImagePath.Write(FileName);
+                    }
+
+                    File.AppendAllText(WindowEditorFile, "\n           <Image Name=\"Image" + TextNumber + "\"");
+                    File.AppendAllText(WindowEditorFile, "\n                  Width=\"" + 240 + "\"");
+                    File.AppendAllText(WindowEditorFile, "\n                  Height=\"" + 180 + "\"");
+                    File.AppendAllText(WindowEditorFile, "\n                  Canvas.Left=\"" + 240 + "\"");
+                    File.AppendAllText(WindowEditorFile, "\n                  Canvas.Top=\"" + 180 + "\"");
+                    File.AppendAllText(WindowEditorFile, ">");
+                    File.AppendAllText(WindowEditorFile, "\n           </Image>");
+                    File.AppendAllText(WindowCsFile, "\n img" + TextNumber + ".Source = new Bitmap(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @\"" + FileName + "\");");
+                }
+            }
+
+            Line = 0;
 
             string[] AXAMLfile = File.ReadAllLines(WindowEditorFile);
 
@@ -1326,12 +1393,12 @@ public partial class MainWindow : Window
                     if (File.ReadAllLines(JSON).Skip(Line).Take(1).First().Contains("\"@center-x\":"))
                     {
                         LastObject = jsonline.Replace("\"@name\":", "").Replace("\"", "").Replace(",", "").Replace("-", "").Replace("_", "").Trim();
-                        File.AppendAllText(WindowCsFile, "\n() => " + LastObject + ",");
+                        File.AppendAllText(WindowCsFile, "\n () => " + LastObject + ",");
                     }
                 }
             }
 
-            File.AppendAllText(WindowCsFile, ");");
+            File.AppendAllText(WindowCsFile, ");}");
             Line = 0;
 
             double XCoordinate = 0;
@@ -1453,6 +1520,7 @@ public partial class MainWindow : Window
 
             Line = 0;
             File.AppendAllText(WindowCsFile, "\n public Void Game(){");
+            List<string> ProjectList = new List<string>();
             List<string> SoundPlayerList = new List<string>();
             foreach (string jsonline in JsonLines)
             {
@@ -1461,14 +1529,23 @@ public partial class MainWindow : Window
                     Line = Line + 1;
 
                     //This is wrong
+                    //It seems like only this if structure is wrong, gotta check it next week LOL//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
                     if (jsonline.Contains("{"))
                     {
-                        if (LineRound > 0 && NoLineRound == 0)
+                        if (!jsonline.Contains("variable") && !jsonline.Contains("block"))
                         {
-                            //Check if there is something of the jsonlines after  -> down below O_O if that is the case then do nothing
-                            NoLineRound = NoLineRound + 1;
+                            string BeforeCharacter = File.ReadAllLines(JSON).Skip(Line - 2).Take(1).First();
+                            if (!BeforeCharacter.Contains("}") && !BeforeCharacter.Contains("},"))
+                            {
+                                if (LineRound > 0 && NoLineRound == 0)
+                                {
+                                    //Check if there is something of the jsonlines after  -> down below O_O if that is the case then do nothing
+                                    NoLineRound = NoLineRound + 1;
+                                }
+                            }
                         }
                     }
+
 
                     if (jsonline.Contains("\"@scale\":"))
                     {
@@ -1511,7 +1588,7 @@ public partial class MainWindow : Window
                         string ForwardProbably = File.ReadAllLines(JSON).Skip(Line + 3).Take(1).First();
                         if (ForwardProbably.Contains("forward"))
                         {
-                            int ValueForward = Convert.ToInt32(File.ReadAllLines(JSON).Skip(Line + 4).Take(1).First().Replace("\"l\":", "").Replace("\"", "").Trim());
+                            string ValueForward = File.ReadAllLines(JSON).Skip(Line + 4).Take(1).First().Replace("\"l\":", "").Replace("\"", "").Trim();
                             File.AppendAllText(WindowCsFile, "\n //\"reportTouchingObject\"");
                             File.AppendAllText(WindowCsFile, "\n XValueImage" + LastObject + "= XValueImage" + LastObject + " + " + ValueForward + ";");
                             File.AppendAllText(WindowCsFile, "\n Canvas.SetLeft(Image " + LastObject + ", XValueImage" + LastObject + ");");
@@ -1745,10 +1822,15 @@ public partial class MainWindow : Window
                             if (Variable.Contains("{"))
                             {
                                 string ActualThing = File.ReadAllLines(JSON).Skip(Line + 2).Take(1).First();
+                                string ValueOfOption = File.ReadAllLines(JSON).Skip(Line + 4).Take(1).First().Replace("\"", "").Trim();
                                 if (ActualThing.Contains("\"option\""))
                                 {
                                     //Here there are multiple Options (3)
-                                    string RealValue = File.ReadAllLines(JSON).Skip(Line + 4).Take(1).First().Replace("\"", "").Trim();
+                                    if(ActualThing.Contains("\"rotation style\""))
+                                    {
+                                        File.AppendAllText(WindowCsFile, "\n //rotation style");
+                                        File.AppendAllText(WindowCsFile, "// I don´t know how to implement this yet, give me a week lol");
+                                    }
                                 }
                             }
 
@@ -1768,6 +1850,8 @@ public partial class MainWindow : Window
                     if (jsonline.Contains("\"doSwitchToCostume\""))
                     {
                         File.AppendAllText(WindowCsFile, "\n //\"doSwitchToCostume\"");
+                        string CostumeToChangeTo = File.ReadAllLines(JSON).Skip(Line).Take(1).First().Replace("\"l\":", "").Replace("\"", "").Trim();
+                        File.AppendAllText(WindowCsFile, "\n Image" + LastObject + ".Source = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, Image" + CostumeToChangeTo + ".png);");
                         // i need to find which costume the next one is
                     }
 
@@ -1775,7 +1859,7 @@ public partial class MainWindow : Window
                     {
                         CostumeNumber = CostumeNumber + 1;
                         File.AppendAllText(WindowCsFile, "\n //\"doWearNextCostume\"");
-                        File.AppendAllText(WindowCsFile, "\n Image" + LastObject + ".Source == Path.Combine(AppDomain.CurrentDomain.BaseDirectory, Image" + LastObject + CostumeNumber + ");");
+                        File.AppendAllText(WindowCsFile, "\n Image" + LastObject + ".Source == Path.Combine(AppDomain.CurrentDomain.BaseDirectory, Image" + LastObject + CostumeNumber + ".png);");
                         File.AppendAllText(WindowCsFile, "/*" + Line + "*/");
                         //Find the next costume - hard part :(
                     }
@@ -1786,11 +1870,11 @@ public partial class MainWindow : Window
                         File.AppendAllText(WindowCsFile, "\n //\"doSayFor\"");
                         string Text = File.ReadAllLines(JSON).Skip(Line + 1).Take(1).First().Replace("\"", "").Replace(",", "").Trim();
                         //ok you gotta make a new LastObject which is the SayFor Image, and even make one here:
-                        File.AppendAllText(WindowCsFile, "\n Image img" + LastObject + ".Visibility == true");
+                        File.AppendAllText(WindowCsFile, "\n Image img" + TextNumber + ".Visibility == true");
                         //Get the seconds and delay the task 
-                        double TimeOfSaying = Convert.ToInt32(File.ReadAllLines(JSON).Skip(Line + 2).Take(1).First().Replace("\"", "").Trim());
+                        string TimeOfSaying = File.ReadAllLines(JSON).Skip(Line + 2).Take(1).First().Replace("\"", "").Trim();
                         File.AppendAllText(WindowCsFile, "\n Task.Delay(" + TimeOfSaying + ");");
-                        File.AppendAllText(WindowCsFile, "\n Image img" + LastObject + ".Visibility == false");
+                        File.AppendAllText(WindowCsFile, "\n Image img" + TextNumber + ".Visibility == false");
                         File.AppendAllText(WindowCsFile, "/*" + Line + "*/");
                     }
 
@@ -1799,12 +1883,13 @@ public partial class MainWindow : Window
                         TextNumber = TextNumber + 1;
                         File.AppendAllText(WindowCsFile, "\n //\"bubble\"");
                         //Same here
-                        string Text = File.ReadAllLines(JSON).Skip(Line).Take(1).First().Replace("\"", "").Replace(",", "").Trim();
-
-                        File.AppendAllText(WindowCsFile, "\n Image img" + LastObject + ".Visibility == true");
-                        File.AppendAllText(WindowCsFile, "/*" + Line + "*/");
-                        //Need to make a script that lets the bubble follow the player and then show up with the visibility thing
-                        //Create the bubble as an Image now - hardest part i will ever code lol 
+                        if (File.Exists(fileName))
+                        {
+                            File.AppendAllText(WindowCsFile, "\n Image img" + TextNumber + ".Visibility == true");
+                            File.AppendAllText(WindowCsFile, "/*" + Line + "*/");
+                            //Need to make a script that lets the bubble follow the player and then show up with the visibility thing
+                            //Create the bubble as an Image now - hardest part i will ever code lol 
+                        }
                     }
 
                     if (jsonline.Contains("\"doThinkFor\""))
@@ -1813,11 +1898,11 @@ public partial class MainWindow : Window
                         File.AppendAllText(WindowCsFile, "\n //\"doThinkFor\"");
                         string Text = File.ReadAllLines(JSON).Skip(Line + 1).Take(1).First().Replace("\"", "").Replace(",", "").Trim();
                         //Same here
-                        File.AppendAllText(WindowCsFile, "\n Image img" + LastObject + ".Visibility == true;");
+                        File.AppendAllText(WindowCsFile, "\n Image img" + TextNumber + ".Visibility == true;");
                         //Get the seconds and delay the task 
-                        double TimeOfThinking = Convert.ToInt32(File.ReadAllLines(JSON).Skip(Line + 2).Take(1).First().Replace("\"", "").Trim());
-                        File.AppendAllText(WindowCsFile, "\n Task.Delay(" + TimeOfThinking + ");");
-                        File.AppendAllText(WindowCsFile, "\n Image img" + LastObject + ".Visibility == false;");
+                        string TimeOfThinking = File.ReadAllLines(JSON).Skip(Line + 2).Take(1).First().Replace("\"", "").Trim();
+                        File.AppendAllText(WindowCsFile, "\n Task.Delay(" + TimeOfThinking+ ");");
+                        File.AppendAllText(WindowCsFile, "\n Image img" + TextNumber + ".Visibility == false;");
                         File.AppendAllText(WindowCsFile, "/*" + Line + "*/");
                     }
 
@@ -1827,7 +1912,7 @@ public partial class MainWindow : Window
                         File.AppendAllText(WindowCsFile, "\n //\"doThink\"");
                         string Text = File.ReadAllLines(JSON).Skip(Line).Take(1).First().Replace("\"", "").Replace(",", "").Trim();
                         //Same here
-                        File.AppendAllText(WindowCsFile, "\n Image img" + LastObject + ".Visibility == true;");
+                        File.AppendAllText(WindowCsFile, "\n Image img" + TextNumber + ".Visibility == true;");
                         File.AppendAllText(WindowCsFile, "/*" + Line + "*/");
                     }
 
@@ -1837,7 +1922,7 @@ public partial class MainWindow : Window
                         File.AppendAllText(WindowCsFile, "\n //\"doAsk\"");
                         string Text = File.ReadAllLines(JSON).Skip(Line).Take(1).First().Replace("\"", "").Replace(",", "").Trim();
                         //Same here
-                        File.AppendAllText(WindowCsFile, "\n Image img" + LastObject + ".Visibility == true;");
+                        File.AppendAllText(WindowCsFile, "\n Image img" + TextNumber + ".Visibility == true;");
                         File.AppendAllText(WindowCsFile, "/*" + Line + "*/");
                     }
 
@@ -1856,7 +1941,7 @@ public partial class MainWindow : Window
                         File.AppendAllText(WindowCsFile, "\n //\"clearEffects\"");
                     }
 
-
+                    //Don´t know if this is a speaking Bubble
                     if (jsonline.Contains("\"doTellTo\""))
                     {
                         File.AppendAllText(WindowCsFile, "\n //\"doTellTo\"");
@@ -1957,7 +2042,7 @@ public partial class MainWindow : Window
                             string NewScaleRough = File.ReadAllLines(JSON).Skip(Line).Take(1).First();
                             int NewScale = Convert.ToInt32(NewScaleRough.Replace("\"l\":", "").Replace("\"", "").Trim());
 
-                            using (var image = System.Drawing.Image.FromFile(Path.Combine(GameFolder, LastObject + ".png"))) // it somehow uses sounds too - error !!!IMPORTANT
+                            using (var image = new MagickImage(Path.Combine(GameFolder, LastObject + ".png"))) // it somehow uses sounds too - error !!!IMPORTANT
                             {
                                 double SizeX = image.Width;
                                 double SizeY = image.Height;
@@ -2017,9 +2102,6 @@ public partial class MainWindow : Window
                                 File.AppendAllText(WindowCsFile, "\n var MediaOfMediaPlayer" + SoundNumber + " = new Media(SOUND" + SoundNumber + " , Path.Combine(AppDomain.CurrentDomain.BaseDirectory, \"" + NameOfSound + ".wav\")" + ", FromType.FromPath);");
                                 File.AppendAllText(WindowCsFile, "\n MediaPlayer" + SoundNumber + ".Play(MediaOfMediaPlayer" + SoundNumber + ");");
                                 File.AppendAllText(WindowCsFile, "\n Await Task.Delay(" + SoundLength + ");");
-                                /*Sound.ParseStop();
-                                Sound.Dispose()*/
-                                ;
                                 File.AppendAllText(WindowCsFile, "/*" + Line + "*/");
                                 if (SoundPlayerList.Contains("MediaPlayer" + SoundNumber) == false)
                                 {
@@ -2132,6 +2214,7 @@ public partial class MainWindow : Window
                     //REPEATING///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
                     //This is a big thing - i can feel it ;-)
+
                     if (jsonline.Contains("\"doWait\""))
                     {
                         File.AppendAllText(WindowCsFile, "\n //\"doWait\"");
@@ -2151,6 +2234,7 @@ public partial class MainWindow : Window
                             File.AppendAllText(WindowCsFile, "\n await Task.Delay(" + ActualLength + ");");
                         }
                     }
+
                     //Somehow not all whiles do get written - need to fix that, but all {and}are perfect 
                     if (jsonline.Contains("\"doRepeat\"")) // i make a bool that gets true if it looks for random integers and it finds one /////////////////////////////////////////////////////////////////////////////
                     {
@@ -2231,6 +2315,7 @@ public partial class MainWindow : Window
                         if (MyselfOrSomeoneElse.Contains("\"myself\""))
                         {
                             //Now create a clone lol 8-)
+                            File.AppendAllText(WindowCsFile, "\n //Create a clone");
                         }
                     }
 
@@ -2242,7 +2327,7 @@ public partial class MainWindow : Window
                         {
                             if (OptionRough.Contains("\"all\""))
                             {
-                                File.AppendAllText(WindowCsFile, "\nApplication.Current?.Shutdown();");
+                                File.AppendAllText(WindowCsFile, "\n Application.Current?.Shutdown();");
                             }
 
                             if (OptionRough == "\"other scripts in sprite\"")
@@ -2749,6 +2834,7 @@ public partial class MainWindow : Window
                     if (jsonline.Contains("\"doShowVar\""))
                     {
                         File.AppendAllText(WindowCsFile, "\"doShowVar\"");
+                       
                         //Ok i need to make a picture out of the var XD how do i do that - yeah Skia sharp probably with a textbox inside that can´t be edited
                     }
 
@@ -2758,66 +2844,81 @@ public partial class MainWindow : Window
                     }
 
                     //Ok when i do this it makes the voids have a } before which is great but now it has the problem that it doesn´t add a } at the end of a while LOOP XD or any other things yeah i tried it lol, doesn´t work rn XD  
-                    if (jsonline.Contains("},"))
+                    if (jsonline.Contains("}"))
                     {
-                        if (LineRound >= 0 && NoLineRound >= 0)
+                        if (jsonline.Contains("},")) //This is not elaborate enough gotta change that, originally was },
                         {
-                            NoLineRound = NoLineRound - 1;
-                            //Don´t append stuff lol
-                        }
-
-                        if (LineRound > 0 && NoLineRound == 0)
-                        {
-                            LineRound = LineRound - 1;
-                            File.AppendAllText(WindowCsFile, "\n}");
-                        }
-
-                        if (ComplicatedMathVariable == true && NextIsRound == false && IfElse == 0)
-                        {
-                            //Ok so basically i need to check if other blocks were used before that need a ) or a ); at the end
-                            File.AppendAllText(WindowCsFile, ")");
-                            ComplicatedMathVariable = false;
-                            if (DotThing == true)
+                            if (LineRound > 0 && NoLineRound == 0)
                             {
-                                File.AppendAllText(WindowCsFile, ");");
-                                DotThing = false;
+                                LineRound = LineRound - 1;
+                                File.AppendAllText(WindowCsFile, "\n}");
+                            }
+
+                            if (ComplicatedMathVariable == true && NextIsRound == false && IfElse == 0)
+                            {
+                                //Ok so basically i need to check if other blocks were used before that need a ) or a ); at the end
+                                File.AppendAllText(WindowCsFile, ")");
+                                ComplicatedMathVariable = false;
+                                if (DotThing == true)
+                                {
+                                    File.AppendAllText(WindowCsFile, ");");
+                                    DotThing = false;
+                                }
+                            }
+
+                            if (ComplicatedMathVariable == true && NextIsRound == true && IfElse == 0)
+                            {
+                                NextIsRound = false;
+                            }
+
+                            //This doesn´t work LOL
+                            if (IfElse > 0)
+                            {
+                                File.AppendAllText(WindowCsFile, "\n } \n else{");
+                                IfElse = IfElse - 1;
+                            }
+
+                            if (IF > 0)
+                            {
+                                File.AppendAllText(WindowCsFile, "\n } ");
+                                IF = IF + 1;
+                            }
+
+                            if (WHILE > 0)
+                            {
+                                File.AppendAllText(WindowCsFile, "\n } ");
+                                WHILE = WHILE - 1;
+                            }
+
+                            //for while i do have to do the same thing LOL
+                        }
+                        else
+                        {
+                            if (NoLineRound > 0)
+                            {
+                                NoLineRound = NoLineRound - 1;
+                                //Don´t append stuff lol
                             }
                         }
-
-                        if (ComplicatedMathVariable == true && NextIsRound == true && IfElse == 0)
-                        {
-                            NextIsRound = false;
-                        }
-
-                        //This doesn´t work LOL
-                        if (IfElse > 0)
-                        {
-                            File.AppendAllText(WindowCsFile, "\n } \n else{");
-                            IfElse = IfElse - 1;
-                        }
-
-                        if (IF > 0)
-                        {
-                            File.AppendAllText(WindowCsFile, "\n } ");
-                            IF = IF + 1;
-                        }
-
-                        if (WHILE > 0)
-                        {
-                            File.AppendAllText(WindowCsFile, "\n } ");
-                            WHILE = WHILE - 1;
-                        }
-
-                        //for while i do have to do the same thing LOL
                     }
                     
+
+                    
+
+
                     //I need to find a way to get the } and find out if there was something at the back of it - if yes the } is unneccesary to read - only if there is nothing serious
 
                     //I HAVE AN IDEA - first I let the things be written down without the } and after that i let them get implemented - is way dumber but it should work!!!
                     //File.AppendAllText(WindowCsFile, "\n"); -> this makes thing way too big and slow LOL
-
+                    /*else
+                    {
+                        if (!jsonline.Contains("{") | !jsonline.Contains("}") | !jsonline.Contains("[") | !jsonline.Contains("]"))
+                        {
+                            File.AppendAllText(WindowCsFile, "\n Error " + jsonline);
+                        }
+                    }*/
                 }
-                catch(Exception ex)
+                catch (Exception ex)
                 {
                     File.AppendAllText(WindowCsFile, "\n //Error " + jsonline + " " + Line);
                 }
@@ -2884,6 +2985,39 @@ public partial class MainWindow : Window
                     break;
                 }
             }
+            string[] NewerCsFileLines = File.ReadAllLines(WindowCsFile);
+            string NewString;
+
+            foreach (string CsLine in NewerCsFileLines)
+            {
+                if (CsLine.Contains("double") && CsLine.Contains(","))
+                {
+                    NewString = CsLine.Replace(",", ".");
+                    File.AppendAllText(NewerCsFile, "\n" + NewString);
+                }
+                else
+                {
+                    File.AppendAllText(NewerCsFile, "\n" + CsLine);
+                }
+            }
+
+            File.WriteAllText(WindowCsFile, File.ReadAllText(NewerCsFile));
+            string NewerAxamlFile = Path.Combine(DefaultGameFolder, "MainWindow2.axaml");
+            string[] NewerAxamlFileText = File.ReadAllLines(WindowEditorFile);
+
+            foreach (string AXAMLline in NewerAxamlFileText)
+            {
+                if (AXAMLline.Contains(","))
+                {
+                    NewString = AXAMLline.Replace(",", ".");
+                    File.AppendAllText(NewerAxamlFile, "\n" + NewString);
+                }
+                else
+                {
+                    File.AppendAllText(NewerAxamlFile, "\n" + AXAMLline);
+                }
+            }
+            File.WriteAllText(NewerAxamlFile, WindowEditorFile);
 
             //currently removed } cuz of good reasons - gonna implement that again
 
