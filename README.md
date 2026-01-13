@@ -2,7 +2,6 @@ INFORMATIONS:
 For this Project I used multiple Nuget Packages: 
 Magick.NET: https://github.com/dlemstra/Magick.NET
 Newtonsoft.Json: https://www.newtonsoft.com/json
-Svg: https://github.com/svg-net/SVG
 LibVLC: https://github.com/videolan/libvlcsharp
 CliWrap: https://github.com/Tyrrrz/CliWrap
 I also made executables now to self installable with Velopack
@@ -18,3 +17,4 @@ for further questions and for support you can join the discord server: https://d
 
 Building the apps itself takes 10-15 minutes
 Building all the installers takes 17 - 20 minutes on x64 windows
+
