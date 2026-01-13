@@ -5,30 +5,36 @@ using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Styling;
+using CliWrap;
+using CliWrap.Buffered;
 //Gotta check if I still need SVG when I have ImageMagick
 using ImageMagick;
+using ImageMagick.Drawing;
 using LibVLCSharp.Avalonia;
 using LibVLCSharp.Shared;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using SkiaSharp;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
+using System.Globalization;
 using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Net;
+using System.Numerics;
 using System.Reflection.Emit;
 using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics.X86;
 //using Microsoft.Win32.SafeHandles;
 using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Linq;
 using Velopack;
-using System.Net;
-using SkiaSharp;
-using ImageMagick.Drawing;
 
 namespace sb1_sb2_sb3_xml_to_Csharp_converter;
 
@@ -64,6 +70,50 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        CultureInfo LanguageOfUser = CultureInfo.CurrentUICulture;
+        string Language = LanguageOfUser.TwoLetterISOLanguageName;
+
+        if (Language == "de")
+        {
+            //German
+            Text1.Content = "Bitte Wählen, oder schreiben Sie die Datei die Sie bearbeiten wollen";
+            FileFolderNameTextBox.Watermark = "Ihre Datei sollte eine .sb, .sb2, .sb3 oder eine .xml Datei sein:";
+            Text2.Content = "Bitte suchen Sie sich ihren Ordner aus wo das Projekt gespeichert werden soll";
+            FolderNameTextBox.Watermark = "Ihr Ordner";
+            IconText.Content = "Bitte Wählen Sie die Icon Datei aus wenn es für Sie nötig ist";
+            IconTextBox.Watermark = "Die Icon Datei vom Projekt (nicht notwendig)";
+            SnapinatorOrNot.Content = "Soll der Converter den Snapinator Weg oder den Scratch Weg nehmen?";
+            SnapinatorCheckBox.Content = "Snapinator";
+            ScratchCheckBox.Content = "Scratch";
+            OSTextAndCPU.Content = "Bitte suchen Sie das OS, und die Architektur aus ";
+            WindowsCheckBox.Content = "Windows";
+            LinuxCheckBox.Content = "Linux";
+            MacOSCheckBox.Content = "Mac OS";
+            convertButton.Content = "Convert!";
+            GithubRepo.Content = "Dieses Projekt wurde von Daiko Games erstellt";
+        }
+
+        if(Language == "en")
+        {
+            //English
+            Text1.Content = "Please Select the File you want to convert or write it down here:";
+            FileFolderNameTextBox.Watermark = "Your File, it should be a .sb, .sb2, .sb3, .xml File";
+            Text2.Content = "Please select the Folder where your converted Project should be stored:";
+            FolderNameTextBox.Watermark = "Your Folder";
+            IconText.Content = "Please select the Icon File if necessary:";
+            IconTextBox.Watermark = "the Icon of the Application(Not necessary)";
+            SnapinatorOrNot.Content = "Should the converter use Snapinator or the default Scratch Way?:";
+            SnapinatorCheckBox.Content = "Snapinator";
+            ScratchCheckBox.Content = "Scratch";
+            OSTextAndCPU.Content = "Please select the OS you want to build it for and what architecture:";
+            WindowsCheckBox.Content = "Windows";
+            LinuxCheckBox.Content = "Linux";
+            MacOSCheckBox.Content = "Mac OS";
+            convertButton.Content = "Convert!";
+            GithubRepo.Content = "This Project was made by: Daiko Games";
+        }
+
+        //In the future people can add their languages here: 
         //Velopack Build and run stuff is not working
         VelopackApp.Build().Run();
         Core.Initialize();
@@ -122,9 +172,9 @@ public partial class MainWindow : Window
             X32CheckBox.Foreground = Avalonia.Media.Brushes.White;
             ProgressBarConverter.Background = Avalonia.Media.Brushes.Transparent;
             ProgressBarConverter.Foreground = Avalonia.Media.Brushes.White;
-            csonvertButton.Background = Avalonia.Media.Brushes.Transparent;
-            csonvertButton.Foreground = Avalonia.Media.Brushes.White;
-            csonvertButton.BorderBrush = Avalonia.Media.Brushes.White;
+            convertButton.Background = Avalonia.Media.Brushes.Transparent;
+            convertButton.Foreground = Avalonia.Media.Brushes.White;
+            convertButton.BorderBrush = Avalonia.Media.Brushes.White;
             GithubRepo.Background = Avalonia.Media.Brushes.Transparent;
             GithubRepo.Foreground = Avalonia.Media.Brushes.White;
         }
@@ -164,9 +214,9 @@ public partial class MainWindow : Window
             X32CheckBox.Foreground = Avalonia.Media.Brushes.Black;
             ProgressBarConverter.Background = Avalonia.Media.Brushes.Transparent;
             ProgressBarConverter.Foreground = Avalonia.Media.Brushes.Black;
-            csonvertButton.Background = Avalonia.Media.Brushes.Transparent;
-            csonvertButton.Foreground = Avalonia.Media.Brushes.Black;
-            csonvertButton.BorderBrush = Avalonia.Media.Brushes.Black;
+            convertButton.Background = Avalonia.Media.Brushes.Transparent;
+            convertButton.Foreground = Avalonia.Media.Brushes.Black;
+            convertButton.BorderBrush = Avalonia.Media.Brushes.Black;
             GithubRepo.Background = Avalonia.Media.Brushes.Transparent;
             GithubRepo.Foreground = Avalonia.Media.Brushes.Black;
         }
@@ -2901,11 +2951,6 @@ public partial class MainWindow : Window
                             }
                         }
                     }
-                    
-
-                    
-
-
                     //I need to find a way to get the } and find out if there was something at the back of it - if yes the } is unneccesary to read - only if there is nothing serious
 
                     //I HAVE AN IDEA - first I let the things be written down without the } and after that i let them get implemented - is way dumber but it should work!!!
@@ -2923,128 +2968,36 @@ public partial class MainWindow : Window
                     File.AppendAllText(WindowCsFile, "\n //Error " + jsonline + " " + Line);
                 }
             }
-            string[] XAMLlines = File.ReadAllLines(WindowEditorFile);
-            string newXAML = Path.Combine(DefaultGameFolder, "NMainWindow1.axaml");
-            foreach (string xamlines in XAMLlines)
-            {
-                if (!xamlines.Contains("Margin"))
-                {
-                    string newxamlLINE = xamlines.Replace(",", ".");
-                    File.AppendAllText(newXAML, "\n" + newxamlLINE);
-                }
-                if (xamlines.Contains("Margin"))
-                {
-                    File.AppendAllText(newXAML, "\n" + xamlines);
-                }
-            }
-            File.WriteAllText(WindowEditorFile, File.ReadAllText(newXAML));
-            File.Delete(newXAML);
-
             int FileEnd = Line;
             Line = 0;
-            string[] CsLines = File.ReadAllLines(WindowCsFile);
-            //get to find all{ and before the { set a } into the upper line of the {
-            string NewCsFile = Path.Combine(DefaultGameFolder, "MainWindow1.axaml.cs"); //HOOOLDUP WAIT A MINUTE - this works but on some lines it is just unnecesary to put a } there but it does i will check the lines where there must not be any and I will patch it :)
-            string NewerCsFile = Path.Combine(DefaultGameFolder, "MainWindow2.axaml.cs");
-
-            string ExtraVoidsFile = Path.Combine(DefaultGameFolder, "Voids.axaml.cs");
-            string NewLine = File.ReadAllLines(JSON).Skip(Line).Take(1).First();
-            foreach (string CsLine in CsLines)
+            
+            Line = 0;
+            string[] CSlines = File.ReadAllLines(WindowCsFile);
+            string NewCsFile = Path.Combine(GameFolder, "MainWindowTwo.axaml.cs");
+            string NewAXAMLfile = Path.Combine(GameFolder, "MainWindowTwo.axaml");
+            foreach(string line in CSlines)
             {
-                try
+                if (line.Contains("public MainWindow(){"))
                 {
-                    if (CsLine.Contains("void"))
-                    {
-                        File.AppendAllText(ExtraVoidsFile, "\n" + CsLine);
-                        VOID = true;
-                    }
-
-                    if (!CsLine.Contains("void") && !CsLine.Contains("//VoidOver") && VOID == false)
-                    {
-                        File.AppendAllText(NewCsFile, "\n" + CsLine);
-                    }
-
-                    if (!CsLine.Contains("void") && !CsLine.Contains("//VoidOver") && VOID == true)
-                    {
-                        File.AppendAllText(ExtraVoidsFile, "\n" + CsLine);
-                    }
-
-                    if (CsLine.Contains("//VoidOver"))
-                    {
-                        if (VOID == true)
-                        {
-                            File.AppendAllText(ExtraVoidsFile, "\n" + CsLine);
-                            VOID = false;
-                            //Else it must be a bug lol
-                        }
-                    }
-                }
-
-                catch (Exception ex)
-                {
-                    break;
-                }
-            }
-            string[] NewerCsFileLines = File.ReadAllLines(WindowCsFile);
-            string NewString;
-
-            foreach (string CsLine in NewerCsFileLines)
-            {
-                if (CsLine.Contains("double") && CsLine.Contains(","))
-                {
-                    NewString = CsLine.Replace(",", ".");
-                    File.AppendAllText(NewerCsFile, "\n" + NewString);
+                    string Values = File.ReadAllText(ValueFile).Replace(",", ".");
+                    File.AppendAllText(NewCsFile, "\n" + Values);
+                    File.AppendAllText(NewCsFile, "\n public MainWindow(){");
                 }
                 else
                 {
-                    File.AppendAllText(NewerCsFile, "\n" + CsLine);
+                    File.AppendAllText(NewCsFile, "\n" + line);
                 }
             }
-
-            File.WriteAllText(WindowCsFile, File.ReadAllText(NewerCsFile));
-            string NewerAxamlFile = Path.Combine(DefaultGameFolder, "MainWindow2.axaml");
-            string[] NewerAxamlFileText = File.ReadAllLines(WindowEditorFile);
-
-            foreach (string AXAMLline in NewerAxamlFileText)
-            {
-                if (AXAMLline.Contains(","))
-                {
-                    NewString = AXAMLline.Replace(",", ".");
-                    File.AppendAllText(NewerAxamlFile, "\n" + NewString);
-                }
-                else
-                {
-                    File.AppendAllText(NewerAxamlFile, "\n" + AXAMLline);
-                }
-            }
-            File.WriteAllText(NewerAxamlFile, WindowEditorFile);
-
-            //currently removed } cuz of good reasons - gonna implement that again
-
+            //Well now it works
             File.WriteAllText(WindowCsFile, File.ReadAllText(NewCsFile));
-            File.Delete(NewCsFile);
-            File.AppendAllText(WindowCsFile, File.ReadAllText(ExtraVoidsFile));
-            string NewMAINFile = Path.Combine(Foldername, "NEWMainWindow.axaml.cs");
-            string[] ValueLines = File.ReadAllLines(ValueFile);
-            foreach (string CsLine in CsLines)
-            {
-                if (CsLine.Contains("public MainWindow()"))
-                {
-                    foreach (string line in ValueLines)
-                    {
-                        File.AppendAllText(NewMAINFile, "\n" + line);
-                    }
-                    File.AppendAllText(NewMAINFile, "\n" + CsLine);
-                }
-                else
-                {
-                    File.AppendAllText(NewMAINFile, "\n" + CsLine);
-                }
-            }
-            File.WriteAllText(WindowCsFile, File.ReadAllText(NewMAINFile));
-            File.Delete(NewMAINFile);
+            string ValuesXAML = File.ReadAllText(WindowEditorFile);
+            File.AppendAllText(NewAXAMLfile, ValuesXAML.Replace(",", "."));
+            File.WriteAllText(WindowEditorFile, File.ReadAllText(NewAXAMLfile));
             File.Delete(ValueFile);
-            File.Delete(ExtraVoidsFile);
+            File.Delete(NewCsFile);
+            File.Delete(NewAXAMLfile);
+
+            //Need to make a , . changing and add the values 
             File.AppendAllText(WindowCsFile, "\n}\n}");
             //read all the stuff of the voids
             //Get the click voids down
@@ -3075,31 +3028,16 @@ public partial class MainWindow : Window
 
     private async Task CodeSmasher(string JSON, string Extension) //mostly written in CMD - bc it would be too hard elsely :( - works :) - only writing in C# code :/
     {
-        if (OperatingSystem.IsWindows())
+        if (OperatingSystem.IsWindows() | OperatingSystem.IsLinux() | OperatingSystem.IsMacOS())
         {
             GameFolder = Path.Combine(Foldername, ApplicationName); //For sb3 the application name is wrong encoded - fix that ! Nearly finished with the big problem
-            string slnFile = Path.Combine(GameFolder, ApplicationName + ".sln");
-            string CMDFile = Path.Combine(Foldername, "Game.cmd");//use bat for both linux and windows
-                                                                  //Windows x64 test
-            File.AppendAllText(CMDFile, " cd " + Foldername);
-            File.AppendAllText(CMDFile, "\n dotnet new avalonia.mvvm -o " + ApplicationName);
-            File.AppendAllText(CMDFile, "\n cd " + GameFolder);
-            File.AppendAllText(CMDFile, "\n dotnet new sln");
-            File.AppendAllText(CMDFile, "\n dotnet sln add " + ApplicationName + ".csproj");
-            File.AppendAllText(CMDFile, "\n dotnet add package LibVLCSharp");
-            //The resolution x File is missing :( need to find a way to get it - maybe C# too :(
-
-            //runs the App
-            File.AppendAllText(CMDFile, "\n dotnet build " + ApplicationName + ".sln"); //runs the code - need to make the layout based on the json now!
-            var DotnetRun = Process.Start(new ProcessStartInfo(CMDFile) { UseShellExecute = false, CreateNoWindow = true });
-            await DotnetRun.WaitForExitAsync();
-            //Killer kills Application and then himself, cuz he was seen and fears his future :-( what a poor guy/gal XD
-
-            string KillApplicationFile = Path.Combine(Foldername, "Kill.cmd");
-            File.AppendAllText(KillApplicationFile, "\n Taskkill /IM " + ApplicationName + ".exe");
-            var KillApp = Process.Start(new ProcessStartInfo(KillApplicationFile) { UseShellExecute = false, CreateNoWindow = true });
-            await KillApp.WaitForExitAsync();
-            if(Snapinator == true && Scratch == false)
+            await (Cli.Wrap("dotnet").WithArguments(args => args.Add("new").Add("avalonia.mvvm").Add("-o").Add(ApplicationName)).WithWorkingDirectory(Foldername).ExecuteAsync());
+            await (Cli.Wrap("dotnet").WithArguments(args => args.Add("new").Add("sln")).WithWorkingDirectory(GameFolder).ExecuteAsync());
+            await (Cli.Wrap("dotnet").WithArguments(args => args.Add("sln").Add("add").Add(ApplicationName + ".csproj")).WithWorkingDirectory(GameFolder).ExecuteAsync());
+            await (Cli.Wrap("dotnet").WithArguments(args => args.Add("add").Add("package").Add("LibVLCSharp")).WithWorkingDirectory(GameFolder).ExecuteAsync());
+            await (Cli.Wrap("dotnet").WithArguments(args => args.Add("build").Add(ApplicationName + ".sln")).WithWorkingDirectory(GameFolder).ExecuteAsync());
+            //Need multiple Cli.Wraps
+            if (Snapinator == true && Scratch == false)
             {
                 await Task.Run(() => PictureExtractor(".xml"));
             }
@@ -3113,70 +3051,33 @@ public partial class MainWindow : Window
             //CopyAllPicturesAndSoundsToBin();
             await Task.Run(() => ExeBuilder());
         }
-
-        if (OperatingSystem.IsLinux() | OperatingSystem.IsMacOS())
-        {
-            GameFolder = Path.Combine(Foldername, ApplicationName); //For sb3 the application name is wrong encoded - fix that ! Nearly finished with the big problem
-            string slnFile = Path.Combine(GameFolder, ApplicationName + ".sln");
-            var Process1 = new ProcessStartInfo()
-            {
-                FileName = "/bin/bash",
-                Arguments = "\n dotnet new avalonia.mvvm -o " + ApplicationName + "\n cd " + GameFolder + "\n dotnet new sln" + "\n dotnet sln add " + ApplicationName + ".csproj" + "\n dotnet add package LibVLCSharp" + "\n dotnet build " + ApplicationName + ".sln",
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-            var ProcessOne = Process.Start(Process1);
-            await ProcessOne.WaitForExitAsync();
-            //The resolution x File is missing :( need to find a way to get it - maybe C# too :(
-
-            //runs the App
-            await Task.Run(() => PictureExtractor(".xml"));
-            await Task.Run(() => SoundExtractor());
-            await Task.Run(() => Designer(JSON, Extension));
-            //CopyAllPicturesAndSoundsToBin();
-            //await Task.Run(() => ExeBuilder());
-        }
     }
 
     private async void ExeBuilder() //This has to be edited :(
     {
         if (OperatingSystem.IsWindows())
         {
-            string GameBuilder = Path.Combine(Foldername, "GameBuilder.cmd");
-            File.AppendAllText(GameBuilder, "\n cd " + GameFolder);
-            File.AppendAllText(GameBuilder, "\n dotnet run " + ApplicationName + ".sln");
-            var process1 = Process.Start(new ProcessStartInfo(GameBuilder) { UseShellExecute = false, CreateNoWindow = true });
-            await process1.WaitForExitAsync();
-            
-            string GameFinisher = Path.Combine(Foldername, "GameFinisher.cmd");
-            File.AppendAllText(GameFinisher, "\n Taskkill /IM " + ApplicationName + ".exe");
-            var process2 = Process.Start(new ProcessStartInfo(GameFinisher) { UseShellExecute = false, CreateNoWindow = true });
-            await process2.WaitForExitAsync();
-
-            //Here a cmd script for building the winforms project, need to find CPU architecture 
-            //Build the application
-
-            string GameDeployer = Path.Combine(Foldername, "GameFinisher.cmd");
-            File.AppendAllText(GameDeployer, "\n cd " + Foldername);
-
             if (windows == true)
             {
                 if (formatOfApplication == "32-Bit")
                 {
                     Console.WriteLine("32 bit Machine");
-                    File.AppendAllText(GameDeployer, "\n dotnet publish -c Release -r win-x86 -p:PublishSingleFile=true --self-contained true");
+                    //File.AppendAllText(GameDeployer, "\n dotnet publish -c Release -r win-x86 -p:PublishSingleFile=true --self-contained true");
+                    await (Cli.Wrap("dotnet").WithArguments(args => args.Add("publish").Add("-c").Add("Release").Add("-r").Add("win-x86").Add("-p:PublishSingleFile=true").Add("--self-contained").Add("true")).WithWorkingDirectory(GameFolder).ExecuteAsync());
                 }
 
                 if (formatOfApplication == "64-Bit")
                 {
                     Console.WriteLine("64 bit Machine");
-                    File.AppendAllText(GameDeployer, "\n dotnet publish -c Release -r win-x64 -p:PublishSingleFile=true --self-contained true");
+                    //File.AppendAllText(GameDeployer, "\n dotnet publish -c Release -r win-x64 -p:PublishSingleFile=true --self-contained true");
+                    await (Cli.Wrap("dotnet").WithArguments(args => args.Add("publish").Add("-c").Add("Release").Add("-r").Add("win-x64").Add("-p:PublishSingleFile=true").Add("--self-contained").Add("true")).WithWorkingDirectory(GameFolder).ExecuteAsync());
                 }
 
                 if (formatOfApplication == "Arm-64")
                 {
                     Console.WriteLine("64 bit Machine");
-                    File.AppendAllText(GameDeployer, "\n dotnet publish -c Release -r win-arm64 -p:PublishSingleFile=true --self-contained true");
+                    //File.AppendAllText(GameDeployer, "\n dotnet publish -c Release -r win-arm64 -p:PublishSingleFile=true --self-contained true");
+                    await (Cli.Wrap("dotnet").WithArguments(args => args.Add("publish").Add("-c").Add("Release").Add("-r").Add("win-arm64").Add("-p:PublishSingleFile=true").Add("--self-contained").Add("true")).WithWorkingDirectory(GameFolder).ExecuteAsync());
                 }
             }
 
@@ -3185,13 +3086,15 @@ public partial class MainWindow : Window
                 if (formatOfApplication == "64-Bit")
                 {
                     Console.WriteLine("64 bit Machine");
-                    File.AppendAllText(GameDeployer, "\n dotnet publish -c Release -r linux-x64 -p:PublishSingleFile=true --self-contained true");
+                    //File.AppendAllText(GameDeployer, "\n dotnet publish -c Release -r linux-x64 -p:PublishSingleFile=true --self-contained true");
+                    await (Cli.Wrap("dotnet").WithArguments(args => args.Add("publish").Add("-c").Add("Release").Add("-r").Add("linux-x86").Add("-p:PublishSingleFile=true").Add("--self-contained").Add("true")).WithWorkingDirectory(GameFolder).ExecuteAsync());
                 }
 
                 if (formatOfApplication == "Arm-64")
                 {
                     Console.WriteLine("64 bit Machine");
-                    File.AppendAllText(GameDeployer, "\n dotnet publish -c Release -r linux-arm64 -p:PublishSingleFile=true --self-contained true");
+                   // File.AppendAllText(GameDeployer, "\n dotnet publish -c Release -r linux-arm64 -p:PublishSingleFile=true --self-contained true");
+                    await (Cli.Wrap("dotnet").WithArguments(args => args.Add("publish").Add("-c").Add("Release").Add("-r").Add("linux-x64").Add("-p:PublishSingleFile=true").Add("--self-contained").Add("true")).WithWorkingDirectory(GameFolder).ExecuteAsync());
                 }
             }
 
@@ -3200,13 +3103,15 @@ public partial class MainWindow : Window
                 if (formatOfApplication == "64-Bit")
                 {
                     Console.WriteLine("64 bit Machine");
-                    File.AppendAllText(GameDeployer, "\n dotnet publish -c Release -r osx-x64 -p:PublishSingleFile=true --self-contained true");
+                    //File.AppendAllText(GameDeployer, "\n dotnet publish -c Release -r osx-x64 -p:PublishSingleFile=true --self-contained true");
+                    await (Cli.Wrap("dotnet").WithArguments(args => args.Add("publish").Add("-c").Add("Release").Add("-r").Add("osx-x86").Add("-p:PublishSingleFile=true").Add("--self-contained").Add("true")).WithWorkingDirectory(GameFolder).ExecuteAsync());
                 }
 
                 if (formatOfApplication == "Arm-64")
                 {
                     Console.WriteLine("64 bit Machine");
-                    File.AppendAllText(GameDeployer, "\n dotnet publish -c Release -r osx-arm64 -p:PublishSingleFile=true --self-contained true");
+                    //File.AppendAllText(GameDeployer, "\n dotnet publish -c Release -r osx-arm64 -p:PublishSingleFile=true --self-contained true");
+                    await (Cli.Wrap("dotnet").WithArguments(args => args.Add("publish").Add("-c").Add("Release").Add("-r").Add("osx-arm64").Add("-p:PublishSingleFile=true").Add("--self-contained").Add("true")).WithWorkingDirectory(GameFolder).ExecuteAsync());
                 }
             }
 
