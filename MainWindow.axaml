@@ -25,8 +25,6 @@
     />
 
     <TextBox      Name="FileFolderNameTextBox"
-                  Watermark="Your File, it should be a .sb, .sb2, .sb3, .xml File"
-              
                   Width="500"
                   Height="20"
                   Canvas.Top="55"
@@ -46,16 +44,12 @@
     />
 
     <Label        Name="Text2"
-                  Content="Please select the Folder where your converted Project should be stored:"
-                  
                   Width="500"
                   Height="30"
                   Canvas.Top="95"
                   Canvas.Left="15"/>
 
     <TextBox      Name="FolderNameTextBox"
-                  Watermark="Your Folder"
-                  
                   Width="500"
                   Height="20"
                   Canvas.Top="125"
@@ -73,14 +67,12 @@
                   Canvas.Right="50"
     />
    <Label         Name="IconText"
-                  Content="Please select the Icon File if necessary:"
                   Width="500"
                   Height="30"
                   Canvas.Left="15"
                   Canvas.Top="165"/>
   
    <TextBox       Name="IconTextBox"
-                  Watermark="the Icon of the Application (Not necessary)"
                   Width="500"
                   Height="20"
                   Canvas.Left="15"
@@ -99,7 +91,6 @@
    />
     
    <Label         Name="SnapinatorOrNot"
-                  Content="Should the converter use Snapinator or the default Scratch Way?:"
                   Width="500"
                   Height="30"
                   Canvas.Left="15"
@@ -123,7 +114,6 @@
     />
 
     <Label Name="OSTextAndCPU"
-           Content="Please select the OS you want to build it for and what architecture:"
            Width="500"
            Height="30"
            Canvas.Top="290"
@@ -131,8 +121,6 @@
 
            />
     <CheckBox     Name="WindowsCheckBox"
-                  Content="Windows"
-                  
                   Width="90"
                   Height="10"
                   Canvas.Top="320"
@@ -140,8 +128,6 @@
     />
     
     <CheckBox     Name="LinuxCheckBox"
-                  Content="Linux"
-                  
                   Width="90"
                   Height="10"
                   Canvas.Top="320"
@@ -149,8 +135,6 @@
     />
 
     <CheckBox     Name="MacOSCheckBox"
-                  Content="MacOS"
-                  
                   Width="90"
                   Height="10"
                   Canvas.Top="320"
@@ -196,9 +180,7 @@
     >
     </ProgressBar>
     
-    <Button       Name="csonvertButton"
-                  Content="Convert!"
-                  
+    <Button       Name="convertButton"
                   Click="ConvertButton"
                   ClickMode="Press"
                   Width="75"
@@ -208,8 +190,6 @@
     />
 
     <Button       Name="GithubRepo"
-                  Content="This Project was made by: Daiko Games"
-                  
                   Click="GithubLinkPressed"
                   ClickMode="Press"
                   Width="330"

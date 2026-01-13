@@ -28,12 +28,12 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>none</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="CliWrap" Version="3.10.0" />
     <PackageReference Include="LibVLCSharp" Version="3.9.5" />
     <PackageReference Include="LibVLCSharp.Avalonia" Version="3.9.5" />
-    <PackageReference Include="Magick.NET-Q16-AnyCPU" Version="14.10.0" />
-    <PackageReference Include="Magick.NET.Core" Version="14.10.0" />
+    <PackageReference Include="Magick.NET-Q16-AnyCPU" Version="14.10.1" />
+    <PackageReference Include="Magick.NET.Core" Version="14.10.1" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
-    <PackageReference Include="Svg" Version="3.4.7" />
     <PackageReference Include="System.Diagnostics.Process" Version="4.3.0" />
     <PackageReference Include="System.Xml.Linq" Version="3.5.21022.801" />
     <PackageReference Include="Velopack" Version="0.0.1298" />
