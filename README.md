@@ -9,6 +9,7 @@ Velopack: https://github.com/velopack/velopack
 AND I used Snapinator: https://github.com/snapinator/snapinator.github.io
 Install Dotnet yourself: https://dotnet.microsoft.com/en-us/download
 
+YOU MUST HAVE AN IDE: also you have to install Avalonia as a template!!
 
 If you want to build the project from source you can use the Compile Windows.bat CompileLinux.sh or CompileMacOS, based on your OS. 
 You don´t need to run CompileInstallerWindows.bat, CompileInstallerLinux.sh or CompileInstallerMacOS.sh, as they are Scripts for making Sandalone Installers out of the Projects. 
