@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
+using Avalonia.OpenGL;
 using Avalonia.Platform.Storage;
 using Avalonia.Styling;
 using CliWrap;
@@ -35,17 +36,20 @@ using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Linq;
 using Velopack;
+using CustomMessageBox;
+using CustomMessageBox.Avalonia;
 
 namespace sb1_sb2_sb3_xml_to_Csharp_converter;
 
 //One of my biggest issues is that bools are written as , even though they need .
 public partial class MainWindow : Window
 {
+    string DotnetVersion;
     public bool windows = false;
     public bool linux = false;
     public bool MacOs = false;
     public bool Snapinator = false;
-    public bool Scratch = false; 
+    public bool Scratch = false;
     public string Filename;
     public string fileName;
     public string ScratchExeFile;
@@ -67,6 +71,7 @@ public partial class MainWindow : Window
 
 
     bool LastLight = false;
+
     public MainWindow()
     {
         InitializeComponent();
@@ -93,7 +98,7 @@ public partial class MainWindow : Window
             GithubRepo.Content = "Dieses Projekt wurde von Daiko Games erstellt";
         }
 
-        if(Language == "en")
+        if (Language == "en")
         {
             //English
             Text1.Content = "Please Select the File you want to convert or write it down here:";
@@ -121,6 +126,7 @@ public partial class MainWindow : Window
         Theme();
 
         Task.Run(() => ThemeChange());
+        
     }
     public async Task ThemeChange()
     {
@@ -129,6 +135,7 @@ public partial class MainWindow : Window
             this.ActualThemeVariantChanged += (_, args) =>
             {
                 Theme();
+                
             };
             await Task.Delay(60000);
         }
@@ -223,7 +230,6 @@ public partial class MainWindow : Window
         //on Windows there are filters for Colorblind people, but on linux its not on every OS, i gotta think if i add that feature or not 
         //Ok so i checked the colours, the grayscale and inverted grayscale or generally inverted colours are looking bad for me I need help from colourblind ppl :) 
     }
-
     public async void FileSearcherVoid(object sender, RoutedEventArgs args)
     {
         /*var openFileDialog = new OpenFileDialog
@@ -280,7 +286,7 @@ public partial class MainWindow : Window
             }
         });
 
-        
+
         if (files.Count >= 1)
         {
             await using var stream = await files[0].OpenReadAsync();
@@ -399,6 +405,12 @@ public partial class MainWindow : Window
 
     public async void ConvertButton(object sender, RoutedEventArgs args)
     {
+        convertButton.IsEnabled = false;
+        var DotnetVersionOfComputer = await Cli.Wrap("dotnet").WithArguments("--version").ExecuteBufferedAsync();
+        string DotnetVersionT = DotnetVersionOfComputer.StandardOutput.Trim();
+        DotnetVersion = Convert.ToString(int.Parse(DotnetVersionT.Split('.')[0])) + ".0";
+        Console.WriteLine("dotnet version: ");
+
         if (WindowsCheckBox.IsChecked == true)
         {
             windows = true;
@@ -414,7 +426,7 @@ public partial class MainWindow : Window
             MacOs = true;
         }
 
-        if(X64CheckBox.IsChecked == true)
+        if (X64CheckBox.IsChecked == true)
         {
             formatOfApplication = "64-Bit";
         }
@@ -424,12 +436,12 @@ public partial class MainWindow : Window
             formatOfApplication = "32-Bit";
         }
 
-        if(Arm64CheckBox.IsChecked == true)
+        if (Arm64CheckBox.IsChecked == true)
         {
             formatOfApplication = "Arm-64";
         }
 
-        if(SnapinatorCheckBox.IsChecked == true)
+        if (SnapinatorCheckBox.IsChecked == true)
         {
             Snapinator = true;
         }
@@ -443,7 +455,7 @@ public partial class MainWindow : Window
         {
             if (extensionS.Contains(".sb") | extensionS.Contains(".sb2") | extensionS.Contains(".sb3"))
             {
-                if(Scratch == true | Snapinator == true)
+                if (Scratch == true | Snapinator == true)
                 {
                     await Task.Run(() => sbfiles(extensionS));
                 }
@@ -544,7 +556,7 @@ public partial class MainWindow : Window
 
         else
         {
-            if(Scratch == true && Snapinator == false)
+            if (Scratch == true && Snapinator == false)
             {
                 ScratchToCsharp();
             }
@@ -715,11 +727,11 @@ public partial class MainWindow : Window
     {
         if (OperatingSystem.IsWindows())
         {
-            GameFolder = Path.Combine(Foldername, ApplicationName + "\\bin\\Debug\\net9.0");
+            GameFolder = Path.Combine(Foldername, ApplicationName + "\\bin\\Debug\\net" + DotnetVersion);
         }
         if (OperatingSystem.IsLinux() | OperatingSystem.IsMacOS())
         {
-            GameFolder = Path.Combine(Foldername, ApplicationName + "/bin/Debug/net9.0");
+            GameFolder = Path.Combine(Foldername, ApplicationName + "/bin/Debug/net" + DotnetVersion);
         }
         //This is wrong - use same mechanics from Designer Winforms - 
         int Line = 0;
@@ -731,7 +743,7 @@ public partial class MainWindow : Window
         bool JPG = false;
         bool SVG = false;
 
-        if(Snapinator == true)
+        if (Snapinator == true)
         {
             foreach (string line in Lines)
             {
@@ -842,13 +854,13 @@ public partial class MainWindow : Window
             }
         }
 
-        if(Scratch == true)
+        if (Scratch == true)
         {
             //Transparent pixels are converted to white ones somehow - BUG
             string[] PICTUREfiles = Directory.GetFiles(Foldername, "*.svg", SearchOption.TopDirectoryOnly);
-            foreach(string pictureFILEsvg in PICTUREfiles)
+            foreach (string pictureFILEsvg in PICTUREfiles)
             {
-                using(var SVGimage = new MagickImage(pictureFILEsvg))
+                using (var SVGimage = new MagickImage(pictureFILEsvg))
                 {
                     SVGimage.BackgroundColor = MagickColors.Transparent;
                     SVGimage.Format = MagickFormat.Png;
@@ -873,11 +885,11 @@ public partial class MainWindow : Window
     {
         if (OperatingSystem.IsWindows())
         {
-            GameFolder = Path.Combine(Foldername, ApplicationName + "\\bin\\Debug\\net9.0");
+            GameFolder = Path.Combine(Foldername, ApplicationName + "\\bin\\Debug\\net" + DotnetVersion);
         }
         if (OperatingSystem.IsLinux() | OperatingSystem.IsMacOS())
         {
-            GameFolder = Path.Combine(Foldername, ApplicationName + "/bin/Debug/net9.0");
+            GameFolder = Path.Combine(Foldername, ApplicationName + "/bin/Debug/net" + DotnetVersion);
         }
         int Line = 0;
         string jsonPath = Path.Combine(Foldername, "Project.json");
@@ -962,17 +974,18 @@ public partial class MainWindow : Window
 
     private async Task Designer(string JSON, string extension) //This works properly :)
     {
-        
+        bool LineRoundBool = false;
+        int ImportantCharacter = 0;
         string DefaultGameFolder = Path.Combine(Foldername, ApplicationName);
         // i need to rename the pictures
 
         if (OperatingSystem.IsWindows())
         {
-            GameFolder = Path.Combine(Foldername, ApplicationName + "\\bin\\Debug\\net9.0");
+            GameFolder = Path.Combine(Foldername, ApplicationName + "\\bin\\Debug\\net" + DotnetVersion);
         }
         if (OperatingSystem.IsLinux() | OperatingSystem.IsMacOS())
         {
-            GameFolder = Path.Combine(Foldername, ApplicationName + "/bin/Debug/net9.0");
+            GameFolder = Path.Combine(Foldername, ApplicationName + "/bin/Debug/net" + DotnetVersion);
         }
 
         //Setting up the basics of the Form1.Designer.cs
@@ -1234,7 +1247,7 @@ public partial class MainWindow : Window
                                 //THESE COORDINATE SYSTEMS ARE DIFFERENT -need to understand canvas coordinate system correctly
                                 File.AppendAllText(WindowEditorFile, "\n                  Canvas.Left=\"" + (240 + XCOORDINATE - ((PNGwidth * ScALE) / 2)) + "\"");
                                 File.AppendAllText(WindowEditorFile, "\n                  Canvas.Top=\"" + (180 + (-YCOORDINATE) - ((PNGheight * ScALE) / 2)) + "\"");
-                                File.AppendAllText(WindowEditorFile, ">"); 
+                                File.AppendAllText(WindowEditorFile, ">");
                                 File.AppendAllText(WindowEditorFile, "\n           </Image>");
                             }
                             File.AppendAllText(WindowCsFile, "@" + ImageName + ".png\"));");
@@ -1277,12 +1290,12 @@ public partial class MainWindow : Window
             Line = 0;
 
             List<string> TextList = new List<string>();
-            foreach(string jsonline in JsonLines)
+            foreach (string jsonline in JsonLines)
             {
                 // This has serious bugs, going to do that maybe in a week :( don´t have time cuz of school LMAO
                 Line = Line + 1;
-                
-                if (jsonline.Contains("\"bubble\"") |  jsonline.Contains("\"doThink\""))
+
+                if (jsonline.Contains("\"bubble\"") | jsonline.Contains("\"doThink\""))
                 {
                     string Text = File.ReadAllLines(JSON).Skip(Line).Take(1).First().Replace("\"l\": ", "").Replace("\"", "").Replace(",", "").Trim();
                     TextNumber = TextNumber + 1;
@@ -1298,7 +1311,7 @@ public partial class MainWindow : Window
                             .TextAlignment(ImageMagick.TextAlignment.Center)
                             .Text(240, 180, Text)
                             .Draw(ImagePath);
-                            ImagePath.Write(FileName);
+                        ImagePath.Write(FileName);
                     }
 
                     File.AppendAllText(WindowEditorFile, "\n           <Image Name=\"Image" + TextNumber + "\"");
@@ -1498,6 +1511,7 @@ public partial class MainWindow : Window
             //check if the coordinates of the objects are bigger as the woidth or the height XD
             var SoundVLC = new LibVLC();
 
+            int ReceiveMessage = 0;
             if (BounceOff == true)
             {
                 File.AppendAllText(WindowCsFile, "\n public void BounceOff(){");
@@ -1580,21 +1594,6 @@ public partial class MainWindow : Window
 
                     //This is wrong
                     //It seems like only this if structure is wrong, gotta check it next week LOL//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-                    if (jsonline.Contains("{"))
-                    {
-                        if (!jsonline.Contains("variable") && !jsonline.Contains("block"))
-                        {
-                            string BeforeCharacter = File.ReadAllLines(JSON).Skip(Line - 2).Take(1).First();
-                            if (!BeforeCharacter.Contains("}") && !BeforeCharacter.Contains("},"))
-                            {
-                                if (LineRound > 0 && NoLineRound == 0)
-                                {
-                                    //Check if there is something of the jsonlines after  -> down below O_O if that is the case then do nothing
-                                    NoLineRound = NoLineRound + 1;
-                                }
-                            }
-                        }
-                    }
 
 
                     if (jsonline.Contains("\"@scale\":"))
@@ -1865,7 +1864,7 @@ public partial class MainWindow : Window
                     {
                         File.AppendAllText(WindowCsFile, "\n //\"doSetVar\"");
                         string NormalVariableOrOtherThings = File.ReadAllLines(JSON).Skip(Line).Take(1).First();
-                        if(NormalVariableOrOtherThings.Contains("\"l\": ["))
+                        if (NormalVariableOrOtherThings.Contains("\"l\": ["))
                         {
                             string Variable = File.ReadAllLines(JSON).Skip(Line + 1).Take(1).First().Replace("\"", "").Replace(",", "").Trim();
 
@@ -1876,7 +1875,7 @@ public partial class MainWindow : Window
                                 if (ActualThing.Contains("\"option\""))
                                 {
                                     //Here there are multiple Options (3)
-                                    if(ActualThing.Contains("\"rotation style\""))
+                                    if (ActualThing.Contains("\"rotation style\""))
                                     {
                                         File.AppendAllText(WindowCsFile, "\n //rotation style");
                                         File.AppendAllText(WindowCsFile, "// I don´t know how to implement this yet, give me a week lol");
@@ -1951,7 +1950,7 @@ public partial class MainWindow : Window
                         File.AppendAllText(WindowCsFile, "\n Image img" + TextNumber + ".Visibility == true;");
                         //Get the seconds and delay the task 
                         string TimeOfThinking = File.ReadAllLines(JSON).Skip(Line + 2).Take(1).First().Replace("\"", "").Trim();
-                        File.AppendAllText(WindowCsFile, "\n Task.Delay(" + TimeOfThinking+ ");");
+                        File.AppendAllText(WindowCsFile, "\n Task.Delay(" + TimeOfThinking + ");");
                         File.AppendAllText(WindowCsFile, "\n Image img" + TextNumber + ".Visibility == false;");
                         File.AppendAllText(WindowCsFile, "/*" + Line + "*/");
                     }
@@ -2015,7 +2014,6 @@ public partial class MainWindow : Window
                                 File.AppendAllText(WindowCsFile, "\n Rect " + ObjectToTouch + "TOUCHED = new Rect(Canvas.GetLeft(Image" + ObjectToTouch + "), Canvas.GetTop(Image" + ObjectToTouch + "), Image" + ObjectToTouch + ".Width, Image" + ObjectToTouch + ".Height);");
                                 File.AppendAllText(WindowCsFile, "\n if(" + LastObject + "TOUCHED.Interacts(" + ObjectToTouch + "TOUCHED)){");
                                 File.AppendAllText(WindowCsFile, "/*" + Line + "*/");
-                                IF = IF + 1;
                             }
 
                             if (PossibleIfStatement.Contains("\"reportAnd\""))
@@ -2060,12 +2058,13 @@ public partial class MainWindow : Window
 
                     if (jsonline.Contains("\"show\"") | jsonline.Contains("\"reportShown\""))////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
                     {
-                        LineRound = LineRound + 1;
+
                         File.AppendAllText(WindowCsFile, "\n //\"show\" | \"reportShown\"");
                         if (jsonline.Contains("\"reportShown\""))
                         {
                             File.AppendAllText(WindowCsFile, "\n if(Image" + LastObject + ".Visibility == true){");
                             File.AppendAllText(WindowCsFile, "/*" + Line + "*/");
+                            LineRound = LineRound + 1;
                         }
                         if (jsonline.Contains("\"show\""))
                         {
@@ -2077,7 +2076,6 @@ public partial class MainWindow : Window
 
                     if (jsonline.Contains("\"hide\""))////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
                     {
-                        LineRound = LineRound + 1;
                         File.AppendAllText(WindowCsFile, "\n //\"hide\"");
                         File.AppendAllText(WindowCsFile, "\n Image" + LastObject + ".Visibility == false;");
                         File.AppendAllText(WindowCsFile, "/*" + Line + "*/");
@@ -2235,7 +2233,7 @@ public partial class MainWindow : Window
                     if (jsonline.Contains("\"receiveMessage\""))
                     {
                         LineRound = LineRound + 1;
-                        IF = IF + 1;
+                        ReceiveMessage = ReceiveMessage + 1;
                         File.AppendAllText(WindowCsFile, "\n //\"receiveMessage\"");
                         string MessageRough = File.ReadAllLines(JSON).Skip(Line).Take(1).First();
                         string Message = MessageRough.Replace("\"l\":", "").Replace("\"", "").Replace(",", "").Trim();
@@ -2312,7 +2310,6 @@ public partial class MainWindow : Window
                     if (jsonline.Contains("\"doIf\"")) // i make a bool that gets true if it looks for random integers and it finds one ///////////////////////////////////////////////////////////////////////////////
                     {
                         LineRound = LineRound + 1;
-                        IF = IF + 1;
                         File.AppendAllText(WindowCsFile, "\n //\"doIf\"");
                     }
 
@@ -2401,6 +2398,7 @@ public partial class MainWindow : Window
                         {
                             LastObject = jsonline.Replace("\"@name\":", "").Replace("\"", "").Replace(",", "").Replace("-", "").Replace("_", "").Trim();
                             File.AppendAllText(WindowCsFile, "\n } \n public Task " + LastObject + "(){"); //Ok i am not sure of giving down a } before the public Task
+                            LineRound = LineRound + 1;
                         }
                     }
 
@@ -2419,12 +2417,14 @@ public partial class MainWindow : Window
                         {
                             File.AppendAllText(WindowCsFile, "\n private async Task " + LastObject + "OnPressed(object sender, Avalonia.PointerPressedEventArgs e){");
                             File.AppendAllText(WindowCsFile, "/*" + Line + "*/");
+                            LineRound = LineRound + 1;
                         }
 
                         if (EitherPressedOrReleased == "released")
                         {
                             File.AppendAllText(WindowCsFile, "\n private async Task " + LastObject + "OnReleased(object sender, Avalonia.PointerPressedEventArgs e){");
                             File.AppendAllText(WindowCsFile, "/*" + Line + "*/");
+                            LineRound = LineRound + 1;
                         }
                     }
 
@@ -2433,6 +2433,7 @@ public partial class MainWindow : Window
                         GlobablClickNumber = GlobablClickNumber + 1;
                         File.AppendAllText(WindowCsFile, "\n //\"reportMouseDown\"");
                         File.AppendAllText(WindowCsFile, "\n private Task MouseDown" + GlobablClickNumber + "(object sender, PointerReleasedEventArgws e){");
+                        LineRound = LineRound + 1;
                     }
 
                     if (jsonline.Contains("\"reportKeyPressed\""))
@@ -2447,7 +2448,6 @@ public partial class MainWindow : Window
                         {
                             LineRound = LineRound + 1;
                             File.AppendAllText(WindowCsFile, "\n if(e.KeyCode == Keys." + Key + "){");
-                            IF = IF + 1;
                         }
 
                         if (PossibleIfStatement.Contains("\"doWaitUntil\""))
@@ -2511,7 +2511,7 @@ public partial class MainWindow : Window
                     // I am not quite sure how I will manage to let it work but I somehow will :)
                     if (jsonline.Contains("\"reportSum\""))
                     {
-                        TheOneAfterTheNextIsPlus = true; 
+                        TheOneAfterTheNextIsPlus = true;
                         File.AppendAllText(WindowCsFile, "\n //\"reportSum\"");
                     }
 
@@ -2884,7 +2884,7 @@ public partial class MainWindow : Window
                     if (jsonline.Contains("\"doShowVar\""))
                     {
                         File.AppendAllText(WindowCsFile, "\"doShowVar\"");
-                       
+
                         //Ok i need to make a picture out of the var XD how do i do that - yeah Skia sharp probably with a textbox inside that can´t be edited
                     }
 
@@ -2893,62 +2893,67 @@ public partial class MainWindow : Window
                         File.AppendAllText(WindowCsFile, "\"doHideVar\"");
                     }
 
-                    //Ok when i do this it makes the voids have a } before which is great but now it has the problem that it doesn´t add a } at the end of a while LOOP XD or any other things yeah i tried it lol, doesn´t work rn XD  
-                    if (jsonline.Contains("}"))
+                    if (jsonline.Contains("},") | jsonline.Contains("\"doForever\"") | jsonline.Contains("doUntil"))
                     {
-                        if (jsonline.Contains("},")) //This is not elaborate enough gotta change that, originally was },
+                        string ProbablyScript = File.ReadAllLines(JSON).Skip(Line).Take(1).First();
+                        if (ProbablyScript.Contains("\"script\": {"))
                         {
-                            if (LineRound > 0 && NoLineRound == 0)
+                            LineRoundBool = true;
+                            ImportantCharacter = ImportantCharacter + 1;
+                            //I probably need to count the { and } to get to the end of it to 
+                        }
+                        if (ReceiveMessage > 0)
+                        {
+                            ReceiveMessage = ReceiveMessage - 1;
+                            if (ProbablyScript.Contains("{"))
                             {
-                                LineRound = LineRound - 1;
+                                ReceiveMessage = ReceiveMessage + 1;
+                            }
+                        }
+                        if (ReceiveMessage == 0)
+                        {
+                            File.AppendAllText(WindowCsFile, "\n}");
+                        }
+                        string ProbablyNewObject = File.ReadAllLines(JSON).Skip(Line + 1).Take(1).First();
+                        if (ProbablyScript.Contains("{") && ProbablyNewObject.Contains("\"@name\":"))
+                        {
+                            File.AppendAllText(WindowCsFile, "\n}");
+                        }
+                        //"block": [
+                    }
+
+                    if (jsonline.Contains("}") && !jsonline.Contains(","))
+                    {
+                        if (ImportantCharacter > 0)
+                        {
+                            ImportantCharacter = ImportantCharacter - 1;
+                        }
+                        if (ImportantCharacter == 0)
+                        {
+                            string CheckNextLine = File.ReadAllLines(JSON).Skip(Line).Take(1).First();
+                            if (CheckNextLine.Contains("{"))
+                            {
+                                //Check if it is "receiveMessage" or 
+
+                                //Dont check
+                            }
+                            else
+                            {
                                 File.AppendAllText(WindowCsFile, "\n}");
                             }
-
-                            if (ComplicatedMathVariable == true && NextIsRound == false && IfElse == 0)
-                            {
-                                //Ok so basically i need to check if other blocks were used before that need a ) or a ); at the end
-                                File.AppendAllText(WindowCsFile, ")");
-                                ComplicatedMathVariable = false;
-                                if (DotThing == true)
-                                {
-                                    File.AppendAllText(WindowCsFile, ");");
-                                    DotThing = false;
-                                }
-                            }
-
-                            if (ComplicatedMathVariable == true && NextIsRound == true && IfElse == 0)
-                            {
-                                NextIsRound = false;
-                            }
-
-                            //This doesn´t work LOL
-                            if (IfElse > 0)
-                            {
-                                File.AppendAllText(WindowCsFile, "\n } \n else{");
-                                IfElse = IfElse - 1;
-                            }
-
-                            if (IF > 0)
-                            {
-                                File.AppendAllText(WindowCsFile, "\n } ");
-                                IF = IF + 1;
-                            }
-
-                            if (WHILE > 0)
-                            {
-                                File.AppendAllText(WindowCsFile, "\n } ");
-                                WHILE = WHILE - 1;
-                            }
-
-                            //for while i do have to do the same thing LOL
                         }
-                        else
+                        if (ReceiveMessage > 0)
                         {
-                            if (NoLineRound > 0)
-                            {
-                                NoLineRound = NoLineRound - 1;
-                                //Don´t append stuff lol
-                            }
+                            ReceiveMessage = 0;
+                            File.AppendAllText(WindowCsFile, "\n}");
+                        }
+                    }
+
+                    if (jsonline.Contains("{"))
+                    {
+                        if (ReceiveMessage > 0 | ReceiveMessage == 0)
+                        {
+                            ReceiveMessage = ReceiveMessage + 1;
                         }
                     }
                     //I need to find a way to get the } and find out if there was something at the back of it - if yes the } is unneccesary to read - only if there is nothing serious
@@ -2970,12 +2975,12 @@ public partial class MainWindow : Window
             }
             int FileEnd = Line;
             Line = 0;
-            
+
             Line = 0;
             string[] CSlines = File.ReadAllLines(WindowCsFile);
             string NewCsFile = Path.Combine(GameFolder, "MainWindowTwo.axaml.cs");
             string NewAXAMLfile = Path.Combine(GameFolder, "MainWindowTwo.axaml");
-            foreach(string line in CSlines)
+            foreach (string line in CSlines)
             {
                 if (line.Contains("public MainWindow(){"))
                 {
@@ -3035,14 +3040,14 @@ public partial class MainWindow : Window
             await (Cli.Wrap("dotnet").WithArguments(args => args.Add("new").Add("sln")).WithWorkingDirectory(GameFolder).ExecuteAsync());
             await (Cli.Wrap("dotnet").WithArguments(args => args.Add("sln").Add("add").Add(ApplicationName + ".csproj")).WithWorkingDirectory(GameFolder).ExecuteAsync());
             await (Cli.Wrap("dotnet").WithArguments(args => args.Add("add").Add("package").Add("LibVLCSharp")).WithWorkingDirectory(GameFolder).ExecuteAsync());
-            await (Cli.Wrap("dotnet").WithArguments(args => args.Add("build").Add(ApplicationName + ".sln")).WithWorkingDirectory(GameFolder).ExecuteAsync());
+            await (Cli.Wrap("dotnet").WithArguments(args => args.Add("build").Add(ApplicationName + ".slnx")).WithWorkingDirectory(GameFolder).ExecuteAsync());
             //Need multiple Cli.Wraps
             if (Snapinator == true && Scratch == false)
             {
                 await Task.Run(() => PictureExtractor(".xml"));
             }
 
-            if(Scratch == true && Snapinator == false)
+            if (Scratch == true && Snapinator == false)
             {
                 await Task.Run(() => PictureExtractor(".sb3"));
             }
@@ -3055,134 +3060,144 @@ public partial class MainWindow : Window
 
     private async void ExeBuilder() //This has to be edited :(
     {
-        if (OperatingSystem.IsWindows())
+        var FinishedMessage = new MessageBox("Your Project was built for " + formatOfApplication + ", \n and is located at " + Foldername, "Succesful Build", MessageBoxIcon.Information);
+        var SadlyNotFinished = new MessageBox("Your Project was sadly not built, \n but it is located at " + Foldername + ", \n either it has some bugs that need to be fixed, or it is just a internal error of this program", "Unsuccesful Build", MessageBoxIcon.Information);
+        try
         {
-            if (windows == true)
+            if (OperatingSystem.IsWindows())
             {
-                if (formatOfApplication == "32-Bit")
+                if (windows == true)
                 {
-                    Console.WriteLine("32 bit Machine");
-                    //File.AppendAllText(GameDeployer, "\n dotnet publish -c Release -r win-x86 -p:PublishSingleFile=true --self-contained true");
-                    await (Cli.Wrap("dotnet").WithArguments(args => args.Add("publish").Add("-c").Add("Release").Add("-r").Add("win-x86").Add("-p:PublishSingleFile=true").Add("--self-contained").Add("true")).WithWorkingDirectory(GameFolder).ExecuteAsync());
+                    if (formatOfApplication == "32-Bit")
+                    {
+                        Console.WriteLine("32 bit Machine");
+                        //File.AppendAllText(GameDeployer, "\n dotnet publish -c Release -r win-x86 -p:PublishSingleFile=true --self-contained true");
+                        await (Cli.Wrap("dotnet").WithArguments(args => args.Add("publish").Add("-c").Add("Release").Add("-r").Add("win-x86").Add("-p:PublishSingleFile=true").Add("--self-contained").Add("true")).WithWorkingDirectory(GameFolder).ExecuteAsync());
+                    }
+
+                    if (formatOfApplication == "64-Bit")
+                    {
+                        Console.WriteLine("64 bit Machine");
+                        //File.AppendAllText(GameDeployer, "\n dotnet publish -c Release -r win-x64 -p:PublishSingleFile=true --self-contained true");
+                        await (Cli.Wrap("dotnet").WithArguments(args => args.Add("publish").Add("-c").Add("Release").Add("-r").Add("win-x64").Add("-p:PublishSingleFile=true").Add("--self-contained").Add("true")).WithWorkingDirectory(GameFolder).ExecuteAsync());
+                    }
+
+                    if (formatOfApplication == "Arm-64")
+                    {
+                        Console.WriteLine("64 bit Machine");
+                        //File.AppendAllText(GameDeployer, "\n dotnet publish -c Release -r win-arm64 -p:PublishSingleFile=true --self-contained true");
+                        await (Cli.Wrap("dotnet").WithArguments(args => args.Add("publish").Add("-c").Add("Release").Add("-r").Add("win-arm64").Add("-p:PublishSingleFile=true").Add("--self-contained").Add("true")).WithWorkingDirectory(GameFolder).ExecuteAsync());
+                    }
                 }
 
-                if (formatOfApplication == "64-Bit")
+                if (linux == true)
                 {
-                    Console.WriteLine("64 bit Machine");
-                    //File.AppendAllText(GameDeployer, "\n dotnet publish -c Release -r win-x64 -p:PublishSingleFile=true --self-contained true");
-                    await (Cli.Wrap("dotnet").WithArguments(args => args.Add("publish").Add("-c").Add("Release").Add("-r").Add("win-x64").Add("-p:PublishSingleFile=true").Add("--self-contained").Add("true")).WithWorkingDirectory(GameFolder).ExecuteAsync());
+                    if (formatOfApplication == "64-Bit")
+                    {
+                        Console.WriteLine("64 bit Machine");
+                        //File.AppendAllText(GameDeployer, "\n dotnet publish -c Release -r linux-x64 -p:PublishSingleFile=true --self-contained true");
+                        await (Cli.Wrap("dotnet").WithArguments(args => args.Add("publish").Add("-c").Add("Release").Add("-r").Add("linux-x86").Add("-p:PublishSingleFile=true").Add("--self-contained").Add("true")).WithWorkingDirectory(GameFolder).ExecuteAsync());
+                    }
+
+                    if (formatOfApplication == "Arm-64")
+                    {
+                        Console.WriteLine("64 bit Machine");
+                        // File.AppendAllText(GameDeployer, "\n dotnet publish -c Release -r linux-arm64 -p:PublishSingleFile=true --self-contained true");
+                        await (Cli.Wrap("dotnet").WithArguments(args => args.Add("publish").Add("-c").Add("Release").Add("-r").Add("linux-x64").Add("-p:PublishSingleFile=true").Add("--self-contained").Add("true")).WithWorkingDirectory(GameFolder).ExecuteAsync());
+                    }
                 }
 
-                if (formatOfApplication == "Arm-64")
+                if (MacOs == true)
                 {
-                    Console.WriteLine("64 bit Machine");
-                    //File.AppendAllText(GameDeployer, "\n dotnet publish -c Release -r win-arm64 -p:PublishSingleFile=true --self-contained true");
-                    await (Cli.Wrap("dotnet").WithArguments(args => args.Add("publish").Add("-c").Add("Release").Add("-r").Add("win-arm64").Add("-p:PublishSingleFile=true").Add("--self-contained").Add("true")).WithWorkingDirectory(GameFolder).ExecuteAsync());
+                    if (formatOfApplication == "64-Bit")
+                    {
+                        Console.WriteLine("64 bit Machine");
+                        //File.AppendAllText(GameDeployer, "\n dotnet publish -c Release -r osx-x64 -p:PublishSingleFile=true --self-contained true");
+                        await (Cli.Wrap("dotnet").WithArguments(args => args.Add("publish").Add("-c").Add("Release").Add("-r").Add("osx-x86").Add("-p:PublishSingleFile=true").Add("--self-contained").Add("true")).WithWorkingDirectory(GameFolder).ExecuteAsync());
+                    }
+
+                    if (formatOfApplication == "Arm-64")
+                    {
+                        Console.WriteLine("64 bit Machine");
+                        //File.AppendAllText(GameDeployer, "\n dotnet publish -c Release -r osx-arm64 -p:PublishSingleFile=true --self-contained true");
+                        await (Cli.Wrap("dotnet").WithArguments(args => args.Add("publish").Add("-c").Add("Release").Add("-r").Add("osx-arm64").Add("-p:PublishSingleFile=true").Add("--self-contained").Add("true")).WithWorkingDirectory(GameFolder).ExecuteAsync());
+                    }
                 }
+                var SuccesfulBuildShow = FinishedMessage.Show(MessageBoxButtons.OK);
+                //ProgressBarConverter.Value = 100; //Need to make the whole script in order so it works way better -rn the code is pure spaghetti code, but later it will be a flat Pizza i promise XD
             }
 
-            if (linux == true)
+
+            if (OperatingSystem.IsLinux() | OperatingSystem.IsMacOS())
             {
-                if (formatOfApplication == "64-Bit")
+                string GameBuilder = Path.Combine(Foldername, "GameBuilder.sh");
+                File.AppendAllText(GameBuilder, "\n cd " + GameFolder);
+                //Process.Start(ProcessStartInfo()"\n dotnet run " + ApplicationName + ".sln");
+                var process1 = Process.Start(new ProcessStartInfo(GameBuilder) { UseShellExecute = false, CreateNoWindow = true });
+                process1.WaitForExitAsync();
+
+
+                string GameDeployer = Path.Combine(Foldername, "GameFinisher.sh");
+                File.AppendAllText(GameDeployer, "\n cd " + Foldername);
+                if (windows == true)
                 {
-                    Console.WriteLine("64 bit Machine");
-                    //File.AppendAllText(GameDeployer, "\n dotnet publish -c Release -r linux-x64 -p:PublishSingleFile=true --self-contained true");
-                    await (Cli.Wrap("dotnet").WithArguments(args => args.Add("publish").Add("-c").Add("Release").Add("-r").Add("linux-x86").Add("-p:PublishSingleFile=true").Add("--self-contained").Add("true")).WithWorkingDirectory(GameFolder).ExecuteAsync());
+                    if (formatOfApplication == "32-Bit")
+                    {
+                        Console.WriteLine("32 bit Machine");
+                        File.AppendAllText(GameDeployer, "\n dotnet publish -c Release -r win-x86 -p:PublishSingleFile=true --self-contained true");
+                    }
+
+                    if (formatOfApplication == "64-Bit")
+                    {
+                        Console.WriteLine("64 bit Machine");
+                        File.AppendAllText(GameDeployer, "\n dotnet publish -c Release -r win-x64 -p:PublishSingleFile=true --self-contained true");
+                    }
+
+                    if (formatOfApplication == "Arm-64")
+                    {
+                        Console.WriteLine("64 bit Machine");
+                        File.AppendAllText(GameDeployer, "\n dotnet publish -c Release -r win-arm64 -p:PublishSingleFile=true --self-contained true");
+                    }
                 }
 
-                if (formatOfApplication == "Arm-64")
+                if (linux == true)
                 {
-                    Console.WriteLine("64 bit Machine");
-                   // File.AppendAllText(GameDeployer, "\n dotnet publish -c Release -r linux-arm64 -p:PublishSingleFile=true --self-contained true");
-                    await (Cli.Wrap("dotnet").WithArguments(args => args.Add("publish").Add("-c").Add("Release").Add("-r").Add("linux-x64").Add("-p:PublishSingleFile=true").Add("--self-contained").Add("true")).WithWorkingDirectory(GameFolder).ExecuteAsync());
+                    if (formatOfApplication == "64-Bit")
+                    {
+                        Console.WriteLine("64 bit Machine");
+                        File.AppendAllText(GameDeployer, "\n dotnet publish -c Release -r linux-x64 -p:PublishSingleFile=true --self-contained true");
+                    }
+
+                    if (formatOfApplication == "Arm-64")
+                    {
+                        Console.WriteLine("64 bit Machine");
+                        File.AppendAllText(GameDeployer, "\n dotnet publish -c Release -r linux-arm64 -p:PublishSingleFile=true --self-contained true");
+                    }
                 }
+
+                if (MacOs == true)
+                {
+                    if (formatOfApplication == "64-Bit")
+                    {
+                        Console.WriteLine("64 bit Machine");
+                        File.AppendAllText(GameDeployer, "\n dotnet publish -c Release -r osx-x64 -p:PublishSingleFile=true --self-contained true");
+                    }
+
+                    if (formatOfApplication == "Arm-64")
+                    {
+                        Console.WriteLine("64 bit Machine");
+                        File.AppendAllText(GameDeployer, "\n dotnet publish -c Release -r osx-arm64 -p:PublishSingleFile=true --self-contained true");
+                    }
+                }
+                var SuccesfulBuildShow = FinishedMessage.Show(MessageBoxButtons.OK);
+
+                //ProgressBarConverter.Value = 100; //Need to make the whole script in order so it works way better -rn the code is pure spaghetti code, but later it will be a flat Pizza i promise XD
             }
-
-            if (MacOs == true)
-            {
-                if (formatOfApplication == "64-Bit")
-                {
-                    Console.WriteLine("64 bit Machine");
-                    //File.AppendAllText(GameDeployer, "\n dotnet publish -c Release -r osx-x64 -p:PublishSingleFile=true --self-contained true");
-                    await (Cli.Wrap("dotnet").WithArguments(args => args.Add("publish").Add("-c").Add("Release").Add("-r").Add("osx-x86").Add("-p:PublishSingleFile=true").Add("--self-contained").Add("true")).WithWorkingDirectory(GameFolder).ExecuteAsync());
-                }
-
-                if (formatOfApplication == "Arm-64")
-                {
-                    Console.WriteLine("64 bit Machine");
-                    //File.AppendAllText(GameDeployer, "\n dotnet publish -c Release -r osx-arm64 -p:PublishSingleFile=true --self-contained true");
-                    await (Cli.Wrap("dotnet").WithArguments(args => args.Add("publish").Add("-c").Add("Release").Add("-r").Add("osx-arm64").Add("-p:PublishSingleFile=true").Add("--self-contained").Add("true")).WithWorkingDirectory(GameFolder).ExecuteAsync());
-                }
-            }
-
-            //ProgressBarConverter.Value = 100; //Need to make the whole script in order so it works way better -rn the code is pure spaghetti code, but later it will be a flat Pizza i promise XD
         }
 
-        
-        if (OperatingSystem.IsLinux() | OperatingSystem.IsMacOS())
+        catch (Exception ex)
         {
-            string GameBuilder = Path.Combine(Foldername, "GameBuilder.sh");
-            File.AppendAllText(GameBuilder, "\n cd " + GameFolder);
-            //Process.Start(ProcessStartInfo()"\n dotnet run " + ApplicationName + ".sln");
-            var process1 = Process.Start(new ProcessStartInfo(GameBuilder) { UseShellExecute = false, CreateNoWindow = true });
-            process1.WaitForExitAsync();
-
-           
-            string GameDeployer = Path.Combine(Foldername, "GameFinisher.sh");
-            File.AppendAllText(GameDeployer, "\n cd " + Foldername);
-
-            if (windows == true)
-            {
-                if (formatOfApplication == "32-Bit")
-                {
-                    Console.WriteLine("32 bit Machine");
-                    File.AppendAllText(GameDeployer, "\n dotnet publish -c Release -r win-x86 -p:PublishSingleFile=true --self-contained true");
-                }
-
-                if (formatOfApplication == "64-Bit")
-                {
-                    Console.WriteLine("64 bit Machine");
-                    File.AppendAllText(GameDeployer, "\n dotnet publish -c Release -r win-x64 -p:PublishSingleFile=true --self-contained true");
-                }
-
-                if (formatOfApplication == "Arm-64")
-                {
-                    Console.WriteLine("64 bit Machine");
-                    File.AppendAllText(GameDeployer, "\n dotnet publish -c Release -r win-arm64 -p:PublishSingleFile=true --self-contained true");
-                }
-            }
-
-            if (linux == true)
-            {
-                if (formatOfApplication == "64-Bit")
-                {
-                    Console.WriteLine("64 bit Machine");
-                    File.AppendAllText(GameDeployer, "\n dotnet publish -c Release -r linux-x64 -p:PublishSingleFile=true --self-contained true");
-                }
-
-                if (formatOfApplication == "Arm-64")
-                {
-                    Console.WriteLine("64 bit Machine");
-                    File.AppendAllText(GameDeployer, "\n dotnet publish -c Release -r linux-arm64 -p:PublishSingleFile=true --self-contained true");
-                }
-            }
-
-            if (MacOs == true)
-            {
-                if (formatOfApplication == "64-Bit")
-                {
-                    Console.WriteLine("64 bit Machine");
-                    File.AppendAllText(GameDeployer, "\n dotnet publish -c Release -r osx-x64 -p:PublishSingleFile=true --self-contained true");
-                }
-
-                if (formatOfApplication == "Arm-64")
-                {
-                    Console.WriteLine("64 bit Machine");
-                    File.AppendAllText(GameDeployer, "\n dotnet publish -c Release -r osx-arm64 -p:PublishSingleFile=true --self-contained true");
-                }
-            }
-            //ProgressBarConverter.Value = 100; //Need to make the whole script in order so it works way better -rn the code is pure spaghetti code, but later it will be a flat Pizza i promise XD
+            var UNsuccesfulBuildShow = SadlyNotFinished.Show(MessageBoxButtons.OK);
         }
-
     }
 }
