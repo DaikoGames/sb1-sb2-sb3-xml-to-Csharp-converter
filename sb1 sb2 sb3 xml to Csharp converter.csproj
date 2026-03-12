@@ -32,8 +32,8 @@
     <PackageReference Include="CustomMessageBox.Avalonia" Version="11.0.0.2" />
     <PackageReference Include="LibVLCSharp" Version="3.9.6" />
     <PackageReference Include="LibVLCSharp.Avalonia" Version="3.9.6" />
-    <PackageReference Include="Magick.NET-Q16-AnyCPU" Version="14.10.3" />
-    <PackageReference Include="Magick.NET.Core" Version="14.10.3" />
+    <PackageReference Include="Magick.NET-Q16-AnyCPU" Version="14.10.4" />
+    <PackageReference Include="Magick.NET.Core" Version="14.10.4" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageReference Include="System.Diagnostics.Process" Version="4.3.0" />
     <PackageReference Include="System.Xml.Linq" Version="3.5.21022.801" />

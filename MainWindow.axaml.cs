@@ -974,7 +974,6 @@ public partial class MainWindow : Window
 
     private async Task Designer(string JSON, string extension) //This works properly :)
     {
-        bool LineRoundBool = false;
         int ImportantCharacter = 0;
         string DefaultGameFolder = Path.Combine(Foldername, ApplicationName);
         // i need to rename the pictures
@@ -1499,19 +1498,17 @@ public partial class MainWindow : Window
             bool PressedOrReleased = false;
             bool VOID = false;
 
-            int LineRound = 0;
-            int NoLineRound = 0;
             bool ComplicatedMathVariable = false;
             bool NextIsRound = false;
             bool DotThing = false;
-            int IF = 0;
-            int IfElse = 0;
-            int WHILE = 0;
+
+            bool SomethingElseThanRound = false;
             //ok so i need some things around the edges to detect it, it is possible but hard :3
             //check if the coordinates of the objects are bigger as the woidth or the height XD
             var SoundVLC = new LibVLC();
 
             int ReceiveMessage = 0;
+            int IF = 0;
             if (BounceOff == true)
             {
                 File.AppendAllText(WindowCsFile, "\n public void BounceOff(){");
@@ -2014,6 +2011,8 @@ public partial class MainWindow : Window
                                 File.AppendAllText(WindowCsFile, "\n Rect " + ObjectToTouch + "TOUCHED = new Rect(Canvas.GetLeft(Image" + ObjectToTouch + "), Canvas.GetTop(Image" + ObjectToTouch + "), Image" + ObjectToTouch + ".Width, Image" + ObjectToTouch + ".Height);");
                                 File.AppendAllText(WindowCsFile, "\n if(" + LastObject + "TOUCHED.Interacts(" + ObjectToTouch + "TOUCHED)){");
                                 File.AppendAllText(WindowCsFile, "/*" + Line + "*/");
+                                IF = IF + 1;
+                                SomethingElseThanRound = true;
                             }
 
                             if (PossibleIfStatement.Contains("\"reportAnd\""))
@@ -2022,12 +2021,17 @@ public partial class MainWindow : Window
                                 File.AppendAllText(WindowCsFile, "\n Rect " + ObjectToTouch + "TOUCHED = new Rect(Canvas.GetLeft(Image" + ObjectToTouch + "), Canvas.GetTop(Image" + ObjectToTouch + "), Image" + ObjectToTouch + ".Width, Image" + ObjectToTouch + ".Height);");
                                 File.AppendAllText(WindowCsFile, "\n" + " && " + LastObject + "TOUCHED.Interacts(" + ObjectToTouch + "TOUCHED)){");
                                 File.AppendAllText(WindowCsFile, "/*" + Line + "*/");
+                                IF = IF + 1;
+                                SomethingElseThanRound = true;
                             }
 
                             if (PossibleIfStatement.Contains("\"doWaitUntil\""))
                             {
                                 File.AppendAllText(WindowCsFile, "public async Task WaitUntil" + LastObject + "(){");
                                 File.AppendAllText(WindowCsFile, "/*" + Line + "*/");
+                                IF = IF + 1;
+                                SomethingElseThanRound = true;
+
                             }
 
                             if (PossibleIfStatement.Contains("\"reportNot\""))
@@ -2036,7 +2040,10 @@ public partial class MainWindow : Window
                                 File.AppendAllText(WindowCsFile, "\n Rect " + ObjectToTouch + "TOUCHED = new Rect(Canvas.GetLeft(Image" + ObjectToTouch + "), Canvas.GetTop(Image" + ObjectToTouch + "), Image" + ObjectToTouch + ".Width, Image" + ObjectToTouch + ".Height);");
                                 File.AppendAllText(WindowCsFile, "\n" + "!" + LastObject + "TOUCHED.Interacts(" + ObjectToTouch + "TOUCHED)){");
                                 File.AppendAllText(WindowCsFile, "/*" + Line + "*/");
+                                IF = IF + 1;
+                                SomethingElseThanRound = true;
                             }
+                            //Don´t use lineRound here, its automatically used in if statements
                             //Check if there was an Object that has already been Touched in a List, and then Write those Objects (Rects in the beginning), like the ifs in the usual things
                         }
                     }
@@ -2064,7 +2071,7 @@ public partial class MainWindow : Window
                         {
                             File.AppendAllText(WindowCsFile, "\n if(Image" + LastObject + ".Visibility == true){");
                             File.AppendAllText(WindowCsFile, "/*" + Line + "*/");
-                            LineRound = LineRound + 1;
+                            IF = IF + 1;
                         }
                         if (jsonline.Contains("\"show\""))
                         {
@@ -2232,13 +2239,13 @@ public partial class MainWindow : Window
                     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
                     if (jsonline.Contains("\"receiveMessage\""))
                     {
-                        LineRound = LineRound + 1;
                         ReceiveMessage = ReceiveMessage + 1;
                         File.AppendAllText(WindowCsFile, "\n //\"receiveMessage\"");
                         string MessageRough = File.ReadAllLines(JSON).Skip(Line).Take(1).First();
                         string Message = MessageRough.Replace("\"l\":", "").Replace("\"", "").Replace(",", "").Trim();
                         File.AppendAllText(WindowCsFile, "\n if(" + Message + " == true){");
                         File.AppendAllText(WindowCsFile, "/*" + Line + "*/");
+                        IF = IF + 1;
                     }
 
                     if (jsonline.Contains("\"sendMessage\""))
@@ -2286,8 +2293,6 @@ public partial class MainWindow : Window
                     //Somehow not all whiles do get written - need to fix that, but all {and}are perfect 
                     if (jsonline.Contains("\"doRepeat\"")) // i make a bool that gets true if it looks for random integers and it finds one /////////////////////////////////////////////////////////////////////////////
                     {
-                        LineRound = LineRound + 1;
-                        WHILE = WHILE + 1;
                         File.AppendAllText(WindowCsFile, "\n //\"doRepeat\"");
                         string RepeatingNumberRough = File.ReadAllLines(JSON).Skip(Line).First();
                         string RepeatingNumber = RepeatingNumberRough.Replace("\"l\":", "").Replace("\"", "").Replace(",", "").Trim();
@@ -2296,26 +2301,28 @@ public partial class MainWindow : Window
                         File.AppendAllText(WindowCsFile, "\n while (Repeating" + Repeatingnumber + "!=" + RepeatingNumber + "){");
                         File.AppendAllText(WindowCsFile, "\n Repeating" + Repeatingnumber + "=" + "Repeating" + Repeatingnumber + " +1;");
                         File.AppendAllText(WindowCsFile, "/*" + Line + "*/");
+                        IF = IF + 1;
+                        SomethingElseThanRound = true;
                     }
                     //Somehow not all whiles do get written - need to fix that, but all {and}are perfect 
                     if (jsonline.Contains("\"doForever\"")) // i make a bool that gets true if it looks for random integers and it finds one ////////////////////////////////////////////////////////////////////////////
                     {
-                        WHILE = WHILE + 1;
-                        LineRound = LineRound + 1;
                         File.AppendAllText(WindowCsFile, "\n //\"doForever\"");
                         File.AppendAllText(WindowCsFile, "\n while (true){");
                         File.AppendAllText(WindowCsFile, "/*" + Line + "*/");
+                        IF = IF + 1;
+                        SomethingElseThanRound = true;
                     }
 
                     if (jsonline.Contains("\"doIf\"")) // i make a bool that gets true if it looks for random integers and it finds one ///////////////////////////////////////////////////////////////////////////////
                     {
-                        LineRound = LineRound + 1;
                         File.AppendAllText(WindowCsFile, "\n //\"doIf\"");
+                        IF = IF + 1;
+                        SomethingElseThanRound = true;
                     }
 
                     if (jsonline.Contains("\"doIfElse\"")) // i make a bool that gets true if it looks for random integers and it finds one ///////////////////////////////////////////////////////////////////////////
                     {
-                        LineRound = LineRound + 1;
                         File.AppendAllText(WindowCsFile, "\n //\"doIfElse\"");
                         string PossibleTouchStatement = File.ReadAllLines(JSON).Skip(Line + 3).Take(1).First();
                         if (PossibleTouchStatement.Contains("\"reportTouchingObject\"") == false)
@@ -2325,14 +2332,13 @@ public partial class MainWindow : Window
                             //There is surely a way to check when there is a else statement: for example {, and make a bool that tells the thing that its an else or an if now lol
 
                             File.AppendAllText(WindowCsFile, "/*" + Line + "*/");
-
-                            IfElse = IfElse + 1;
+                            IF = IF + 1;
+                            SomethingElseThanRound = true;
                         }
                     }
 
                     if (jsonline.Contains("\"doWaitUntil\"")) // i make a bool that gets true if it looks for random integers and it finds one ///////////////////////////////////////////////////////////////////////
                     {
-                        LineRound = LineRound + 1;
                         File.AppendAllText(WindowCsFile, "\n //\"doWaitUntil\"");
                         string PossibleTouchStatement = File.ReadAllLines(JSON).Skip(Line + 3).Take(1).First();
                         if (PossibleTouchStatement.Contains("\"reportTouchingObject\"") == false && PossibleTouchStatement.Contains("\"reportKeyPressed\""))
@@ -2345,13 +2351,14 @@ public partial class MainWindow : Window
 
                     if (jsonline.Contains("\"doUntil\"")) // i make a bool that gets true if it looks for random integers and it finds one ///////////////////////////////////////////////////////////////////////////
                     {
-                        LineRound = LineRound + 1;
                         File.AppendAllText(WindowCsFile, "\n //\"doUntil\"");
                         string PossibleTouchStatement = File.ReadAllLines(JSON).Skip(Line + 3).Take(1).First();
                         if (PossibleTouchStatement.Contains("\"reportTouchingObject\"") == false && PossibleTouchStatement.Contains("\"reportKeyPressed\""))
                         {
                             File.AppendAllText(WindowCsFile, "\n if(");
                             File.AppendAllText(WindowCsFile, "/*" + Line + "*/");
+                            IF = IF + 1;
+                            SomethingElseThanRound = true;
                         }
                     }
 
@@ -2398,7 +2405,6 @@ public partial class MainWindow : Window
                         {
                             LastObject = jsonline.Replace("\"@name\":", "").Replace("\"", "").Replace(",", "").Replace("-", "").Replace("_", "").Trim();
                             File.AppendAllText(WindowCsFile, "\n } \n public Task " + LastObject + "(){"); //Ok i am not sure of giving down a } before the public Task
-                            LineRound = LineRound + 1;
                         }
                     }
 
@@ -2417,14 +2423,17 @@ public partial class MainWindow : Window
                         {
                             File.AppendAllText(WindowCsFile, "\n private async Task " + LastObject + "OnPressed(object sender, Avalonia.PointerPressedEventArgs e){");
                             File.AppendAllText(WindowCsFile, "/*" + Line + "*/");
-                            LineRound = LineRound + 1;
+                            IF = IF + 1;
+                            SomethingElseThanRound = true;
+
                         }
 
                         if (EitherPressedOrReleased == "released")
                         {
                             File.AppendAllText(WindowCsFile, "\n private async Task " + LastObject + "OnReleased(object sender, Avalonia.PointerPressedEventArgs e){");
                             File.AppendAllText(WindowCsFile, "/*" + Line + "*/");
-                            LineRound = LineRound + 1;
+                            IF = IF + 1;
+                            SomethingElseThanRound = true;
                         }
                     }
 
@@ -2433,7 +2442,8 @@ public partial class MainWindow : Window
                         GlobablClickNumber = GlobablClickNumber + 1;
                         File.AppendAllText(WindowCsFile, "\n //\"reportMouseDown\"");
                         File.AppendAllText(WindowCsFile, "\n private Task MouseDown" + GlobablClickNumber + "(object sender, PointerReleasedEventArgws e){");
-                        LineRound = LineRound + 1;
+                        IF = IF + 1;
+                        SomethingElseThanRound = true;
                     }
 
                     if (jsonline.Contains("\"reportKeyPressed\""))
@@ -2446,22 +2456,24 @@ public partial class MainWindow : Window
 
                         if (PossibleIfStatement.Contains("\"doIf\"")) ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
                         {
-                            LineRound = LineRound + 1;
                             File.AppendAllText(WindowCsFile, "\n if(e.KeyCode == Keys." + Key + "){");
+                            IF = IF + 1;
+                            SomethingElseThanRound = true;
                         }
 
                         if (PossibleIfStatement.Contains("\"doWaitUntil\""))
                         {
-                            LineRound = LineRound + 1;
                             File.AppendAllText(WindowCsFile, "\n while(e.KeyCode != Keys." + Key + "){");
-                            WHILE = WHILE + 1;
+                            IF = IF + 1;
+                            SomethingElseThanRound = true;
                         }
 
                         if (PossibleIfStatement.Contains("\"doUntil\""))
                         {
-                            LineRound = LineRound + 1;
                             File.AppendAllText(WindowCsFile, "\n while(e.KeyCode != Keys." + Key + "){");
-                            WHILE = WHILE + 1;
+                            IF = IF + 1;
+                            SomethingElseThanRound = true;
+
                         }
                     }
 
@@ -2857,7 +2869,6 @@ public partial class MainWindow : Window
                     //Speaking Bubble is missing - this will be achieved by drawing one based on the length of the text here: 
                     if (jsonline.Contains("block"))
                     {
-                        File.AppendAllText(WindowCsFile, "\"block\"");
                         string ProbablyVar = File.ReadAllLines(JSON).Skip(Line).Take(1).First();
                         if (ProbablyVar.Contains("var"))
                         {
@@ -2892,81 +2903,31 @@ public partial class MainWindow : Window
                     {
                         File.AppendAllText(WindowCsFile, "\"doHideVar\"");
                     }
+                    //This needs to be edited
 
-                    if (jsonline.Contains("},") | jsonline.Contains("\"doForever\"") | jsonline.Contains("doUntil"))
+                    //Basic things work now, now gotta find out why not everythi´ng works, 80% works tho :)
+                    //receiveMessage doesn´t work correctly, it doesn´t make a } after its done everytime
+                    if (jsonline.Contains("}") | jsonline.Contains("},"))
                     {
-                        string ProbablyScript = File.ReadAllLines(JSON).Skip(Line).Take(1).First();
-                        if (ProbablyScript.Contains("\"script\": {"))
+                        string BeforeLine = File.ReadAllLines(JSON).Skip(Line - 2).Take(1).First();
+                        string BeforeThatLine = File.ReadAllLines(JSON).Skip(Line - 3).Take(1).First();
+
+                        if(IF > 0)
                         {
-                            LineRoundBool = true;
-                            ImportantCharacter = ImportantCharacter + 1;
-                            //I probably need to count the { and } to get to the end of it to 
-                        }
-                        if (ReceiveMessage > 0)
-                        {
-                            ReceiveMessage = ReceiveMessage - 1;
-                            if (ProbablyScript.Contains("{"))
+                            //Check these:   }]}, and these }]}
+                            if (BeforeLine.Contains("]"))
                             {
-                                ReceiveMessage = ReceiveMessage + 1;
+                                if (BeforeThatLine.Contains("}"))
+                                {
+                                    while (IF > 0)
+                                    {
+                                        File.AppendAllText(WindowCsFile, "\n}\n");
+                                        IF = IF - 1;
+                                    }
+                                }
                             }
                         }
-                        if (ReceiveMessage == 0)
-                        {
-                            File.AppendAllText(WindowCsFile, "\n}");
-                        }
-                        string ProbablyNewObject = File.ReadAllLines(JSON).Skip(Line + 1).Take(1).First();
-                        if (ProbablyScript.Contains("{") && ProbablyNewObject.Contains("\"@name\":"))
-                        {
-                            File.AppendAllText(WindowCsFile, "\n}");
-                        }
-                        //"block": [
                     }
-
-                    if (jsonline.Contains("}") && !jsonline.Contains(","))
-                    {
-                        if (ImportantCharacter > 0)
-                        {
-                            ImportantCharacter = ImportantCharacter - 1;
-                        }
-                        if (ImportantCharacter == 0)
-                        {
-                            string CheckNextLine = File.ReadAllLines(JSON).Skip(Line).Take(1).First();
-                            if (CheckNextLine.Contains("{"))
-                            {
-                                //Check if it is "receiveMessage" or 
-
-                                //Dont check
-                            }
-                            else
-                            {
-                                File.AppendAllText(WindowCsFile, "\n}");
-                            }
-                        }
-                        if (ReceiveMessage > 0)
-                        {
-                            ReceiveMessage = 0;
-                            File.AppendAllText(WindowCsFile, "\n}");
-                        }
-                    }
-
-                    if (jsonline.Contains("{"))
-                    {
-                        if (ReceiveMessage > 0 | ReceiveMessage == 0)
-                        {
-                            ReceiveMessage = ReceiveMessage + 1;
-                        }
-                    }
-                    //I need to find a way to get the } and find out if there was something at the back of it - if yes the } is unneccesary to read - only if there is nothing serious
-
-                    //I HAVE AN IDEA - first I let the things be written down without the } and after that i let them get implemented - is way dumber but it should work!!!
-                    //File.AppendAllText(WindowCsFile, "\n"); -> this makes thing way too big and slow LOL
-                    /*else
-                    {
-                        if (!jsonline.Contains("{") | !jsonline.Contains("}") | !jsonline.Contains("[") | !jsonline.Contains("]"))
-                        {
-                            File.AppendAllText(WindowCsFile, "\n Error " + jsonline);
-                        }
-                    }*/
                 }
                 catch (Exception ex)
                 {
