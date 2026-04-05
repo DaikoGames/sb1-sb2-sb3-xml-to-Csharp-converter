@@ -13,8 +13,11 @@ using ImageMagick;
 using ImageMagick.Drawing;
 using LibVLCSharp.Avalonia;
 using LibVLCSharp.Shared;
+using MsBox.Avalonia;
+using MsBox.Avalonia.Enums;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
@@ -29,15 +32,15 @@ using System.Linq;
 using System.Net;
 using System.Numerics;
 using System.Reflection.Emit;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics.X86;
 //using Microsoft.Win32.SafeHandles;
 using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Linq;
+using Tmds.DBus.Protocol;
 using Velopack;
-using CustomMessageBox;
-using CustomMessageBox.Avalonia;
 
 namespace sb1_sb2_sb3_xml_to_Csharp_converter;
 
@@ -71,13 +74,14 @@ public partial class MainWindow : Window
 
 
     bool LastLight = false;
-
+    
     public MainWindow()
     {
+        
         InitializeComponent();
+       
         CultureInfo LanguageOfUser = CultureInfo.CurrentUICulture;
         string Language = LanguageOfUser.TwoLetterISOLanguageName;
-
         if (Language == "de")
         {
             //German
@@ -118,6 +122,9 @@ public partial class MainWindow : Window
             GithubRepo.Content = "This Project was made by: Daiko Games";
         }
 
+        ProgressBarConverter.Minimum = 0;
+        ProgressBarConverter.Maximum = 100;
+        ProgressBarConverter.Value = 0;
         //In the future people can add their languages here: 
         //Velopack Build and run stuff is not working
         VelopackApp.Build().Run();
@@ -126,7 +133,7 @@ public partial class MainWindow : Window
         Theme();
 
         Task.Run(() => ThemeChange());
-        
+
     }
     public async Task ThemeChange()
     {
@@ -135,7 +142,7 @@ public partial class MainWindow : Window
             this.ActualThemeVariantChanged += (_, args) =>
             {
                 Theme();
-                
+
             };
             await Task.Delay(60000);
         }
@@ -178,7 +185,7 @@ public partial class MainWindow : Window
             X32CheckBox.Background = Avalonia.Media.Brushes.Transparent;
             X32CheckBox.Foreground = Avalonia.Media.Brushes.White;
             ProgressBarConverter.Background = Avalonia.Media.Brushes.Transparent;
-            ProgressBarConverter.Foreground = Avalonia.Media.Brushes.White;
+            ProgressBarConverter.Foreground = Avalonia.Media.Brushes.Gray;
             convertButton.Background = Avalonia.Media.Brushes.Transparent;
             convertButton.Foreground = Avalonia.Media.Brushes.White;
             convertButton.BorderBrush = Avalonia.Media.Brushes.White;
@@ -219,8 +226,8 @@ public partial class MainWindow : Window
             X64CheckBox.Foreground = Avalonia.Media.Brushes.Black;
             X32CheckBox.Background = Avalonia.Media.Brushes.Transparent;
             X32CheckBox.Foreground = Avalonia.Media.Brushes.Black;
-            ProgressBarConverter.Background = Avalonia.Media.Brushes.Transparent;
-            ProgressBarConverter.Foreground = Avalonia.Media.Brushes.Black;
+            ProgressBarConverter.Background = Avalonia.Media.Brushes.White;
+            ProgressBarConverter.Foreground = Avalonia.Media.Brushes.Gray;
             convertButton.Background = Avalonia.Media.Brushes.Transparent;
             convertButton.Foreground = Avalonia.Media.Brushes.Black;
             convertButton.BorderBrush = Avalonia.Media.Brushes.Black;
@@ -400,7 +407,8 @@ public partial class MainWindow : Window
     public async void GithubLinkPressed(object sender, RoutedEventArgs args)
     {
         string Link = "https://github.com/DaikoGames";
-        Process.Start(new ProcessStartInfo(Link) { UseShellExecute = true });
+        //Process.Start(new ProcessStartInfo(Link) { UseShellExecute = true });
+        //System.Diagnostics.Process.Start("explorer", Link);
     }
 
     public async void ConvertButton(object sender, RoutedEventArgs args)
@@ -479,8 +487,9 @@ public partial class MainWindow : Window
     {
         //ok i have to figure out something else, good i have an idea - the user chooses the path of where it should be converted, the program gets opened via cmd, and the user has to do it himself, when the program is over the user just closes the application and the conversion starts - waay better than automation tools
         string FileExtension = Path.GetExtension(Filename);
-        if (FileExtension == ".sb")
+        if (FileExtension == ".sb" | FileExtension == ".sb2" | FileExtension == ".sb3")
         {
+            /*
             if (OperatingSystem.IsWindows())
             {
                 if (System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.Equals(Architecture.X86))
@@ -634,6 +643,40 @@ public partial class MainWindow : Window
                         await Task.Run(() => ScratchTOSnapFileAndConversion(".xml"));
                     }
                 }
+            }*/
+            if(FileExtension == ".sb" | FileExtension == ".sb2")
+            {
+                if (OperatingSystem.IsWindows() | OperatingSystem.IsLinux() | OperatingSystem.IsMacOS())
+                {
+                    string ConverterFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ScratchConverter");
+                    string ConvertDestination = Path.Combine(ConverterFolder, "project.sb");
+                    File.Copy(Filename, ConvertDestination, true);
+                    string JSFile = Path.Combine(ConverterFolder, "Convert.js");
+                    //Ok it works, now check if the modules are installed - if not install with npm again LOL
+                    //Check if all modules are installed with Cli Wrap 
+                    var PlsNoError = await (Cli.Wrap("npm").WithArguments(args => args.Add("list").Add("--depth=0")).WithWorkingDirectory(ConverterFolder).WithValidation(CommandResultValidation.None).ExecuteBufferedAsync());
+                    if (PlsNoError.ExitCode == 0)
+                    {
+                        await (Cli.Wrap("node").WithArguments(args => args.Add("Convert.js")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync());
+
+                    }
+                    if (PlsNoError.ExitCode != 0)
+                    {
+                        await (Cli.Wrap("npm").WithArguments(args => args.Add("install")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync());
+                    }
+
+                    await (Cli.Wrap("node").WithArguments(args => args.Add("Convert.js")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync());
+                    File.Delete(ConvertDestination);
+                    string NewFile = Path.Combine(ConverterFolder, "project.sb3");
+                    string FolderDestination = Path.Combine(Foldername, "project.sb3");
+
+                    File.Copy(NewFile, FolderDestination, true);
+                    File.Delete(NewFile);
+                }
+            }
+            if(FileExtension == ".sb3")
+            {
+            
             }
         }
     }
@@ -975,6 +1018,7 @@ public partial class MainWindow : Window
     private async Task Designer(string JSON, string extension) //This works properly :)
     {
         int ImportantCharacter = 0;
+        int AllLines = 0;
         string DefaultGameFolder = Path.Combine(Foldername, ApplicationName);
         // i need to rename the pictures
 
@@ -1005,7 +1049,7 @@ public partial class MainWindow : Window
         File.AppendAllText(WindowEditorFile, "\n                  RequestedThemeVariant =\"Light\"");
         File.AppendAllText(WindowEditorFile, "\n                  CanResize =\"False\"");
         File.AppendAllText(WindowEditorFile, "\n>");
-        File.AppendAllText(WindowEditorFile, "\n<Canvas>");
+        File.AppendAllText(WindowEditorFile, "\n<Canvas Name=\"ProjectCanvas\">");
         //File.AppendAllText(WindowEditorFile, "\n   <Canvas>");
         //Background and Icon Feature at last - its hard :-/
 
@@ -1095,11 +1139,11 @@ public partial class MainWindow : Window
                 if (jsonline.Contains("\"receiveMessage\""))
                 {
                     string messageNameRough = File.ReadLines(JSON).Skip(Line).First();
-                    string messageName = messageNameRough.Replace("\"l\":", "").Replace("\"", "").Replace(",", "").Trim();
+                    string messageName = messageNameRough.Replace("\"l\":", "").Replace("\"", "").Replace(",", "").Replace("(", "_").Replace(")", "_").Trim().Replace(" ", "_");
                     if (!MessageNames.Contains(messageName))
                     {
                         MessageNames.Add(messageName);
-                        File.AppendAllText(ValueFile, " \n public bool " + messageName + ";");
+                        File.AppendAllText(ValueFile, " \n public bool " + messageName + " = false;");
                     }
                 }
             }
@@ -1115,7 +1159,7 @@ public partial class MainWindow : Window
 
                 if (jsonline.Contains("\"@name\":") && OnlyVars == true)
                 {
-                    string NameOfVar = jsonline.Replace("\"@name\":", "").Replace("\"", "").Replace(",", "").Trim();
+                    string NameOfVar = jsonline.Replace("\"@name\":", "").Replace("\"", "").Replace(",", "").Replace("(", "_").Replace(")", "_").Trim().Replace(" ", "_");
                     if (!Variables.Contains(NameOfVar))
                     {
                         Variables.Add(NameOfVar);
@@ -1190,7 +1234,7 @@ public partial class MainWindow : Window
                     //Check if there is an if condition
 
                     string messageNameRough = File.ReadLines(JSON).Skip(Line).First();
-                    string messageName = messageNameRough.Replace("\"l\":", "").Replace("\"", "").Replace(",", "").Trim();
+                    string messageName = messageNameRough.Replace("\"l\":", "").Replace("\"", "").Replace(",", "").Replace("(", "_").Replace(")", "_").Trim().Replace(" ", "_");
                     if (!MessageNames.Contains(messageName))
                     {
                         MessageNames.Add(messageName);
@@ -1216,7 +1260,7 @@ public partial class MainWindow : Window
             int ScaleNumber = 0;
             int XCoordinateLine = 0;
             int YCoordinateLine = 0;
-
+            List<string> ShowableVars = new List<string>();
             //BIG PROBLEM - when an image has a negative y coordinate the thing somehow doesn´t always work correctly
             //In Update 1.5 i will add ZIndex by default here :3
             foreach (string jsonline in JsonLines)
@@ -1294,7 +1338,7 @@ public partial class MainWindow : Window
                 // This has serious bugs, going to do that maybe in a week :( don´t have time cuz of school LMAO
                 Line = Line + 1;
 
-                if (jsonline.Contains("\"bubble\"") | jsonline.Contains("\"doThink\""))
+                if (jsonline.Contains("\"bubble\"") | jsonline.Contains("\"doThink\"") | jsonline.Contains("\"doSayFor\"") | jsonline.Contains("\"doThinkFor\""))
                 {
                     string Text = File.ReadAllLines(JSON).Skip(Line).Take(1).First().Replace("\"l\": ", "").Replace("\"", "").Replace(",", "").Trim();
                     TextNumber = TextNumber + 1;
@@ -1320,10 +1364,10 @@ public partial class MainWindow : Window
                     File.AppendAllText(WindowEditorFile, "\n                  Canvas.Top=\"" + 180 + "\"");
                     File.AppendAllText(WindowEditorFile, ">");
                     File.AppendAllText(WindowEditorFile, "\n           </Image>");
-                    File.AppendAllText(WindowCsFile, "\n img" + TextNumber + ".Source = new Bitmap(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @\"" + FileName + "\");");
+                    File.AppendAllText(WindowCsFile, "\n img" + TextNumber + ".Source = new Bitmap(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @\"" + FileName + "\"));");
                 }
 
-                if (jsonline.Contains("\"doSayFor\"") | jsonline.Contains("\"doThinkFor\""))
+                /*if (jsonline.Contains("\"doSayFor\"") | jsonline.Contains("\"doThinkFor\""))
                 {
                     string Text = File.ReadAllLines(JSON).Skip(Line + 1).Take(1).First().Replace("\"l\": [", "").Replace("\"", "").Replace(",", "").Trim();
                     TextNumber = TextNumber + 1;
@@ -1350,6 +1394,23 @@ public partial class MainWindow : Window
                     File.AppendAllText(WindowEditorFile, ">");
                     File.AppendAllText(WindowEditorFile, "\n           </Image>");
                     File.AppendAllText(WindowCsFile, "\n img" + TextNumber + ".Source = new Bitmap(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @\"" + FileName + "\");");
+                }*/
+                if (jsonline.Contains("\"doShowVar\""))
+                {
+                    //The Only thing that is wrong here is the name i think
+                    File.AppendAllText(WindowCsFile, "\"doShowVar\"");
+                    string VariableName = File.ReadAllLines(JSON).Skip(Line).Take(1).First().Replace("\"l\":", "").Replace("\"", "").Trim();
+                    //Ok i need to make a picture out of the var XD how do i do that - yeah Skia sharp probably with a textbox inside that can´t be edited
+                    if (!ShowableVars.Contains(VariableName))
+                    {
+                        ShowableVars.Add(VariableName);
+                        File.AppendAllText(WindowEditorFile, "\n <Button Name=\"Image" + VariableName + "\"");
+                        File.AppendAllText(WindowEditorFile, "\n Width=\"75\"");
+                        File.AppendAllText(WindowEditorFile, "\n Height=\"30\"");
+                        File.AppendAllText(WindowEditorFile, "\n Canvas.Top=\"0\"");
+                        File.AppendAllText(WindowEditorFile, "\n Canvas.Lef=\"0\"");
+                        File.AppendAllText(WindowEditorFile, "\n />");
+                    }
                 }
             }
 
@@ -1509,6 +1570,9 @@ public partial class MainWindow : Window
 
             int ReceiveMessage = 0;
             int IF = 0;
+            bool AsyncTask = false;
+            bool LineANDBool = false;
+            bool LineNotBool = false;
             if (BounceOff == true)
             {
                 File.AppendAllText(WindowCsFile, "\n public void BounceOff(){");
@@ -1583,11 +1647,22 @@ public partial class MainWindow : Window
             File.AppendAllText(WindowCsFile, "\n public Void Game(){");
             List<string> ProjectList = new List<string>();
             List<string> SoundPlayerList = new List<string>();
+            List<string> TaskLines = new List<string>();
+            string LastTask = "";
+            int Percentage = 0;
+            bool Else = false;
+            int LineOR = 0;
+            bool LineORBool = false;
+            List<int> OrLines = new List<int>();
             foreach (string jsonline in JsonLines)
             {
                 try
                 {
                     Line = Line + 1;
+
+                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => ProgressBarConverter.Value = Line/DocumentLine * 100);
+                    /*if (AsyncTask == false)
+                    {*/
 
                     //This is wrong
                     //It seems like only this if structure is wrong, gotta check it next week LOL//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1635,7 +1710,6 @@ public partial class MainWindow : Window
                         if (ForwardProbably.Contains("forward"))
                         {
                             string ValueForward = File.ReadAllLines(JSON).Skip(Line + 4).Take(1).First().Replace("\"l\":", "").Replace("\"", "").Trim();
-                            File.AppendAllText(WindowCsFile, "\n //\"reportTouchingObject\"");
                             File.AppendAllText(WindowCsFile, "\n XValueImage" + LastObject + "= XValueImage" + LastObject + " + " + ValueForward + ";");
                             File.AppendAllText(WindowCsFile, "\n Canvas.SetLeft(Image " + LastObject + ", XValueImage" + LastObject + ");");
                         }
@@ -1664,7 +1738,7 @@ public partial class MainWindow : Window
                         string Angle = AngleRough.Replace("\"l\":", "").Replace("\"", "").Trim();
                         File.AppendAllText(WindowCsFile, "\n var Rotation" + LastObject + " = new RotateTransform();");
                         File.AppendAllText(WindowCsFile, "\n var image" + LastObject + " = this.FindControl<Image>(\"Image" + LastObject + "\");");
-                        File.AppendAllText(WindowCsFile, "\n image" + LastObject + ".Angle = " + Angle);
+                        File.AppendAllText(WindowCsFile, "\n image" + LastObject + ".Angle = " + Angle + ";");
                         File.AppendAllText(WindowCsFile, "/*" + Line + "*/");
                     }
 
@@ -1675,7 +1749,7 @@ public partial class MainWindow : Window
                         string Angle = AngleRough.Replace("\"l\":", "").Replace("\"", "").Trim();
                         File.AppendAllText(WindowCsFile, "\n var Rotation" + LastObject + " = new RotateTransform();");
                         File.AppendAllText(WindowCsFile, "\n var image" + LastObject + " = this.FindControl<Image>(\"Image" + LastObject + "\");");
-                        File.AppendAllText(WindowCsFile, "\n image" + LastObject + ".Angle = " + Angle);
+                        File.AppendAllText(WindowCsFile, "\n image" + LastObject + ".Angle = " + Angle + ";");
                         File.AppendAllText(WindowCsFile, "/*" + Line + "*/");
                     }
 
@@ -1687,7 +1761,7 @@ public partial class MainWindow : Window
                         string Angle = AngleRough.Replace("\"l\":", "").Replace("\"", "").Trim();
                         File.AppendAllText(WindowCsFile, "\n var Rotation" + LastObject + " = new RotateTransform();");
                         File.AppendAllText(WindowCsFile, "\n var image" + LastObject + " = this.FindControl<Image>(\"Image" + LastObject + "\");");
-                        File.AppendAllText(WindowCsFile, "\n image" + LastObject + ".Angle = " + Angle);
+                        File.AppendAllText(WindowCsFile, "\n image" + LastObject + ".Angle = " + Angle + ";");
                         File.AppendAllText(WindowCsFile, "/*" + Line + "*/");
                     }
 
@@ -1706,8 +1780,8 @@ public partial class MainWindow : Window
                             ObjectToFaceTowards = LastObject;
                             File.AppendAllText(WindowCsFile, "\n var Rotation" + LastObject + " = new RotateTransform();");
                             File.AppendAllText(WindowCsFile, "\n var image" + LastObject + " = this.FindControl<Image>(\"Image" + LastObject + "\");");
-                            File.AppendAllText(WindowCsFile, "\n int LeftObject Image" + LastObject + " = Canvas.GetLeft(" + LastObject + ");");
-                            File.AppendAllText(WindowCsFile, "\n int TopObject Image" + LastObject + " = Canvas.GetTop(" + LastObject + ");");
+                            File.AppendAllText(WindowCsFile, "\n int LeftObjectImage" + LastObject + " = Canvas.GetLeft(" + LastObject + ");");
+                            File.AppendAllText(WindowCsFile, "\n int TopObjectImage" + LastObject + " = Canvas.GetTop(" + LastObject + ");");
                             File.AppendAllText(WindowCsFile, "\n Rotation" + LastObject + " = Math.Atan(LeftObject" + LastObject + " , TopObject" + LastObject + ");");
                             File.AppendAllText(WindowCsFile, "\n image" + LastObject + ".Angle = Rotation" + LastObject);
                             //File.AppendAllText(WindowCsFile);
@@ -1788,7 +1862,6 @@ public partial class MainWindow : Window
                             File.AppendAllText(WindowCsFile, "\n int randomX" + RandomNumberInt + " = Random" + RandomNumberInt + ".Next(" + 0 + "," + 480 + ");");
                             File.AppendAllText(WindowCsFile, "\n Random RandomY" + RandomNumberInt + " = new Random();");
                             File.AppendAllText(WindowCsFile, "\n int randomY" + RandomNumberInt + " = Random" + RandomNumberInt + ".Next(" + 0 + "," + 360 + ");");
-                            File.AppendAllText(WindowCsFile, "\n TranslateTransform Coordinates" + LastObject + " = new TranslateTransform();");
                             File.AppendAllText(WindowCsFile, "\n Canvas.SetLeft(Image" + LastObject + ", randomX" + RandomNumberInt + ");");
                             File.AppendAllText(WindowCsFile, "\n Canvas.SetTop(Image" + LastObject + ", randomY" + RandomNumberInt + ");");
                         }
@@ -1799,7 +1872,7 @@ public partial class MainWindow : Window
                             if (PossibleObjectRough.Contains("\"l\":"))
                             {
                                 string PossibleObject = PossibleObjectRough.Replace("\"l\":", "").Replace("\"", "").Trim();
-                                File.AppendAllText(WindowCsFile, "\n var image" + PossibleObject + " = this.FindControl<Image>(\"Image" + PossibleObject + "\");");
+                                File.AppendAllText(WindowCsFile, "\n var Image" + PossibleObject + " = this.FindControl<Image>(\"Image" + PossibleObject + "\");");
                                 File.AppendAllText(WindowCsFile, "\n var Image" + LastObject + " = this.FinControl<Image>(\"" + LastObject + "\");"); //Don´t know if i need this LOL
                                 File.AppendAllText(WindowCsFile, "\n int PositionX = Canvas.GetLeft(Image" + PossibleObject + ");");
                                 File.AppendAllText(WindowCsFile, "\n int PositionY = Canvas.GetTop(Image" + PossibleObject + ");");
@@ -1820,7 +1893,7 @@ public partial class MainWindow : Window
                         {
                             string Number = File.ReadAllLines(JSON).Skip(Line).Take(1).First().Replace("\"l\":", "").Replace("\"", "").Trim();
 
-                            File.AppendAllText(WindowCsFile, "\n xCoordinate" + LastObject + " = xCoordinate" + LastObject + " + " + Number);
+                            File.AppendAllText(WindowCsFile, "\n xCoordinate" + LastObject + " = xCoordinate" + LastObject + " + " + Number + ";");
                             File.AppendAllText(WindowCsFile, "\n Canvas.SetLeft(Image" + LastObject + ", xCoordinate" + LastObject + ");");
                         }
                     }
@@ -1843,7 +1916,7 @@ public partial class MainWindow : Window
                         {
                             string Number = File.ReadAllLines(JSON).Skip(Line).Take(1).First().Replace("\"l\":", "").Replace("\"", "").Trim();
 
-                            File.AppendAllText(WindowCsFile, "\n int yCoordinate" + LastObject + " = yCoordinate" + LastObject + " + " + Number);
+                            File.AppendAllText(WindowCsFile, "\n int yCoordinate" + LastObject + " = yCoordinate" + LastObject + " + " + Number + ";");
                             File.AppendAllText(WindowCsFile, "\n Canvas.SetTop(Image" + LastObject + ", yCoordinate" + LastObject + ");");
                         }
                     }
@@ -2019,7 +2092,7 @@ public partial class MainWindow : Window
                             {
                                 File.AppendAllText(WindowCsFile, "\n Rect " + LastObject + "TOUCHED = new Rect(Canvas.GetLeft(Image" + LastObject + "), Canvas.GetTop(Image" + LastObject + "), Image" + LastObject + ".Width, Image" + LastObject + ".Height);");
                                 File.AppendAllText(WindowCsFile, "\n Rect " + ObjectToTouch + "TOUCHED = new Rect(Canvas.GetLeft(Image" + ObjectToTouch + "), Canvas.GetTop(Image" + ObjectToTouch + "), Image" + ObjectToTouch + ".Width, Image" + ObjectToTouch + ".Height);");
-                                File.AppendAllText(WindowCsFile, "\n" + " && " + LastObject + "TOUCHED.Interacts(" + ObjectToTouch + "TOUCHED)){");
+                                File.AppendAllText(WindowCsFile, "\n" + LastObject + "TOUCHED.Interacts(" + ObjectToTouch + "TOUCHED)){");
                                 File.AppendAllText(WindowCsFile, "/*" + Line + "*/");
                                 IF = IF + 1;
                                 SomethingElseThanRound = true;
@@ -2333,17 +2406,23 @@ public partial class MainWindow : Window
 
                             File.AppendAllText(WindowCsFile, "/*" + Line + "*/");
                             IF = IF + 1;
+                            Else = true;
                             SomethingElseThanRound = true;
                         }
                     }
-
+                    if (!jsonline.Contains("\"doIfElse\""))
+                    {
+                        Else = false;
+                    }
                     if (jsonline.Contains("\"doWaitUntil\"")) // i make a bool that gets true if it looks for random integers and it finds one ///////////////////////////////////////////////////////////////////////
                     {
                         File.AppendAllText(WindowCsFile, "\n //\"doWaitUntil\"");
                         string PossibleTouchStatement = File.ReadAllLines(JSON).Skip(Line + 3).Take(1).First();
                         if (PossibleTouchStatement.Contains("\"reportTouchingObject\"") == false && PossibleTouchStatement.Contains("\"reportKeyPressed\""))
                         {
-
+                            File.AppendAllText(WindowCsFile, "while(");
+                            //Check what is inside
+                            File.AppendAllText(WindowCsFile, "await Task.Delay()");
                         }
                         //First check if there is any Block like reportTouchingObject - is a Block that can´t be used inside an if statement as its an if statement itself
                         //File.AppendAllText();
@@ -2355,13 +2434,14 @@ public partial class MainWindow : Window
                         string PossibleTouchStatement = File.ReadAllLines(JSON).Skip(Line + 3).Take(1).First();
                         if (PossibleTouchStatement.Contains("\"reportTouchingObject\"") == false && PossibleTouchStatement.Contains("\"reportKeyPressed\""))
                         {
-                            File.AppendAllText(WindowCsFile, "\n if(");
+                            File.AppendAllText(WindowCsFile, "while( == true){");
+                            File.AppendAllText(WindowCsFile, "//This is not finished//");
                             File.AppendAllText(WindowCsFile, "/*" + Line + "*/");
                             IF = IF + 1;
                             SomethingElseThanRound = true;
                         }
                     }
-
+                    
                     if (jsonline.Contains("\"createClone\""))
                     {
                         File.AppendAllText(WindowCsFile, "\n //\"createClone\"");
@@ -2370,29 +2450,15 @@ public partial class MainWindow : Window
                         {
                             //Now create a clone lol 8-)
                             File.AppendAllText(WindowCsFile, "\n //Create a clone");
+                            File.AppendAllText(WindowCsFile, "\n Image IMG" + LastObject + " = new Image{");
+                            File.AppendAllText(WindowCsFile, "\n Width = Image" + LastObject + ".Width");
+                            File.AppendAllText(WindowCsFile, "\n Width = Image" + LastObject + ".Height");
+                            File.AppendAllText(WindowCsFile, "\n Background = Image" + LastObject + ".Background};");
+                            File.AppendAllText(WindowCsFile, "\n ProjectCanvas.Children.Add(IMG" + LastObject + ");");
                         }
                     }
 
-                    if (jsonline.Contains("\"doStopThis\""))
-                    {
-                        File.AppendAllText(WindowCsFile, "\n //\"doStopThis\"");
-                        string OptionRough = File.ReadAllLines(JSON).Skip(Line).Take(2).First();
-                        if (OptionRough.Contains("\"option\""))
-                        {
-                            if (OptionRough.Contains("\"all\""))
-                            {
-                                File.AppendAllText(WindowCsFile, "\n Application.Current?.Shutdown();");
-                            }
-
-                            if (OptionRough == "\"other scripts in sprite\"")
-                            {
-                                // ok no the idea of turning every object into a void is a bad idea - cuz it will complicate stuff even more, the thing is when I make a void of a object i gotta call it at the beginning, and I cat call multiple voids at once O_O so i just have to kind of make some other solution, Maybe this block will never be implemented O_O sorry =_= i can´t do everything but i can do much
-                                //File.AppendAllText(WindowCsFile, "//This is not doable rn :(");
-                                //Ok i just had a wild idea, what if I just make bools that represent those voids, and whenever a void is litreally called they get turned on or off, and doing voids for sprites is a good idea, i just have to call them all at the beginning if I am correct. THose bools can be turned of and on as they are world bools, when those bools have turned the voids simply don´t work, I think i just beat the worst type of block O_O lets just hope i am right XD. 
-
-                            }
-                        }
-                    }
+                    
 
                     //Get the last Object Name
                     /////////////////////////////THIS IS FOR }///////////////////////////////////////////////////////////////////////////////////////////
@@ -2412,6 +2478,7 @@ public partial class MainWindow : Window
                     //Foreach Button Click a Void - if there are double voids with
                     //no voids at ALL when clicking, that is wrong (it complicetes things way more :( I know that it is :-/!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+                    //The private async Tasks are critical, they need to be done at the very end, but idk how to do it for now
                     if (jsonline.Contains("\"receiveInteraction\""))
                     {
                         File.AppendAllText(WindowCsFile, "\n //\"receiveInteraction\"");
@@ -2424,8 +2491,9 @@ public partial class MainWindow : Window
                             File.AppendAllText(WindowCsFile, "\n private async Task " + LastObject + "OnPressed(object sender, Avalonia.PointerPressedEventArgs e){");
                             File.AppendAllText(WindowCsFile, "/*" + Line + "*/");
                             IF = IF + 1;
-                            SomethingElseThanRound = true;
-
+                            AsyncTask = true;
+                            TaskLines.Add(" private async Task " + LastObject + "OnPressed(object sender, Avalonia.PointerPressedEventArgs e){");
+                            LastTask = " private async Task " + LastObject + "OnPressed(object sender, Avalonia.PointerPressedEventArgs e){";
                         }
 
                         if (EitherPressedOrReleased == "released")
@@ -2434,6 +2502,9 @@ public partial class MainWindow : Window
                             File.AppendAllText(WindowCsFile, "/*" + Line + "*/");
                             IF = IF + 1;
                             SomethingElseThanRound = true;
+                            AsyncTask = true;
+                            TaskLines.Add(" private async Task " + LastObject + "OnReleased(object sender, Avalonia.PointerPressedEventArgs e){");
+                            LastTask = " private async Task " + LastObject + "OnRelease(object sender, Avalonia.PointerPressedEventArgs e){";
                         }
                     }
 
@@ -2444,6 +2515,8 @@ public partial class MainWindow : Window
                         File.AppendAllText(WindowCsFile, "\n private Task MouseDown" + GlobablClickNumber + "(object sender, PointerReleasedEventArgws e){");
                         IF = IF + 1;
                         SomethingElseThanRound = true;
+                        AsyncTask = true;
+                        LastTask = "private Task MouseDown" + GlobablClickNumber + "(object sender, PointerReleasedEventArgws e){";
                     }
 
                     if (jsonline.Contains("\"reportKeyPressed\""))
@@ -2483,6 +2556,18 @@ public partial class MainWindow : Window
                         //ok i need a system where it detects the objects - my 
                     }
 
+                    if (jsonline.Contains("reportOr"))
+                    {
+                        LineORBool = true;
+                    }
+                    if (jsonline.Contains("reportAnd"))
+                    {
+                        LineANDBool = true;
+                    }
+                    if (jsonline.Contains("reportNot"))
+                    {
+                        LineNotBool = true;
+                    }
                     if (jsonline.Contains("\"UNSUPPORTED: sensing_dayssince2000\""))
                     {
                         File.AppendAllText(WindowCsFile, "\n //\"UNSUPPORTED: sensing_dayssince2000\"");
@@ -2895,13 +2980,14 @@ public partial class MainWindow : Window
                     if (jsonline.Contains("\"doShowVar\""))
                     {
                         File.AppendAllText(WindowCsFile, "\"doShowVar\"");
-
-                        //Ok i need to make a picture out of the var XD how do i do that - yeah Skia sharp probably with a textbox inside that can´t be edited
+                        string VariableName = File.ReadAllLines(JSON).Skip(Line - 2).Take(1).First().Replace("\"l\":", "").Replace("\"", "").Trim();
+                        File.AppendAllText(WindowCsFile, "\n Image" + VariableName + ".Visibility == true;");
                     }
 
                     if (jsonline.Contains("\"doHideVar\""))
                     {
-                        File.AppendAllText(WindowCsFile, "\"doHideVar\"");
+                        string VariableName = File.ReadAllLines(JSON).Skip(Line - 2).Take(1).First().Replace("\"l\":", "").Replace("\"", "").Trim();
+                        File.AppendAllText(WindowCsFile, "\n Image" + VariableName + ".Visibility == false;");
                     }
                     //This needs to be edited
 
@@ -2912,23 +2998,106 @@ public partial class MainWindow : Window
                         string BeforeLine = File.ReadAllLines(JSON).Skip(Line - 2).Take(1).First();
                         string BeforeThatLine = File.ReadAllLines(JSON).Skip(Line - 3).Take(1).First();
 
-                        if(IF > 0)
+                        if (IF > 0)
                         {
                             //Check these:   }]}, and these }]}
                             if (BeforeLine.Contains("]"))
                             {
                                 if (BeforeThatLine.Contains("}"))
                                 {
+                                    //I know this looks wrong, but it is actually good  don´t edit!!
                                     while (IF > 0)
                                     {
-                                        File.AppendAllText(WindowCsFile, "\n}\n");
-                                        IF = IF - 1;
+                                        if(Else == false)
+                                        {
+                                            File.AppendAllText(WindowCsFile, "\n}\n");
+                                            IF = IF - 1;
+                                        }
+                                        if (Else == true)
+                                        {
+                                            File.AppendAllText(WindowCsFile, "\n}\nelse{");
+                                        }
+                                    }
+                                    if (AsyncTask == true)
+                                    {
+                                        AsyncTask = false;
+                                    }
+                                }
+                            }
+                            if (!BeforeLine.Contains("]"))
+                            {
+                                if (!BeforeThatLine.Contains("}"))
+                                {
+
+                                    if (LineANDBool == true)
+                                    {
+                                        File.AppendAllText(WindowCsFile, "&&");
+                                    }
+
+                                    if (LineORBool == true)
+                                    {
+                                        File.AppendAllText(WindowCsFile, "|");
+                                    }
+
+                                    if (LineNotBool == true)
+                                    {
+                                        File.AppendAllText(WindowCsFile, "!=");
                                     }
                                 }
                             }
                         }
                     }
+                    //This isn´t working. it should be way easier to do this - tomorrow i will fix it
+                    if (jsonline.Contains("\"doStopThis\""))
+                    {
+                        File.AppendAllText(WindowCsFile, "\n //\"doStopThis\"");
+                        string OptionRough = File.ReadAllLines(JSON).Skip(Line + 1).Take(1).First();
+                        if (OptionRough.Contains("\"option\""))
+                        {
+                            if (OptionRough.Contains("\"all\""))
+                            {
+                                foreach (string AsyncLine in TaskLines)
+                                {
+                                    File.AppendAllText(WindowCsFile, "\n await " + AsyncLine + ".CancelAfter(500);");
+                                }
+                            }
+
+                            if (OptionRough.Contains("\"this block\""))
+                            {
+                                // I need to cancel the task
+                                //easyAsyncCancel
+
+                                File.AppendAllText(WindowCsFile, "\n await " + LastTask + ".CancelAfter(500);");
+                            }
+
+                            if (OptionRough.Contains("\"other scripts in sprite\""))
+                            {
+                                foreach (string AsyncLine in TaskLines)
+                                {
+                                    if (AsyncLine.Contains(LastObject))
+                                    {
+                                        File.AppendAllText(WindowCsFile, "\n await " + AsyncLine + ".CancelAfter(500);");
+                                    }
+                                }
+                                // I need to cancel all tasks of the current object 
+                            }
+                        }
+                    }
+
+                    if (jsonline.Contains("\"comment\":"))
+                    {
+                        string CommentText = File.ReadAllLines(JSON).Skip(Line + 2).Take(1).First().Replace("\"#text\":", "").Replace(",", "").Trim();
+                        File.AppendAllText(WindowCsFile, "\n//" + CommentText);
+                    }
+                    /*
+                    }*/
+
+                    if (AsyncTask == true)
+                    {
+
+                    }
                 }
+
                 catch (Exception ex)
                 {
                     File.AppendAllText(WindowCsFile, "\n //Error " + jsonline + " " + Line);
@@ -3001,6 +3170,7 @@ public partial class MainWindow : Window
             await (Cli.Wrap("dotnet").WithArguments(args => args.Add("new").Add("sln")).WithWorkingDirectory(GameFolder).ExecuteAsync());
             await (Cli.Wrap("dotnet").WithArguments(args => args.Add("sln").Add("add").Add(ApplicationName + ".csproj")).WithWorkingDirectory(GameFolder).ExecuteAsync());
             await (Cli.Wrap("dotnet").WithArguments(args => args.Add("add").Add("package").Add("LibVLCSharp")).WithWorkingDirectory(GameFolder).ExecuteAsync());
+            await (Cli.Wrap("dotnet").WithArguments(args => args.Add("add").Add("package").Add("easyAsyncCancel")).WithWorkingDirectory(GameFolder).ExecuteAsync());
             await (Cli.Wrap("dotnet").WithArguments(args => args.Add("build").Add(ApplicationName + ".slnx")).WithWorkingDirectory(GameFolder).ExecuteAsync());
             //Need multiple Cli.Wraps
             if (Snapinator == true && Scratch == false)
@@ -3019,13 +3189,12 @@ public partial class MainWindow : Window
         }
     }
 
-    private async void ExeBuilder() //This has to be edited :(
+    public async Task ExeBuilder() //This has to be edited :(
     {
-        var FinishedMessage = new MessageBox("Your Project was built for " + formatOfApplication + ", \n and is located at " + Foldername, "Succesful Build", MessageBoxIcon.Information);
-        var SadlyNotFinished = new MessageBox("Your Project was sadly not built, \n but it is located at " + Foldername + ", \n either it has some bugs that need to be fixed, or it is just a internal error of this program", "Unsuccesful Build", MessageBoxIcon.Information);
+        //Somehow a thread is beeing opened that shouldn´t idk why lol
         try
         {
-            if (OperatingSystem.IsWindows())
+            if (OperatingSystem.IsWindows()| OperatingSystem.IsLinux() | OperatingSystem.IsMacOS())
             {
                 if (windows == true)
                 {
@@ -3084,81 +3253,15 @@ public partial class MainWindow : Window
                         await (Cli.Wrap("dotnet").WithArguments(args => args.Add("publish").Add("-c").Add("Release").Add("-r").Add("osx-arm64").Add("-p:PublishSingleFile=true").Add("--self-contained").Add("true")).WithWorkingDirectory(GameFolder).ExecuteAsync());
                     }
                 }
-                var SuccesfulBuildShow = FinishedMessage.Show(MessageBoxButtons.OK);
+                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => MessageBoxManager.GetMessageBoxStandard("Succesful Build", "Your Project was built for " + formatOfApplication + ", \n and is located at " + Foldername, ButtonEnum.Ok, MsBox.Avalonia.Enums.Icon.Info).ShowAsync());
+                //ProgressBarConverter.Value = 100; //Need to make the whole script in order so it works way better -rn the code is pure spaghetti code, but later it will be a flat Pizza i promise XD
                 //ProgressBarConverter.Value = 100; //Need to make the whole script in order so it works way better -rn the code is pure spaghetti code, but later it will be a flat Pizza i promise XD
             }
-
-
-            if (OperatingSystem.IsLinux() | OperatingSystem.IsMacOS())
-            {
-                string GameBuilder = Path.Combine(Foldername, "GameBuilder.sh");
-                File.AppendAllText(GameBuilder, "\n cd " + GameFolder);
-                //Process.Start(ProcessStartInfo()"\n dotnet run " + ApplicationName + ".sln");
-                var process1 = Process.Start(new ProcessStartInfo(GameBuilder) { UseShellExecute = false, CreateNoWindow = true });
-                process1.WaitForExitAsync();
-
-
-                string GameDeployer = Path.Combine(Foldername, "GameFinisher.sh");
-                File.AppendAllText(GameDeployer, "\n cd " + Foldername);
-                if (windows == true)
-                {
-                    if (formatOfApplication == "32-Bit")
-                    {
-                        Console.WriteLine("32 bit Machine");
-                        File.AppendAllText(GameDeployer, "\n dotnet publish -c Release -r win-x86 -p:PublishSingleFile=true --self-contained true");
-                    }
-
-                    if (formatOfApplication == "64-Bit")
-                    {
-                        Console.WriteLine("64 bit Machine");
-                        File.AppendAllText(GameDeployer, "\n dotnet publish -c Release -r win-x64 -p:PublishSingleFile=true --self-contained true");
-                    }
-
-                    if (formatOfApplication == "Arm-64")
-                    {
-                        Console.WriteLine("64 bit Machine");
-                        File.AppendAllText(GameDeployer, "\n dotnet publish -c Release -r win-arm64 -p:PublishSingleFile=true --self-contained true");
-                    }
-                }
-
-                if (linux == true)
-                {
-                    if (formatOfApplication == "64-Bit")
-                    {
-                        Console.WriteLine("64 bit Machine");
-                        File.AppendAllText(GameDeployer, "\n dotnet publish -c Release -r linux-x64 -p:PublishSingleFile=true --self-contained true");
-                    }
-
-                    if (formatOfApplication == "Arm-64")
-                    {
-                        Console.WriteLine("64 bit Machine");
-                        File.AppendAllText(GameDeployer, "\n dotnet publish -c Release -r linux-arm64 -p:PublishSingleFile=true --self-contained true");
-                    }
-                }
-
-                if (MacOs == true)
-                {
-                    if (formatOfApplication == "64-Bit")
-                    {
-                        Console.WriteLine("64 bit Machine");
-                        File.AppendAllText(GameDeployer, "\n dotnet publish -c Release -r osx-x64 -p:PublishSingleFile=true --self-contained true");
-                    }
-
-                    if (formatOfApplication == "Arm-64")
-                    {
-                        Console.WriteLine("64 bit Machine");
-                        File.AppendAllText(GameDeployer, "\n dotnet publish -c Release -r osx-arm64 -p:PublishSingleFile=true --self-contained true");
-                    }
-                }
-                var SuccesfulBuildShow = FinishedMessage.Show(MessageBoxButtons.OK);
-
-                //ProgressBarConverter.Value = 100; //Need to make the whole script in order so it works way better -rn the code is pure spaghetti code, but later it will be a flat Pizza i promise XD
-            }
-        }
+        } 
 
         catch (Exception ex)
         {
-            var UNsuccesfulBuildShow = SadlyNotFinished.Show(MessageBoxButtons.OK);
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => MessageBoxManager.GetMessageBoxStandard("Unsuccesful Build", "Your Project was sadly not built, \n but it is located at " + Foldername + ", \n either it has some bugs that need to be fixed, or it is just a internal error of this program", ButtonEnum.Ok, MsBox.Avalonia.Enums.Icon.Error).ShowAsync());
         }
     }
 }

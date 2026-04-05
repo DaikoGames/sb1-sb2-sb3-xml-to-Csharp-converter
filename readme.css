@@ -1,0 +1,51 @@
+h1{
+    color: red;
+    text-shadow: 2px, 2px, 5px, black;
+    margin-left: 600px;
+    font-family: 'Roboto', sans-serif;
+}
+
+h2{
+    color: red;
+    text-align: left;
+    font-family: 'Roboto', sans-serif;
+}
+
+p{
+    color: black; 
+    text-align: left;
+    font-family: 'Roboto', sans-serif;
+}
+
+h4 {
+    color: red;
+    text-align: left;
+    font-family: 'Roboto', sans-serif;
+}
+
+table{
+    border-collapse: collapse;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+th{
+    background-color: red;
+    color: white;
+    border: 1px solid black;
+    border-color: black;
+
+}
+
+td{
+
+    border: 1px solid black;
+    border-color: black;
+    padding: 5px;
+    text-align: center;
+}
+
+img{
+    float: left;
+    margin-left: 500px;
+}
