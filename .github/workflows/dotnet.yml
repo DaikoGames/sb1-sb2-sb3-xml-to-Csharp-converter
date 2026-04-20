@@ -25,8 +25,7 @@ jobs:
         id: get-version
         shell: bash
         run: |
-          VERSION=$(grep -oPm1 "(?<=<Version>)[^<]+" MyApplication/MyApplication.csproj)
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          VERSION=$(grep -oPm1 "(?<=<Version>)[^<]+" MyApplication/MyApplication.csproj) echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Publish Application
         run: dotnet publish MyApplication/MyApplication.csproj -c Release -o publish -r win-x64 --self-contained true
