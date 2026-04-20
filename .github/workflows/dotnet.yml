@@ -1,28 +1,44 @@
-# This workflow will build a .NET project
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-net
-
-name: .NET
+name: Deploy to GitHub Releases
 
 on:
   push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+    branches:
+      - main
+
+permissions:
+  contents: write
 
 jobs:
-  build:
-
-    runs-on: ubuntu-latest
+  deploy-to-github-releases:
+    runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v4
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: 8.0.x
-    - name: Restore dependencies
-      run: dotnet restore
-    - name: Build
-      run: dotnet build --no-restore
-    - name: Test
-      run: dotnet test --no-build --verbosity normal
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Get Version from Project File
+        id: get-version
+        shell: bash
+        run: |
+          VERSION=$(grep -oPm1 "(?<=<Version>)[^<]+" MyApplication/MyApplication.csproj)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Publish Application
+        run: dotnet publish MyApplication/MyApplication.csproj -c Release -o publish -r win-x64 --self-contained true
+
+      - name: Install Velopack CLI
+        run: dotnet tool install -g vpk
+
+      - name: Add dotnet tools to PATH
+        run: echo "$env:USERPROFILE\.dotnet\tools" >> $env:GITHUB_PATH
+
+      - name: Create and Upload Velopack Release
+        run: |
+          vpk download github --repoUrl https://github.com/${{ github.repository }}
+          vpk pack -u MyUniqueIdentifier -v ${{ steps.get-version.outputs.version }} -p publish
+          vpk upload github --repoUrl https://github.com/${{ github.repository }} --publish --releaseName "MyProject ${{ steps.get-version.outputs.version }}" --tag "v${{ steps.get-version.outputs.version }}"
