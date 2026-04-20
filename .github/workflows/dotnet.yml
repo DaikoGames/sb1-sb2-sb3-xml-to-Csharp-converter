@@ -27,9 +27,13 @@ jobs:
         run: |
           VERSION=$(grep -oPm1 "(?<=<Version>)[^<]+" "./sb1 sb2 sb3 xml to Csharp converter.csproj") echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      - name: Publish Application
+      - name: win-x64 build
         run: dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" -c Release -o publish -r win-x64 --self-contained true
-
+      - name: win-arm64 build 
+        run: dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" -c Release -o publish -r win-arm64 --self-contained true
+      - name: win-x86 build 
+        run: dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" -c Release -o publish -r win-x86 --self-contained true
+        
       - name: Install Velopack CLI
         run: dotnet tool install -g vpk
 
