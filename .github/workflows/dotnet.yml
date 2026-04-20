@@ -19,13 +19,13 @@ jobs:
       - name: Install .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: 9.0.x
 
-      - name: Get Version from Project File
+      - name: Project building
         id: get-version
         shell: bash
         run: |
-          VERSION=$(grep -oPm1 "(?<=<Version>)[^<]+" MyApplication/MyApplication.csproj) echo "version=$VERSION" >> $GITHUB_OUTPUT
+          VERSION=$(grep -oPm1 "(?<=<Version>)[^<]+" ./sb1 sb2 sb3 xml to Csharp converter.csproj) echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Publish Application
         run: dotnet publish MyApplication/MyApplication.csproj -c Release -o publish -r win-x64 --self-contained true
