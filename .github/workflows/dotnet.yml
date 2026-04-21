@@ -9,9 +9,33 @@ permissions:
   contents: write
 
 jobs:
-  deploy-to-github-releases:
-    runs-on: windows-latest
-
+  build: 
+    strategy:
+       matrix:
+         include: 
+         - os: windows-latest
+           runtime: win-x64
+          
+         - os: windows-latest
+           runtime: win-arm64
+          
+         - os: windows-latest
+           runtime: win-x86
+          
+         - os: ubuntu-latest
+           runtime: linux-x64
+          
+         - os: ubuntu-latest
+           runtime: linux-arm64
+          
+         - os: macos-latest
+           runtime: osx-x64
+          
+         - os: macos-latest
+           runtime: osx-arm64
+          
+    runs-on: ${{ matrix.os}}
+  
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -26,8 +50,8 @@ jobs:
         shell: bash
         run: |
              echo "version=0.9.${{ github.run_number }}" >> $GITHUB_OUTPUT
-      - name: win-x64 build
-        run: dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" -c Release -o publish -r win-x64 -p:SelfContained=true -p:PublishSingleFile=true -p:PublishTrimmed=false
+      - name: build
+        run: dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" -c Release -o publish/${{ matrix.runtime }} -r ${{ matrix.runtime }} -p:SelfContained=true -p:PublishSingleFile=true -p:PublishTrimmed=false
         
       - name: Install Velopack CLI
         run: dotnet tool install -g vpk
@@ -37,17 +61,18 @@ jobs:
       - name: important files to PATH
         shell: pwsh
         run: |
-            New-Item -ItemType Directory -Force -Path "./publish/ConverterIcon"
-            Copy-Item "./ConverterIcon/Converter.ico" "./publish/ConverterIcon/Converter.ico"
-            New-Item -ItemType Directory -Force -Path "./publish/ScratchConverter"
-            Copy-Item "./ScratchConverter/Convert.js" "./publish/ScratchConverter/Convert.js"
-            Copy-Item "./ScratchConverter/package.json" "./publish/ScratchConverter/package.json"
-            Copy-Item "./ScratchConverter/package-lock.json" "./publish/ScratchConverter/package-lock.json"
+            New-Item -ItemType Directory -Force -Path "./publish/${{matrix.runtime}}/ConverterIcon"
+            Copy-Item "./ConverterIcon/Converter.ico" "./publish/${{matrix.runtime}}/ConverterIcon/Converter.ico"
+            New-Item -ItemType Directory -Force -Path "./publish/${{matrix.runtime}}/ScratchConverter"
+            Copy-Item "./ScratchConverter/Convert.js" "./publish/${{matrix.runtime}}/ScratchConverter/Convert.js"
+            Copy-Item "./ScratchConverter/package.json" "./publish/${{matrix.runtime}}/ScratchConverter/package.json"
+            Copy-Item "./ScratchConverter/package-lock.json" "./publish/${{matrix.runtime}}/ScratchConverter/package-lock.json"
             
         
       - name: Create and Upload Velopack Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
         run: |
-          vpk pack -u Converter -v ${{ steps.get-version.outputs.version }} --packDir "./publish" --channel win
-          vpk upload github --repoUrl https://github.com/${{ github.repository }} --token ${{ secrets.GITHUB_TOKEN }}  --publish --releaseName "Converter ${{ steps.get-version.outputs.version }}"  --tag v${{ steps.get-version.outputs.version }} --channel win
+          vpk pack -u Converter -v ${{ steps.get-version.outputs.version }} --packDir "./publish/${{matrix.runtime}}" --channel ${{matrix.runtime}}
+          vpk upload github --repoUrl https://github.com/${{ github.repository }} --token ${{ secrets.GITHUB_TOKEN }}  --publish --releaseName "Converter ${{ steps.get-version.outputs.version }}"  --tag v${{ steps.get-version.outputs.version }} --channel ${{ matrix.runtime }}
+
