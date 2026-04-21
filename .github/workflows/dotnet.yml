@@ -25,7 +25,7 @@ jobs:
         id: get-version
         shell: bash
         run: |
-              echo "version=$(grep -oE '<Version>[^<]+' "./sb1 sb2 sb3 xml to Csharp converter.csproj"| sed 's/<Version>//')" >> $GITHUB_OUTPUT
+             echo "version=1.0.${{ github.run_number }}" >> $GITHUB_OUTPUT
       - name: win-x64 build
         run: dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" -c Release -o publish -r win-x64 --self-contained true
         
