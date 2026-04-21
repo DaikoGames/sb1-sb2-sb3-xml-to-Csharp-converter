@@ -37,5 +37,5 @@ jobs:
 
       - name: Create and Upload Velopack Release
         run: |
-          vpk pack -u Converter -v ${{ steps.get-version.outputs.version }} --packDir "./publish"
-          vpk upload github --repoUrl https://github.com/${{ github.repository }}/publish --publish --releaseName "Converter ${{ steps.get-version.outputs.version }}" --tag v${{ steps.get-version.outputs.version }}
+          vpk pack -u Converter -v ${{ steps.get-version.outputs.version }} --packDir "./publish" --channel win
+          vpk upload github --repoUrl https://github.com/${{ github.repository }} --publish --releaseName "Converter ${{ steps.get-version.outputs.version }}" --tag v${{ steps.get-version.outputs.version }} --channel win
