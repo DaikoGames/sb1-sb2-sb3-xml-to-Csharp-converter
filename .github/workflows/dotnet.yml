@@ -37,7 +37,7 @@ jobs:
       - name: important files to PATH
         shell: pwsh
         run: |
-            New-Item -ItemType Diectroy -Force -Path "./publish/ConverterIcon"
+            New-Item -ItemType Directory -Force -Path "./publish/ConverterIcon"
             Copy-Item "./ConverterIcon/Converter.ico" "./publish/ConverterIcon/Converter.ico"
             New-Item -ItemType Directory -Force -Path "./publish/ScratchConverter"
             Copy-Item "./ScratchConverter/Convert.js" "./publish/Convert.js"
