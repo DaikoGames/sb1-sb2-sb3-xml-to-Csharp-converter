@@ -26,8 +26,6 @@ jobs:
         shell: bash
         run: |
              echo "version=0.9.${{ github.run_number }}" >> $GITHUB_OUTPUT
-      - name: Run win-x64
-        run: dotnet build "./sb1 sb2 sb3 xml to Csharp converter.csproj" -c Release
       - name: win-x64 build
         run: dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" -c Release -o publish -r win-x64 -p:PublishSingleFile=true -p:SelfContained=true
         
