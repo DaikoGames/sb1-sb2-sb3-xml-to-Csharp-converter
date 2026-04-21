@@ -36,6 +36,8 @@ jobs:
         run: echo "$env:USERPROFILE\.dotnet\tools" >> $env:GITHUB_PATH
 
       - name: Create and Upload Velopack Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
         run: |
           vpk pack -u Converter -v ${{ steps.get-version.outputs.version }} --packDir "./publish" --channel win
           vpk upload github --repoUrl https://github.com/${{ github.repository }} --publish --releaseName "Converter ${{ steps.get-version.outputs.version }}" --tag v${{ steps.get-version.outputs.version }} --channel win
