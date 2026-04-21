@@ -37,6 +37,5 @@ jobs:
 
       - name: Create and Upload Velopack Release
         run: |
-          vpk --version 1.0.0 download github --repoUrl https://github.com/${{ github.repository }}
           vpk --version 1.0.0 pack -u MyUniqueIdentifier -v ${{ steps.get-version.outputs.version }} -p publish
           vpk --version 1.0.0 upload github --repoUrl https://github.com/${{ github.repository }} --publish --releaseName "MyProject ${{ steps.get-version.outputs.version }}" --tag v${{ steps.get-version.outputs.version }}
