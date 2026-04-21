@@ -27,7 +27,7 @@ jobs:
         run: |
              echo "version=0.9.${{ github.run_number }}" >> $GITHUB_OUTPUT
       - name: win-x64 build
-        run: dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" -c Release -o publish -r win-x64 -p:PublishSingleFile=true -p:SelfContained=true
+        run: dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" -c Release -o publish -r win-x64 -p:SelfContained=true -p:PublishSingleFile=true -p:PublishTrimmed=false
         
       - name: Install Velopack CLI
         run: dotnet tool install -g vpk
