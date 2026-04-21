@@ -40,4 +40,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
         run: |
           vpk pack -u Converter -v ${{ steps.get-version.outputs.version }} --packDir "./publish" --channel win
-          vpk upload github --repoUrl https://github.com/${{ github.repository }} --publish --releaseName "Converter ${{ steps.get-version.outputs.version }}" --token ${{ secrets.GITHUB_TOKEN }} v${{ steps.get-version.outputs.version }} --secrets --channel win
+          vpk upload github --repoUrl https://github.com/${{ github.repository }} --token ${{ secrets.GITHUB_TOKEN }}  --publish --releaseName "Converter ${{ steps.get-version.outputs.version }}"  --tag v${{ steps.get-version.outputs.version }} --channel win
