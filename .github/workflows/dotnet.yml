@@ -40,9 +40,9 @@ jobs:
             New-Item -ItemType Directory -Force -Path "./publish/ConverterIcon"
             Copy-Item "./ConverterIcon/Converter.ico" "./publish/ConverterIcon/Converter.ico"
             New-Item -ItemType Directory -Force -Path "./publish/ScratchConverter"
-            Copy-Item "./ScratchConverter/Convert.js" "./publish/Convert.js"
-            Copy-Item "./ScratchConverter/package.json" "./publish/package.json"
-            Copy-Item "./ScratchConverter/package-lock.json" "./publish/package-lock.json"
+            Copy-Item "./ScratchConverter/Convert.js" "./publish/ScratchConverter/Convert.js"
+            Copy-Item "./ScratchConverter/package.json" "./publish/ScratchConverter/package.json"
+            Copy-Item "./ScratchConverter/package-lock.json" "./publish/ScratchConverter/package-lock.json"
             
         
       - name: Create and Upload Velopack Release
