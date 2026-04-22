@@ -60,12 +60,10 @@ jobs:
         shell: pwsh
         run: |
           $baseDir = "./publish/${{ matrix.runtime }}"
-          
-          # Icon kopieren
+
           New-Item -ItemType Directory -Force -Path "$baseDir/ConverterIcon"
           Copy-Item "./ConverterIcon/Converter.ico" "$baseDir/ConverterIcon/Converter.ico"
-          
-          # ScratchConverter Dateien kopieren
+
           New-Item -ItemType Directory -Force -Path "$baseDir/ScratchConverter"
           Copy-Item "./ScratchConverter/Convert.js" "$baseDir/ScratchConverter/Convert.js"
           Copy-Item "./ScratchConverter/package.json" "$baseDir/ScratchConverter/package.json"
@@ -87,40 +85,3 @@ jobs:
           name: vpk-${{ matrix.runtime }}
           path: Releases/
 
-  release:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download all Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          # This puts all files from all matrix runs into the ./Releases folder
-          path: ./Releases
-          merge-multiple: true
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 9.0.x
-
-      - name: Install Velopack CLI
-        run: dotnet tool install -g vpk
-
-      - name: Add dotnet tools to PATH
-        shell: bash
-        run: echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
-
-      - name: Publish to GitHub Releases
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          # We point to the directory containing all .json assets and installers.
-          # vpk will automatically detect all channels (win-x64, linux-x64, etc.) 
-          # present in the folder and upload them to the same release.
-          vpk upload github \
-            --publish \
-            --repoUrl "https://github.com/${{ github.repository }}" \
-            --token "$GITHUB_TOKEN" \
-            --releaseName "Converter 0.9.${{ github.run_number }}" \
-            --tag "v0.9.${{ github.run_number }}" \
-            --publishDir "./Releases"
