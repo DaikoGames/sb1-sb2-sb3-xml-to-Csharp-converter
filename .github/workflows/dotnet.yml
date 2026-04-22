@@ -59,7 +59,6 @@ jobs:
       - name: Add Extra Files (Icons & Scripts)
         shell: pwsh
         run: |
-          # Zielordner definieren (muss im packDir liegen!)
           $baseDir = "./publish/${{ matrix.runtime }}"
           
           # Icon kopieren
@@ -110,14 +109,16 @@ jobs:
         shell: bash
         run: echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
 
+
       - name: Publish to GitHub Releases
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          cd ./Releases
+  
           vpk upload github \
             --publish \
             --repoUrl "https://github.com/${{ github.repository }}" \
             --token "$GITHUB_TOKEN" \
             --releaseName "Converter 0.9.${{ github.run_number }}" \
-            --tag "v0.9.${{ github.run_number }}" \
-            --out "./Releases"
+            --tag "v0.9.${{ github.run_number }}"
