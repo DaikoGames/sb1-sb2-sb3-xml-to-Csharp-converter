@@ -1,4 +1,4 @@
-//This Code belongs to Daiko Games - it is copyrighted - don´t use it without permission
+//This Code belongs to Daiko Games - it is copyrighted - donï¿½t use it without permission
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -17,7 +17,6 @@ using MsBox.Avalonia;
 using MsBox.Avalonia.Enums;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
@@ -30,6 +29,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Net;
+using System.Net.Sockets;
 using System.Numerics;
 using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
@@ -47,6 +47,7 @@ namespace sb1_sb2_sb3_xml_to_Csharp_converter;
 //One of my biggest issues is that bools are written as , even though they need .
 public partial class MainWindow : Window
 {
+
     string DotnetVersion;
     public bool windows = false;
     public bool linux = false;
@@ -74,22 +75,21 @@ public partial class MainWindow : Window
 
 
     bool LastLight = false;
-    
+
     public MainWindow()
     {
-        
         InitializeComponent();
-       
+        Trace.WriteLine("Initializing the App");
         CultureInfo LanguageOfUser = CultureInfo.CurrentUICulture;
         string Language = LanguageOfUser.TwoLetterISOLanguageName;
         if (Language == "de")
         {
             //German
-            Text1.Content = "Bitte Wählen, oder schreiben Sie die Datei die Sie bearbeiten wollen";
+            Text1.Content = "Bitte WÃ¤hlen, oder schreiben Sie die Datei die Sie bearbeiten wollen";
             FileFolderNameTextBox.Watermark = "Ihre Datei sollte eine .sb, .sb2, .sb3 oder eine .xml Datei sein:";
             Text2.Content = "Bitte suchen Sie sich ihren Ordner aus wo das Projekt gespeichert werden soll";
             FolderNameTextBox.Watermark = "Ihr Ordner";
-            IconText.Content = "Bitte Wählen Sie die Icon Datei aus wenn es für Sie nötig ist";
+            IconText.Content = "Bitte WÃ¤hlen Sie die Icon Datei aus wenn es fÃ¼r Sie nÃ¶tig ist";
             IconTextBox.Watermark = "Die Icon Datei vom Projekt (nicht notwendig)";
             SnapinatorOrNot.Content = "Soll der Converter den Snapinator Weg oder den Scratch Weg nehmen?";
             SnapinatorCheckBox.Content = "Snapinator";
@@ -122,6 +122,16 @@ public partial class MainWindow : Window
             GithubRepo.Content = "This Project was made by: Daiko Games";
         }
 
+        if (Language == "nl")
+        {
+
+        }
+
+        if (Language == "sp")
+        {
+
+        }
+
         ProgressBarConverter.Minimum = 0;
         ProgressBarConverter.Maximum = 100;
         ProgressBarConverter.Value = 0;
@@ -133,10 +143,10 @@ public partial class MainWindow : Window
         Theme();
 
         Task.Run(() => ThemeChange());
-
     }
     public async Task ThemeChange()
     {
+        Trace.WriteLine("Changing the Theme");
         while (true)
         {
             this.ActualThemeVariantChanged += (_, args) =>
@@ -239,6 +249,7 @@ public partial class MainWindow : Window
     }
     public async void FileSearcherVoid(object sender, RoutedEventArgs args)
     {
+        Trace.WriteLine("Searching for a File");
         /*var openFileDialog = new OpenFileDialog
         {
             // You can specify filters here, such as file extensions
@@ -256,7 +267,7 @@ public partial class MainWindow : Window
 
         if (result != null && result.Length > 0)
         {
-            string selectedFile = result[0];  // Get the first file selected - this is null - I don´t know why?
+            string selectedFile = result[0];  // Get the first file selected - this is null - I donï¿½t know why?
             fileName = Path.GetFileName(selectedFile);
             Filename = selectedFile;
             FileFolderNameTextBox.Text = selectedFile;
@@ -299,7 +310,7 @@ public partial class MainWindow : Window
             await using var stream = await files[0].OpenReadAsync();
             using var streamReader = new StreamReader(stream);
             var fileConent = await streamReader.ReadToEndAsync();
-            var selectedFileg = files[0];  // Get the first file selected - this is null - I don´t know why?
+            var selectedFileg = files[0];  // Get the first file selected - this is null - I donï¿½t know why?
             if (selectedFileg.TryGetLocalPath() is string selectedFile)
             {
                 fileName = Path.GetFileName(selectedFile);
@@ -312,6 +323,7 @@ public partial class MainWindow : Window
 
     public async void FolderSearcherVoid(object sender, RoutedEventArgs args)
     {
+        Trace.WriteLine("Searching for a Folder");
         /*var OpenFolderDialog = new OpenFolderDialog
         {
             Title = "Select a Folder",
@@ -340,6 +352,7 @@ public partial class MainWindow : Window
 
     public async void IconSearcherVoid(object sender, RoutedEventArgs args)
     {
+        Trace.WriteLine("Searching for an Icon");
         /*var openFileDialog = new OpenFileDialog
         {
             // You can specify filters here, such as file extensions
@@ -357,7 +370,7 @@ public partial class MainWindow : Window
 
         if (result != null && result.Length > 0)
         {
-            string selectedFile = result[0];  // Get the first file selected - this is null - I don´t know why?
+            string selectedFile = result[0];  // Get the first file selected - this is null - I donï¿½t know why?
             IconTextBox.Text = selectedFile;
             ICON = selectedFile;
         }*/
@@ -396,7 +409,7 @@ public partial class MainWindow : Window
             await using var stream = await files[0].OpenReadAsync();
             using var streamReader = new StreamReader(stream);
             var fileConent = await streamReader.ReadToEndAsync();
-            var selectedFileg = files[0];  // Get the first file selected - this is null - I don´t know why?
+            var selectedFileg = files[0];  // Get the first file selected - this is null - I donï¿½t know why?
             if (selectedFileg.TryGetLocalPath() is string selectedFile)
             {
                 IconTextBox.Text = selectedFile;
@@ -406,6 +419,7 @@ public partial class MainWindow : Window
     }
     public async void GithubLinkPressed(object sender, RoutedEventArgs args)
     {
+        Trace.WriteLine("Visiting my Github :)");
         string Link = "https://github.com/DaikoGames";
         //Process.Start(new ProcessStartInfo(Link) { UseShellExecute = true });
         //System.Diagnostics.Process.Start("explorer", Link);
@@ -413,6 +427,7 @@ public partial class MainWindow : Window
 
     public async void ConvertButton(object sender, RoutedEventArgs args)
     {
+        Trace.WriteLine("Starting Conversion");
         convertButton.IsEnabled = false;
         var DotnetVersionOfComputer = await Cli.Wrap("dotnet").WithArguments("--version").ExecuteBufferedAsync();
         string DotnetVersionT = DotnetVersionOfComputer.StandardOutput.Trim();
@@ -480,172 +495,16 @@ public partial class MainWindow : Window
         }
     }
 
-    //The automation of converting .sb3 Files to .xml FIles isn´t working properly - so the conversion from .sb to .sb3 or .sb2 to .sb3 with Auto Hot Key - its probably because of the path - I will take a closer look to that.
+    //The automation of converting .sb3 Files to .xml FIles isnï¿½t working properly - so the conversion from .sb to .sb3 or .sb2 to .sb3 with Auto Hot Key - its probably because of the path - I will take a closer look to that.
     //Ok so i found out a thing, the thing is that the Neutralino app needs to be full screen and a click needs to be simulated. Gotta tell the user to relax lol XD
 
-    public async Task sbfiles(string Extension) //This doesn´t work bc of Scratch i need to find me failure :/ lol XD
+    public async Task sbfiles(string Extension) //This doesnï¿½t work bc of Scratch i need to find me failure :/ lol XD
     {
+        Trace.WriteLine("Converting .sb or .sb2 to .sb3 now");
         //ok i have to figure out something else, good i have an idea - the user chooses the path of where it should be converted, the program gets opened via cmd, and the user has to do it himself, when the program is over the user just closes the application and the conversion starts - waay better than automation tools
         string FileExtension = Path.GetExtension(Filename);
         if (FileExtension == ".sb" | FileExtension == ".sb2" | FileExtension == ".sb3")
         {
-            /*
-            if (OperatingSystem.IsWindows())
-            {
-                if (System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.Equals(Architecture.X86))
-                {
-                    string SnapinatorX86 = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Snapinator-Electronified\\Electron-Forge\\SnapinatorMulti\\out\\make\\squirrel.windows\\ia32\\snapinatormulti-1.0.0-Setup.exe");
-                    var SnapinatorX86START = Process.Start(SnapinatorX86);
-                    await SnapinatorX86START.WaitForExitAsync();
-
-                    await Task.Run(() => ScratchTOSnapFileAndConversion(".xml"));
-                }
-
-                if (System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.Equals(Architecture.X64))
-                {
-                    string SnapinatorX86 = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Snapinator-win_x64.exe");
-                    var SnapinatorX64START = Process.Start(SnapinatorX86);
-                    await SnapinatorX64START.WaitForExitAsync();
-
-                    await Task.Run(() => ScratchTOSnapFileAndConversion(".xml"));
-                }
-
-                if (System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.Equals(Architecture.Arm64))
-                {
-                    string SnapinatorArm64 = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Snapinator-Electronified\\Electron-Packager\\snapinatormulti-win32-arm64\\snapinatormulti.exe");
-                    var SnapinatorArm64START = Process.Start(SnapinatorArm64);
-                    await SnapinatorArm64START.WaitForExitAsync();
-
-                    await Task.Run(() => ScratchTOSnapFileAndConversion(".xml"));
-                }
-            }
-
-            if (OperatingSystem.IsLinux())
-            {
-                if (System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.Equals(Architecture.X64))
-                {
-                    string SnapinatorX86 = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Snapinator-linux_x64");
-                    var SnapinatorX64START = Process.Start(SnapinatorX86);
-                    await SnapinatorX64START.WaitForExitAsync();
-
-                    await Task.Run(() => ScratchTOSnapFileAndConversion(".xml"));
-                }
-
-                if (System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.Equals(Architecture.Arm64))
-                {
-                    string SnapinatorArm64 = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Snapinator-linux_arm64");
-                    var SnapinatorArm64START = Process.Start(SnapinatorArm64);
-                    await SnapinatorArm64START.WaitForExitAsync();
-
-                    await Task.Run(() => ScratchTOSnapFileAndConversion(".xml"));
-                }
-            }
-
-            if (OperatingSystem.IsMacOS())
-            {
-                if (System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.Equals(Architecture.X64))
-                {
-                    string SnapinatorX64 = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Snapinator-mac_x64");
-                    var SnapinatorArm64START = Process.Start(SnapinatorX64);
-                    await SnapinatorArm64START.WaitForExitAsync();
-
-                    await Task.Run(() => ScratchTOSnapFileAndConversion(".xml"));
-                }
-
-                if (System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.Equals(Architecture.Arm64))
-                {
-                    string SnapinatorX64 = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Snapinator-mac_arm64");
-                    var SnapinatorArm64START = Process.Start(SnapinatorX64);
-                    await SnapinatorArm64START.WaitForExitAsync();
-
-                    await Task.Run(() => ScratchTOSnapFileAndConversion(".xml"));
-                }
-            }
-        }
-
-        else
-        {
-            if (Scratch == true && Snapinator == false)
-            {
-                ScratchToCsharp();
-            }
-
-            if (Scratch == false && Snapinator == true)
-            {
-                if (OperatingSystem.IsWindows())
-                {
-                    if (System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.Equals(Architecture.X86))
-                    {
-                        string SnapinatorX86 = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Snapinator-Electronified\\Electron-Forge\\SnapinatorMulti\\out\\make\\squirrel.windows\\ia32\\snapinatormulti-1.0.0-Setup.exe");
-                        var SnapinatorX86START = Process.Start(SnapinatorX86);
-                        await SnapinatorX86START.WaitForExitAsync();
-
-                        await Task.Run(() => ScratchTOSnapFileAndConversion(".xml"));
-                    }
-
-                    if (System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.Equals(Architecture.X64))
-                    {
-                        string SnapinatorX86 = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Snapinator-win_x64.exe");
-                        var SnapinatorX64START = Process.Start(SnapinatorX86);
-                        await SnapinatorX64START.WaitForExitAsync();
-
-                        await Task.Run(() => ScratchTOSnapFileAndConversion(".xml"));
-                    }
-
-                    if (System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.Equals(Architecture.Arm64))
-                    {
-                        string SnapinatorArm64 = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Snapinator-Electronified\\Electron-Packager\\snapinatormulti-win32-arm64\\snapinatormulti.exe");
-                        var SnapinatorArm64START = Process.Start(SnapinatorArm64);
-                        await SnapinatorArm64START.WaitForExitAsync();
-
-                        await Task.Run(() => ScratchTOSnapFileAndConversion(".xml"));
-                    }
-                }
-
-                if (OperatingSystem.IsLinux())
-                {
-                    if (System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.Equals(Architecture.X64))
-                    {
-                        string SnapinatorX86 = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Snapinator-linux_x64");
-                        var SnapinatorX64START = Process.Start(SnapinatorX86);
-                        await SnapinatorX64START.WaitForExitAsync();
-
-                        await Task.Run(() => ScratchTOSnapFileAndConversion(".xml"));
-                    }
-
-                    if (System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.Equals(Architecture.Arm64))
-                    {
-                        string SnapinatorArm64 = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Snapinator-linux_arm64");
-                        var SnapinatorArm64START = Process.Start(SnapinatorArm64);
-                        await SnapinatorArm64START.WaitForExitAsync();
-
-                        await Task.Run(() => ScratchTOSnapFileAndConversion(".xml"));
-                    }
-                }
-
-                if (OperatingSystem.IsMacOS())
-                {
-                    if (System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.Equals(Architecture.X64))
-                    {
-                        string SnapinatorX64 = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Snapinator-mac_x64");
-                        var SnapinatorArm64START = Process.Start(SnapinatorX64);
-                        await SnapinatorArm64START.WaitForExitAsync();
-
-                        await Task.Run(() => ScratchTOSnapFileAndConversion(".xml"));
-                    }
-
-                    if (System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.Equals(Architecture.Arm64))
-                    {
-                        string SnapinatorX64 = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Snapinator-mac_arm64");
-                        var SnapinatorArm64START = Process.Start(SnapinatorX64);
-                        await SnapinatorArm64START.WaitForExitAsync();
-
-                        await Task.Run(() => ScratchTOSnapFileAndConversion(".xml"));
-                    }
-                }
-            }*/
-            if(FileExtension == ".sb" | FileExtension == ".sb2")
-            {
                 if (OperatingSystem.IsWindows() | OperatingSystem.IsLinux() | OperatingSystem.IsMacOS())
                 {
                     string ConverterFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ScratchConverter");
@@ -653,103 +512,239 @@ public partial class MainWindow : Window
                     File.Copy(Filename, ConvertDestination, true);
                     string JSFile = Path.Combine(ConverterFolder, "Convert.js");
                     //Ok it works, now check if the modules are installed - if not install with npm again LOL
-                    //Check if all modules are installed with Cli Wrap 
-                    var PlsNoError = await (Cli.Wrap("npm").WithArguments(args => args.Add("list").Add("--depth=0")).WithWorkingDirectory(ConverterFolder).WithValidation(CommandResultValidation.None).ExecuteBufferedAsync());
-                    if (PlsNoError.ExitCode == 0)
+                    //My users have to have Powershell, i know it sounds bad, but it is the most efficient way there is
+                    if (FileExtension == ".sb" | FileExtension == ".sb2")
                     {
+                        var PlsNoError = await (Cli.Wrap("npm").WithArguments(args => args.Add("list").Add("--depth=0")).WithWorkingDirectory(ConverterFolder).WithValidation(CommandResultValidation.None).ExecuteBufferedAsync());
+                        if (PlsNoError.ExitCode == 0)
+                        {
+                            await (Cli.Wrap("node").WithArguments(args => args.Add("Convert.js")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync());
+
+                        }
+                        if (PlsNoError.ExitCode != 0)
+                        {
+                            await (Cli.Wrap("npm").WithArguments(args => args.Add("install")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync());
+                        }
+
                         await (Cli.Wrap("node").WithArguments(args => args.Add("Convert.js")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync());
+                        File.Delete(ConvertDestination);
+                        string NewFile = Path.Combine(ConverterFolder, "project.sb3");
+                        string FolderDestination = Path.Combine(Foldername, "project.sb3");
+
+                        File.Copy(NewFile, FolderDestination, true);
+                        File.Delete(NewFile);
 
                     }
-                    if (PlsNoError.ExitCode != 0)
+
+                    if (FileExtension == ".sb3")
                     {
-                        await (Cli.Wrap("npm").WithArguments(args => args.Add("install")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync());
+                        string NewSB3 = Path.Combine(Foldername, "project.sb3");
+                        File.Copy(Filename, NewSB3, true);
                     }
+                    Trace.WriteLine("Done with .sb/.sb2 to .sb3 conversion, converting to .xml now");
+                    string SB3File = Path.Combine(Foldername, "project.sb3");
+                    string Zipfile = Path.GetFileNameWithoutExtension(Filename) + ".zip";
+                    File.Copy(SB3File, Zipfile, true);
+                    File.Delete(SB3File);
+                    ZipFile.ExtractToDirectory(Zipfile, Foldername, true);
+                    string JSONFile = Path.Combine(Foldername, "project.json");
+                    var parsedJSON = JToken.Parse(File.ReadAllText(JSONFile));
+                    string PrettyJSON = parsedJSON.ToString(Newtonsoft.Json.Formatting.Indented);
+                    File.WriteAllText(JSONFile, PrettyJSON);
+                    string XMLfile = Path.Combine(Foldername, "project.xml");
+                    string[] JSONlines = File.ReadAllLines(JSONFile);
+                    int Line = 0;
+                    File.AppendAllText(XMLfile, "<project name=\"project\" app=\"Scratch to Snap! converter\" version=\"1\">");
+                    File.AppendAllText(XMLfile, "\n<stage name=\"Stage\" width=\"480\" height=\"360\">");
+                    bool CostumeBool = false;
+                    bool SoundBool = false;
+                    int CostumeInt = 0;
+                    bool SpriteBool = false;
+                    bool EdgeComma = false;
 
-                    await (Cli.Wrap("node").WithArguments(args => args.Add("Convert.js")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync());
-                    File.Delete(ConvertDestination);
-                    string NewFile = Path.Combine(ConverterFolder, "project.sb3");
-                    string FolderDestination = Path.Combine(Foldername, "project.sb3");
+                    //This will take another year of my life LOL 
 
-                    File.Copy(NewFile, FolderDestination, true);
-                    File.Delete(NewFile);
+                    foreach (string Jsonline in JSONlines)
+                    {
+                        Console.WriteLine("it works :)");
+                        //"isStage": false -> this is a object
+
+                        if (Jsonline.Contains("\"name\":"))
+                        {
+                            if (CostumeBool == true)
+                            {
+                                CostumeInt = CostumeInt + 1;
+                            }
+                        }
+
+                        if (Jsonline.Contains("],"))
+                        {
+                            if (CostumeBool == true)
+                            {
+                                CostumeBool = false;
+                                File.AppendAllText(XMLfile, " costume=\"" + CostumeInt + "\" tempo=\"60\" threadsafe=\"false\" lines=\"round\" codify=\"false\" schedule=\"false\">");
+                            }
+                        }
+                    }
+                    CostumeBool = false;
+                    foreach (string jsonlines in JSONlines)
+                    {
+                        Line = Line + 1;
+                        if (jsonlines.Contains("\"costumes\""))
+                        {
+                            CostumeBool = true;
+                            File.AppendAllText(XMLfile, "\n<costumes>");
+                            File.AppendAllText(XMLfile, "\n<list>");
+                        }
+
+                        if (jsonlines.Contains("\"sounds\""))
+                        {
+                            SoundBool = true;
+                            File.AppendAllText(XMLfile, "\n<sounds>");
+                            File.AppendAllText(XMLfile, "\n<list>");
+                        }
+
+                        if (jsonlines.Contains("\"name\""))
+                        {
+                            string CheckIfSprite = File.ReadAllLines(JSONFile).Skip(Line - 2).Take(1).First();
+                            string Name = jsonlines.Replace("\"name\":", "").Replace("\"", "").Replace(",", "").Trim();
+                            string CheckEndNumberOne = File.ReadAllLines(JSONFile).Skip(Line + 6).Take(1).First();
+                            if (CheckIfSprite.Contains("\"isStage\": false"))
+                            {
+                                File.AppendAllText(XMLfile, "\n</sprite> \n <sprite name=\"" + Name + "\"");
+                                SpriteBool = true;
+                            }
+                            else
+                            {
+                                if (CostumeBool == true | SoundBool == true)
+                                {
+                                    if (CostumeBool == true)
+                                    {
+                                        File.AppendAllText(XMLfile, "\n<item><costume ");
+                                    }
+                                    if (SoundBool == true)
+                                    {
+                                        File.AppendAllText(XMLfile, "\n<item><sound ");
+                                    }
+                                    if(CheckEndNumberOne.Contains("}") | CheckEndNumberOne.Contains("},"))
+                                    {
+                                        File.AppendAllText(XMLfile, "name=\"" + Name + "\"");
+                                    }
+                                    else
+                                    {
+                                        File.AppendAllText(XMLfile, "name=\"" + Name + "\"/></item>");
+                                    }
+                                }
+                            }
+
+                        }
+
+                        if (jsonlines.Contains("\"md5ext\""))
+                        {
+                            if (CostumeBool == true)
+                            {
+                                string ActualDocumentName = jsonlines.Replace("\"md5ext\":", "").Replace("\"", "").Replace(",", "").Trim();
+                                string DocumentPath = Path.Combine(Foldername, ActualDocumentName);
+                                string DocumentBase64 = Convert.ToBase64String(File.ReadAllBytes(DocumentPath));
+                                if (ActualDocumentName.Contains(".svg"))
+                                {
+                                    File.AppendAllText(XMLfile, " image=\"data:image/svg+xml;base64," + DocumentBase64 + "\"/></item>");
+                                }
+                                if (ActualDocumentName.Contains(".png"))
+                                {
+                                    File.AppendAllText(XMLfile, " image=\"data:image/png;base64," + DocumentBase64 + "\"/></item>");
+                                }
+                            }
+                            if (SoundBool == true)
+                            {
+                                string ActualDocumentName = jsonlines.Replace("\"md5ext\":", "").Replace("\"", "").Replace(",", "").Trim();
+                                string DocumentPath = Path.Combine(Foldername, ActualDocumentName);
+                                string DocumentBase64 = Convert.ToBase64String(File.ReadAllBytes(DocumentPath));
+                                if (ActualDocumentName.Contains(".wav"))
+                                {
+                                    File.AppendAllText(XMLfile, " sound=\"data:audio/x-wav;base64," + DocumentBase64 + "\"/></item>");
+                                }
+
+                            }
+                        }
+
+                        //Check the scripts and make a <script> thingie LOL
+                        if (jsonlines.Contains("],"))
+                        {
+                            if (CostumeBool == true)
+                            {
+                                File.AppendAllText(XMLfile, "\n</list>");
+                                File.AppendAllText(XMLfile, "\n</costumes>");
+                                CostumeBool = false;
+                            }
+
+                            if (SoundBool == true)
+                            {
+                                File.AppendAllText(XMLfile, "\n</list>");
+                                File.AppendAllText(XMLfile, "\n</sounds>");
+                                SoundBool = false;
+                            }
+                        }
+                        if (jsonlines.Contains("\"x\""))
+                        {
+                            if (SpriteBool == true)
+                            {
+                                string XValue = jsonlines.Replace("\"x\":", "").Replace(",", "").Trim();
+                                File.AppendAllText(XMLfile, " x=\"" + XValue + "\"");
+                            }
+                        }
+                        if (jsonlines.Contains("\"y\""))
+                        {
+                            if (SpriteBool == true)
+                            {
+                                string CheckBracket = File.ReadAllLines(JSONFile).Skip(Line).Take(1).First();
+                                string YValue = jsonlines.Replace("\"y\":", "").Replace(",", "").Trim();
+                                if(CheckBracket.Contains("},"))
+                                {
+                                    File.AppendAllText(XMLfile, " y=\"" + YValue + "\">");
+                                }
+                                else
+                                {
+                                    File.AppendAllText(XMLfile, " y=\"" + YValue + "\"");
+                                }
+                            }
+                        }
+                        if (jsonlines.Contains("},"))
+                        {
+                            string LastLineIsY = File.ReadAllLines(JSONFile).Skip(Line - 2).Take(1).First();
+                            if (LastLineIsY.Contains("\"y\""))
+                            {
+                                if (SpriteBool == true)
+                                {
+                                    SpriteBool = false;
+                                }
+                            }
+                        }
+                    }
+                    File.AppendAllText(XMLfile, "</stage>");
+                    File.AppendAllText(XMLfile, "</project>");
+                    try
+                    {
+                        //string[] XMLTextUnformatted = File.ReadAllLines(XMLfile);
+                    //string OneLinerXML = string.Join("", XMLTextUnformatted);
+                    //File.WriteAllText(XMLfile, OneLinerXML);
+                    //XDocument XMLDocument = XDocument.Parse(OneLinerXML);
+                    //File.WriteAllText(XMLfile, Convert.ToString(XMLDocument));
+                    }
+                    catch(Exception ex)
+                    {
+                        Trace.WriteLine(ex);
+                    }
                 }
             }
-            if(FileExtension == ".sb3")
+            if (FileExtension == ".sb3")
             {
+                //Use Scratch to .xml File converter here
+                //
+            }
+        
             
-            }
-        }
     }
-
-    private async void ScratchToCsharp()
-    {
-
-        string Zipfile = Path.GetFileNameWithoutExtension(Filename) + ".zip";
-        File.Copy(Filename, Zipfile, true);
-        ZipFile.ExtractToDirectory(Zipfile, Foldername, true);
-        string JsonFILE = Path.Combine(Foldername, "project.json");
-        //Format the json here
-        string JsonTEXT = File.ReadAllText(JsonFILE);
-        JToken parsedText = JToken.Parse(JsonTEXT);
-        string formattedJSON = parsedText.ToString(Newtonsoft.Json.Formatting.Indented);
-        File.WriteAllText(JsonFILE, formattedJSON);
-        if (Path.GetExtension(Filename) == ".sb2")
-        {
-            await Task.Run(() => NameOfProjectChanger(JsonFILE, ".sb2"));
-            await Task.Run(() => CodeSmasher(JsonFILE, ".sb2"));
-            PictureExtractor(".sb3");
-        }
-        if (Path.GetExtension(Filename) == ".sb3")
-        {
-            await Task.Run(() => NameOfProjectChanger(JsonFILE, ".sb3"));
-            await Task.Run(() => CodeSmasher(JsonFILE, ".sb3"));
-            PictureExtractor(".sb3");
-        }
-    }
-
-    private async void ScratchTOSnapFileAndConversion(string extension)
-    {
-        string EnvironmentProcessPath;
-        try
-        {
-            string jsonPath = Path.Combine(Foldername, "Project.json");
-            string XMLFile = Path.Combine(Foldername, Path.GetFileNameWithoutExtension(Filename) + ".xml");
-            XmlDocument document = new XmlDocument();
-            document.Load(XMLFile);
-            string json = JsonConvert.SerializeXmlNode(document, Newtonsoft.Json.Formatting.Indented);
-            File.WriteAllText(jsonPath, json);
-
-            //CodeExtractor(jsonPath);
-            await Task.Run(() => NameOfProjectChanger(jsonPath, extension));
-            await Task.Run(() => CodeSmasher(jsonPath, extension));
-        }
-
-        catch (Exception ex)
-        {
-
-            /*var MessageOfFailure = MessageBoxManager.GetMessageBoxStandard("IMPORTANT", "Hey, you closed the App before you moved the .xml File into the Folder, next time do that before you close the App, thanks :)", ButtonEnum.Ok);
-            var result = await MessageOfFailure.ShowWindowAsync();
-            if (result == ButtonResult.Ok)
-            {
-
-            }*/
-
-            if (OperatingSystem.IsWindows())
-            {
-                EnvironmentProcessPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "sb1 sb2 sb3 xml to Csharp converter.exe");
-                Process.GetCurrentProcess().CloseMainWindow();
-                Process.Start(EnvironmentProcessPath);
-            }
-
-            if (OperatingSystem.IsLinux())
-            {
-                EnvironmentProcessPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "sb1 sb2 sb3 xml to Csharp converter");
-                Process.GetCurrentProcess().CloseMainWindow();
-                Process.Start(EnvironmentProcessPath);
-            }
-        }
-    }
-
     private async void xmlfiles(string extension)
     {
         string jsonPath = Path.Combine(Foldername, "Project.json");
@@ -843,8 +838,8 @@ public partial class MainWindow : Window
                             File.WriteAllBytes(Path.Combine(GameFolder, ImageName + ".png"), PNGBytes);
                         }
 
-                        //This doesn´t work LOL XD 
-                        //Get the ratio - maybe its bc the ´File doesn´t have a true size declared
+                        //This doesnï¿½t work LOL XD 
+                        //Get the ratio - maybe its bc the ï¿½File doesnï¿½t have a true size declared
 
                         if (SVG == true && NextisImageName == true)
                         {
@@ -1261,7 +1256,7 @@ public partial class MainWindow : Window
             int XCoordinateLine = 0;
             int YCoordinateLine = 0;
             List<string> ShowableVars = new List<string>();
-            //BIG PROBLEM - when an image has a negative y coordinate the thing somehow doesn´t always work correctly
+            //BIG PROBLEM - when an image has a negative y coordinate the thing somehow doesnï¿½t always work correctly
             //In Update 1.5 i will add ZIndex by default here :3
             foreach (string jsonline in JsonLines)
             {
@@ -1335,14 +1330,14 @@ public partial class MainWindow : Window
             List<string> TextList = new List<string>();
             foreach (string jsonline in JsonLines)
             {
-                // This has serious bugs, going to do that maybe in a week :( don´t have time cuz of school LMAO
+                // This has serious bugs, going to do that maybe in a week :( donï¿½t have time cuz of school LMAO
                 Line = Line + 1;
 
                 if (jsonline.Contains("\"bubble\"") | jsonline.Contains("\"doThink\"") | jsonline.Contains("\"doSayFor\"") | jsonline.Contains("\"doThinkFor\""))
                 {
                     string Text = File.ReadAllLines(JSON).Skip(Line).Take(1).First().Replace("\"l\": ", "").Replace("\"", "").Replace(",", "").Trim();
                     TextNumber = TextNumber + 1;
-                    string FileNameTitle = Text.Replace(" ", "_").Replace("°", "").Replace("^", "").Replace("!", "").Replace("\"", "").Replace("§", "").Replace("$", "").Replace("%", "").Replace("&", "").Replace("/", "").Replace("{", "").Replace("(", "").Replace("[", "").Replace(")", "").Replace("]", "").Replace("=", "").Replace("}", "").Replace("?", "").Replace("\\", "").Replace("`", "").Replace("´", "").Replace("@", "").Replace("*", "").Replace("+", "").Replace("~", "").Replace("'", "").Replace("#", "").Replace(">", "").Replace("<", "").Replace("|", "").Replace(";", "").Replace(",", "").Replace(":", "").Replace(".", "").Replace("-", "").Replace("_", "").Trim();
+                    string FileNameTitle = Text.Replace(" ", "_").Replace("ï¿½", "").Replace("^", "").Replace("!", "").Replace("\"", "").Replace("ï¿½", "").Replace("$", "").Replace("%", "").Replace("&", "").Replace("/", "").Replace("{", "").Replace("(", "").Replace("[", "").Replace(")", "").Replace("]", "").Replace("=", "").Replace("}", "").Replace("?", "").Replace("\\", "").Replace("`", "").Replace("ï¿½", "").Replace("@", "").Replace("*", "").Replace("+", "").Replace("~", "").Replace("'", "").Replace("#", "").Replace(">", "").Replace("<", "").Replace("|", "").Replace(";", "").Replace(",", "").Replace(":", "").Replace(".", "").Replace("-", "").Replace("_", "").Trim();
                     string FileName = Path.Combine(GameFolder, FileNameTitle + ".png");
                     if (!File.Exists(FileName))
                     {
@@ -1371,7 +1366,7 @@ public partial class MainWindow : Window
                 {
                     string Text = File.ReadAllLines(JSON).Skip(Line + 1).Take(1).First().Replace("\"l\": [", "").Replace("\"", "").Replace(",", "").Trim();
                     TextNumber = TextNumber + 1;
-                    string FileNameTitle = Text.Replace(" ", "_").Replace("°", "").Replace("^", "").Replace("!", "").Replace("\"", "").Replace("§", "").Replace("$", "").Replace("%", "").Replace("&", "").Replace("/", "").Replace("{", "").Replace("(", "").Replace("[", "").Replace(")", "").Replace("]", "").Replace("=", "").Replace("}", "").Replace("?", "").Replace("\\", "").Replace("`", "").Replace("´", "").Replace("@", "").Replace("*", "").Replace("+", "").Replace("~", "").Replace("'", "").Replace("#", "").Replace(">", "").Replace("<", "").Replace("|", "").Replace(";", "").Replace(",", "").Replace(":", "").Replace(".", "").Replace("-", "").Replace("_", "").Trim();
+                    string FileNameTitle = Text.Replace(" ", "_").Replace("ï¿½", "").Replace("^", "").Replace("!", "").Replace("\"", "").Replace("ï¿½", "").Replace("$", "").Replace("%", "").Replace("&", "").Replace("/", "").Replace("{", "").Replace("(", "").Replace("[", "").Replace(")", "").Replace("]", "").Replace("=", "").Replace("}", "").Replace("?", "").Replace("\\", "").Replace("`", "").Replace("ï¿½", "").Replace("@", "").Replace("*", "").Replace("+", "").Replace("~", "").Replace("'", "").Replace("#", "").Replace(">", "").Replace("<", "").Replace("|", "").Replace(";", "").Replace(",", "").Replace(":", "").Replace(".", "").Replace("-", "").Replace("_", "").Trim();
                     string FileName = Path.Combine(GameFolder, FileNameTitle + ".png");
                     if (!File.Exists(FileName))
                     {
@@ -1400,7 +1395,7 @@ public partial class MainWindow : Window
                     //The Only thing that is wrong here is the name i think
                     File.AppendAllText(WindowCsFile, "\"doShowVar\"");
                     string VariableName = File.ReadAllLines(JSON).Skip(Line).Take(1).First().Replace("\"l\":", "").Replace("\"", "").Trim();
-                    //Ok i need to make a picture out of the var XD how do i do that - yeah Skia sharp probably with a textbox inside that can´t be edited
+                    //Ok i need to make a picture out of the var XD how do i do that - yeah Skia sharp probably with a textbox inside that canï¿½t be edited
                     if (!ShowableVars.Contains(VariableName))
                     {
                         ShowableVars.Add(VariableName);
@@ -1660,7 +1655,7 @@ public partial class MainWindow : Window
                 {
                     Line = Line + 1;
 
-                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => ProgressBarConverter.Value = Line/DocumentLine * 100);
+                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => ProgressBarConverter.Value = Line / DocumentLine * 100);
                     /*if (AsyncTask == false)
                     {*/
 
@@ -1754,7 +1749,7 @@ public partial class MainWindow : Window
                     }
 
 
-                    if (jsonline.Contains("\"setHeading\"")) //fixed Rotation like turn to 90°
+                    if (jsonline.Contains("\"setHeading\"")) //fixed Rotation like turn to 90ï¿½
                     {
                         File.AppendAllText(WindowCsFile, "\n //\"setHeading\"");
                         string AngleRough = File.ReadAllLines(JSON).Skip(Line).Take(1).First();
@@ -1789,7 +1784,7 @@ public partial class MainWindow : Window
                         File.AppendAllText(WindowCsFile, "/*" + Line + "*/");
                     }
 
-                    // this is right, one thing to change tho: it doesn´t use the variable the whole time XD -> that makes the code wrong sadly, but only 10%
+                    // this is right, one thing to change tho: it doesnï¿½t use the variable the whole time XD -> that makes the code wrong sadly, but only 10%
                     if (jsonline.Contains("\"gotoXY\""))
                     {
                         File.AppendAllText(WindowCsFile, "\n //\"gotoXY\"");
@@ -1848,7 +1843,7 @@ public partial class MainWindow : Window
                             File.AppendAllText(WindowCsFile, "\n int PositiomMouse = Cursor.Position.X;");
                             File.AppendAllText(WindowCsFile, "\n int PositionMouse = Cursor.Position.Y;");
                             //Now you have to turn the Object Position to the Cursor Position
-                            File.AppendAllText(WindowCsFile, "\n var Image" + LastObject + " = this.FinControl<Image>(\"" + LastObject + "\");"); //Don´t know if i need this LOL
+                            File.AppendAllText(WindowCsFile, "\n var Image" + LastObject + " = this.FinControl<Image>(\"" + LastObject + "\");"); //Donï¿½t know if i need this LOL
                             File.AppendAllText(WindowCsFile, "\n Canvas.SetLeft(Image" + LastObject + ", PositionMouse);");
                             File.AppendAllText(WindowCsFile, "\n Canvas.SetTop(Image" + LastObject + ", PositionMouse);");
                         }
@@ -1857,7 +1852,7 @@ public partial class MainWindow : Window
                         {
                             // need half of the width and height and gotta - that to the converted coordinates : IT WORKS :
                             RandomNumberInt = RandomNumberInt + 1;
-                            File.AppendAllText(WindowCsFile, "\n var Image" + LastObject + " = this.FinControl<Image>(\"" + LastObject + "\");"); //Don´t know if i need this LOL
+                            File.AppendAllText(WindowCsFile, "\n var Image" + LastObject + " = this.FinControl<Image>(\"" + LastObject + "\");"); //Donï¿½t know if i need this LOL
                             File.AppendAllText(WindowCsFile, "\n Random RandomX" + RandomNumberInt + " = new Random();");
                             File.AppendAllText(WindowCsFile, "\n int randomX" + RandomNumberInt + " = Random" + RandomNumberInt + ".Next(" + 0 + "," + 480 + ");");
                             File.AppendAllText(WindowCsFile, "\n Random RandomY" + RandomNumberInt + " = new Random();");
@@ -1873,7 +1868,7 @@ public partial class MainWindow : Window
                             {
                                 string PossibleObject = PossibleObjectRough.Replace("\"l\":", "").Replace("\"", "").Trim();
                                 File.AppendAllText(WindowCsFile, "\n var Image" + PossibleObject + " = this.FindControl<Image>(\"Image" + PossibleObject + "\");");
-                                File.AppendAllText(WindowCsFile, "\n var Image" + LastObject + " = this.FinControl<Image>(\"" + LastObject + "\");"); //Don´t know if i need this LOL
+                                File.AppendAllText(WindowCsFile, "\n var Image" + LastObject + " = this.FinControl<Image>(\"" + LastObject + "\");"); //Donï¿½t know if i need this LOL
                                 File.AppendAllText(WindowCsFile, "\n int PositionX = Canvas.GetLeft(Image" + PossibleObject + ");");
                                 File.AppendAllText(WindowCsFile, "\n int PositionY = Canvas.GetTop(Image" + PossibleObject + ");");
                                 File.AppendAllText(WindowCsFile, "\n Canvas.SetLeft(Image" + LastObject + ", PositionX);");
@@ -1948,7 +1943,7 @@ public partial class MainWindow : Window
                                     if (ActualThing.Contains("\"rotation style\""))
                                     {
                                         File.AppendAllText(WindowCsFile, "\n //rotation style");
-                                        File.AppendAllText(WindowCsFile, "// I don´t know how to implement this yet, give me a week lol");
+                                        File.AppendAllText(WindowCsFile, "// I donï¿½t know how to implement this yet, give me a week lol");
                                     }
                                 }
                             }
@@ -1965,7 +1960,7 @@ public partial class MainWindow : Window
                     //Visibility//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
                     //Visibility//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-                    //ok so basically the ground technology of these bubbles works, but i need to make ´em first
+                    //ok so basically the ground technology of these bubbles works, but i need to make ï¿½em first
                     if (jsonline.Contains("\"doSwitchToCostume\""))
                     {
                         File.AppendAllText(WindowCsFile, "\n //\"doSwitchToCostume\"");
@@ -2060,7 +2055,7 @@ public partial class MainWindow : Window
                         File.AppendAllText(WindowCsFile, "\n //\"clearEffects\"");
                     }
 
-                    //Don´t know if this is a speaking Bubble
+                    //Donï¿½t know if this is a speaking Bubble
                     if (jsonline.Contains("\"doTellTo\""))
                     {
                         File.AppendAllText(WindowCsFile, "\n //\"doTellTo\"");
@@ -2075,7 +2070,7 @@ public partial class MainWindow : Window
                         {
                             string ObjectToTouchRough = File.ReadAllLines(JSON).Skip(Line + 1).Take(1).First();
                             string ObjectToTouch = ObjectToTouchRough.Replace("\"option\":", "").Replace("\"", "").Replace(",", "").Trim();
-                            //check if there was an if statement before or an && Statement or else it wouldn´t make sense
+                            //check if there was an if statement before or an && Statement or else it wouldnï¿½t make sense
                             string PossibleIfStatement = File.ReadAllLines(JSON).Skip(Line - 3).Take(1).First();
                             if (PossibleIfStatement.Contains("\"doIf\""))
                             {
@@ -2116,7 +2111,7 @@ public partial class MainWindow : Window
                                 IF = IF + 1;
                                 SomethingElseThanRound = true;
                             }
-                            //Don´t use lineRound here, its automatically used in if statements
+                            //Donï¿½t use lineRound here, its automatically used in if statements
                             //Check if there was an Object that has already been Touched in a List, and then Write those Objects (Rects in the beginning), like the ifs in the usual things
                         }
                     }
@@ -2424,7 +2419,7 @@ public partial class MainWindow : Window
                             //Check what is inside
                             File.AppendAllText(WindowCsFile, "await Task.Delay()");
                         }
-                        //First check if there is any Block like reportTouchingObject - is a Block that can´t be used inside an if statement as its an if statement itself
+                        //First check if there is any Block like reportTouchingObject - is a Block that canï¿½t be used inside an if statement as its an if statement itself
                         //File.AppendAllText();
                     }
 
@@ -2441,7 +2436,7 @@ public partial class MainWindow : Window
                             SomethingElseThanRound = true;
                         }
                     }
-                    
+
                     if (jsonline.Contains("\"createClone\""))
                     {
                         File.AppendAllText(WindowCsFile, "\n //\"createClone\"");
@@ -2458,7 +2453,7 @@ public partial class MainWindow : Window
                         }
                     }
 
-                    
+
 
                     //Get the last Object Name
                     /////////////////////////////THIS IS FOR }///////////////////////////////////////////////////////////////////////////////////////////
@@ -2633,7 +2628,7 @@ public partial class MainWindow : Window
                     if (jsonline.Contains("\"l\":"))
                     {
                         File.AppendAllText(WindowCsFile, "\n //\"l\"");
-                        //this one handles 4 out of 5 things, when there are two numbers it doesn´t work out correctly - i have to fix that in the future - but i will take it now as its not that important
+                        //this one handles 4 out of 5 things, when there are two numbers it doesnï¿½t work out correctly - i have to fix that in the future - but i will take it now as its not that important
 
                         string ImportantNumber = jsonline.Replace("\"l\":", "").Replace("\"", "").Replace(",", "").Trim();
 
@@ -2922,7 +2917,7 @@ public partial class MainWindow : Window
 
                         if (Option.Contains("\"ln\""))
                         {
-                            //I don´t think that this is logarithm natural? -> yeah it is the default one: gotta find a way XD
+                            //I donï¿½t think that this is logarithm natural? -> yeah it is the default one: gotta find a way XD
                             File.AppendAllText(WindowCsFile, "Math.Log(");
                             ComplicatedMathVariable = true;
                             NextIsRound = true;
@@ -2991,8 +2986,8 @@ public partial class MainWindow : Window
                     }
                     //This needs to be edited
 
-                    //Basic things work now, now gotta find out why not everythi´ng works, 80% works tho :)
-                    //receiveMessage doesn´t work correctly, it doesn´t make a } after its done everytime
+                    //Basic things work now, now gotta find out why not everythiï¿½ng works, 80% works tho :)
+                    //receiveMessage doesnï¿½t work correctly, it doesnï¿½t make a } after its done everytime
                     if (jsonline.Contains("}") | jsonline.Contains("},"))
                     {
                         string BeforeLine = File.ReadAllLines(JSON).Skip(Line - 2).Take(1).First();
@@ -3005,10 +3000,10 @@ public partial class MainWindow : Window
                             {
                                 if (BeforeThatLine.Contains("}"))
                                 {
-                                    //I know this looks wrong, but it is actually good  don´t edit!!
+                                    //I know this looks wrong, but it is actually good  donï¿½t edit!!
                                     while (IF > 0)
                                     {
-                                        if(Else == false)
+                                        if (Else == false)
                                         {
                                             File.AppendAllText(WindowCsFile, "\n}\n");
                                             IF = IF - 1;
@@ -3047,7 +3042,7 @@ public partial class MainWindow : Window
                             }
                         }
                     }
-                    //This isn´t working. it should be way easier to do this - tomorrow i will fix it
+                    //This isnï¿½t working. it should be way easier to do this - tomorrow i will fix it
                     if (jsonline.Contains("\"doStopThis\""))
                     {
                         File.AppendAllText(WindowCsFile, "\n //\"doStopThis\"");
@@ -3141,7 +3136,7 @@ public partial class MainWindow : Window
             //Ok so currently the code is full of scattered voids - what I mean is that I should change that :(
             File.AppendAllText(WindowEditorFile, "\n   </Canvas>");
             File.AppendAllText(WindowEditorFile, "\n</Window>");
-            //Check the MainWíndow for not finished things like the random integer if it has a range that is a variable or something else
+            //Check the MainWï¿½ndow for not finished things like the random integer if it has a range that is a variable or something else
             //if there is something it gets edited, and after that the { and } should be set, also this will be a challange
 
             if (Scratch == true && Snapinator == false)
@@ -3191,10 +3186,10 @@ public partial class MainWindow : Window
 
     public async Task ExeBuilder() //This has to be edited :(
     {
-        //Somehow a thread is beeing opened that shouldn´t idk why lol
+        //Somehow a thread is beeing opened that shouldnï¿½t idk why lol
         try
         {
-            if (OperatingSystem.IsWindows()| OperatingSystem.IsLinux() | OperatingSystem.IsMacOS())
+            if (OperatingSystem.IsWindows() | OperatingSystem.IsLinux() | OperatingSystem.IsMacOS())
             {
                 if (windows == true)
                 {
@@ -3257,7 +3252,7 @@ public partial class MainWindow : Window
                 //ProgressBarConverter.Value = 100; //Need to make the whole script in order so it works way better -rn the code is pure spaghetti code, but later it will be a flat Pizza i promise XD
                 //ProgressBarConverter.Value = 100; //Need to make the whole script in order so it works way better -rn the code is pure spaghetti code, but later it will be a flat Pizza i promise XD
             }
-        } 
+        }
 
         catch (Exception ex)
         {
