@@ -78,7 +78,7 @@ jobs:
             --packDir "./publish/${{ matrix.runtime }}" \
             --outputDir "./Releases" \
             --channel "${{ matrix.runtime }}"
-            --noPortable 
+            --noPortable  
 
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
