@@ -56,8 +56,9 @@ jobs:
         shell: bash
         run: echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
 
-      - name: Add Extra Files (Icons & Scripts)
+      - name: Add Extra Files (MacOs and Linux)
         shell: pwsh
+        if: contains(matrix.runtime, 'win') 
         run: |
           $baseDir = "./publish/${{ matrix.runtime }}"
 
@@ -68,7 +69,31 @@ jobs:
           Copy-Item "./ScratchConverter/Convert.js" "$baseDir/ScratchConverter/Convert.js"
           Copy-Item "./ScratchConverter/package.json" "$baseDir/ScratchConverter/package.json"
           Copy-Item "./ScratchConverter/package-lock.json" "$baseDir/ScratchConverter/package-lock.json"
+          New-Item -ItemType Directory -Force -Path "$baseDir/Install"
+          Copy-Item "./Install/Install-Chocolately.ps1" "$baseDir/Install/Install-Chocolately.ps1"
+          Copy-Item "./Install/Install-Node-and-NPM.ps1" "$baseDir/Install/Install-Node-and-NPM.ps1"
+          Copy-Item "./Install/InstallAvalonia.bat" "$baseDir/Install/InstallAvalonia.bat"
+          CopyItem "./Install/InstallAvalonia.ps1" "$baseDir/Install/InstallAvalonia.ps1"
+          CopyItem "./Install/dotnet-install.ps1" "$baseDir/Install/dotnet-install.ps1"
           
+      - name: Add Extra Files -> Windows
+        shell: pwsh
+        if: contains(matrix.runtime, 'linux') 
+        run: |
+          $baseDir = "./publish/${{ matrix.runtime }}"
+
+          New-Item -ItemType Directory -Force -Path "$baseDir/ConverterIcon"
+          Copy-Item "./ConverterIcon/Converter.ico" "$baseDir/ConverterIcon/Converter.ico"
+
+          New-Item -ItemType Directory -Force -Path "$baseDir/ScratchConverter"
+          Copy-Item "./ScratchConverter/Convert.js" "$baseDir/ScratchConverter/Convert.js"
+          Copy-Item "./ScratchConverter/package.json" "$baseDir/ScratchConverter/package.json"
+          Copy-Item "./ScratchConverter/package-lock.json" "$baseDir/ScratchConverter/package-lock.json"
+          New-Item -ItemType Directory -Force -Path "$baseDir/Install"
+          
+          Copy-Item "./Install/Install-Node-and-NPM.sh" "$baseDir/Install/Install-Node-and-NPM.sh"
+          CopyItem "./Install/InstallAvalonia.sh" "$baseDir/Install/InstallAvalonia.sh"
+          CopyItem "./Install/dotnet-install.sh" "$baseDir/Install/dotnet-install.sh"
       - name: Check Help
         shell: bash
         run: |
