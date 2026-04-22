@@ -56,7 +56,7 @@ jobs:
         shell: bash
         run: echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
 
-      - name: Add Extra Files (MacOs and Linux)
+      - name: Add files (Windows)
         shell: pwsh
         if: contains(matrix.runtime, 'win') 
         run: |
@@ -76,7 +76,7 @@ jobs:
           Copy-Item "./Install/InstallAvalonia.ps1" "$baseDir/Install/InstallAvalonia.ps1"
           Copy-Item "./Install/dotnet-install.ps1" "$baseDir/Install/dotnet-install.ps1"
           
-      - name: Add Extra Files -> Windows
+      - name: Add Files (Linux, MacOS)
         shell: pwsh
         if: contains(matrix.runtime, 'linux') 
         run: |
