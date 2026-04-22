@@ -9,70 +9,102 @@ permissions:
   contents: write
 
 jobs:
-  build: 
+  build:
     strategy:
-       matrix:
-         include: 
-         - os: windows-latest
-           runtime: win-x64
-          
-         - os: windows-latest
-           runtime: win-arm64
-          
-         - os: windows-latest
-           runtime: win-x86
-          
-         - os: ubuntu-latest
-           runtime: linux-x64
-          
-         - os: ubuntu-latest
-           runtime: linux-arm64
-          
-         - os: macos-latest
-           runtime: osx-x64
-          
-         - os: macos-latest
-           runtime: osx-arm64
-          
-    runs-on: ${{ matrix.os}}
-  
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      matrix:
+        include:
+          - os: windows-latest
+            runtime: win-x64
+          - os: windows-latest
+            runtime: win-arm64
+          - os: windows-latest
+            runtime: win-x86
+          - os: ubuntu-latest
+            runtime: linux-x64
+          - os: ubuntu-latest
+            runtime: linux-arm64
+          - os: macos-latest
+            runtime: osx-x64
+          - os: macos-latest
+            runtime: osx-arm64
 
-      - name: Install .NET
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 9.0.x
 
-      - name: Project building
-        id: get-version
+      - name: Publish app
         shell: bash
         run: |
-             echo "version=0.9.${{ github.run_number }}" >> $GITHUB_OUTPUT
-      - name: build
-        run: dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" -c Release -o publish/${{ matrix.runtime }} -r ${{ matrix.runtime }} -p:SelfContained=true -p:PublishSingleFile=true -p:PublishTrimmed=false
-        
+          dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" \
+            -c Release \
+            -r ${{ matrix.runtime }} \
+            -o publish/${{ matrix.runtime }} \
+            -p:SelfContained=true \
+            -p:PublishSingleFile=true
+
       - name: Install Velopack CLI
         run: dotnet tool install -g vpk
 
       - name: Add dotnet tools to PATH
-        run: echo "$env:USERPROFILE\.dotnet\tools" >> $env:GITHUB_PATH
-      - name: important files to PATH
+        shell: bash
+        run: echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
+
+      - name: Add extra files
         shell: pwsh
         run: |
-            New-Item -ItemType Directory -Force -Path "./publish/${{matrix.runtime}}/ConverterIcon"
-            Copy-Item "./ConverterIcon/Converter.ico" "./publish/${{matrix.runtime}}/ConverterIcon/Converter.ico"
-            New-Item -ItemType Directory -Force -Path "./publish/${{matrix.runtime}}/ScratchConverter"
-            Copy-Item "./ScratchConverter/Convert.js" "./publish/${{matrix.runtime}}/ScratchConverter/Convert.js"
-            Copy-Item "./ScratchConverter/package.json" "./publish/${{matrix.runtime}}/ScratchConverter/package.json"
-            Copy-Item "./ScratchConverter/package-lock.json" "./publish/${{matrix.runtime}}/ScratchConverter/package-lock.json"
-            
-        
-      - name: Create and Upload Velopack Release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
-        run: |
-          vpk pack -u Converter -v ${{ steps.get-version.outputs.version }} --packDir "./publish/${{matrix.runtime}}" --channel ${{matrix.runtime}}
-          vpk upload github --repoUrl https://github.com/${{ github.repository }} --token ${{ secrets.GITHUB_TOKEN }}  --publish --releaseName "Converter ${{ steps.get-version.outputs.version }}"  --tag v${{ steps.get-version.outputs.version }} --channel ${{ matrix.runtime }}
+          New-Item -ItemType Directory -Force -Path "./publish/ConverterIcon"
+          Copy-Item "./ConverterIcon/Converter.ico" "./publish/ConverterIcon/Converter.ico"
 
+          New-Item -ItemType Directory -Force -Path "./publish/ScratchConverter"
+          Copy-Item "./ScratchConverter/Convert.js" "./publish/ScratchConverter/Convert.js"
+          Copy-Item "./ScratchConverter/package.json" "./publish/ScratchConverter/package.json"
+          Copy-Item "./ScratchConverter/package-lock.json" "./publish/ScratchConverter/package-lock.json"
+
+      - name: Pack with Velopack
+        shell: bash
+        run: |
+          vpk pack \
+            -u Converter \
+            -v 0.9.${{ github.run_number }} \
+            --packDir "./publish/${{ matrix.runtime }}" \
+            --channel ${{ matrix.runtime }}
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: vpk-${{ matrix.runtime }}
+          path: Releases/
+
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Install Velopack CLI
+        run: dotnet tool install -g vpk
+
+      - name: Add dotnet tools to PATH
+        run: echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
+
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          vpk upload github \
+            --repoUrl https://github.com/${{ github.repository }} \
+            --token $GITHUB_TOKEN \
+            --publish \
+            --releaseName "Converter 0.9.${{ github.run_number }}" \
+            --tag v0.9.${{ github.run_number }}
