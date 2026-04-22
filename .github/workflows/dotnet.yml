@@ -87,7 +87,7 @@ jobs:
           name: vpk-${{ matrix.runtime }}
           path: Releases/
 
- release:
+  release:
     needs: build
     runs-on: ubuntu-latest
     steps:
