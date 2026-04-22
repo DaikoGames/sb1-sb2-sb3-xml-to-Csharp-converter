@@ -114,8 +114,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          cd ./Releases
-  
           vpk upload github \
             --publish \
             --repoUrl "https://github.com/${{ github.repository }}" \
