@@ -68,7 +68,10 @@ jobs:
           Copy-Item "./ScratchConverter/Convert.js" "$baseDir/ScratchConverter/Convert.js"
           Copy-Item "./ScratchConverter/package.json" "$baseDir/ScratchConverter/package.json"
           Copy-Item "./ScratchConverter/package-lock.json" "$baseDir/ScratchConverter/package-lock.json"
-
+      - name: Check Help
+        shell: bash
+        run: |
+          vpk pack --help
       - name: Pack with Velopack
         shell: bash
         run: |
@@ -77,7 +80,6 @@ jobs:
             -v "0.9.${{ github.run_number }}" \
             --packDir "./publish/${{ matrix.runtime }}" \
             --outputDir "./Releases" \
-            --noPortable true \
             --channel "${{ matrix.runtime }}"
 
       - name: Upload Build Artifacts
