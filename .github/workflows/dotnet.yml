@@ -120,4 +120,4 @@ jobs:
             --token "$GITHUB_TOKEN" \
             --releaseName "Converter 0.9.${{ github.run_number }}" \
             --tag "v0.9.${{ github.run_number }}" \
-            --releaseDir "./Releases"
+            --out "./Releases"
