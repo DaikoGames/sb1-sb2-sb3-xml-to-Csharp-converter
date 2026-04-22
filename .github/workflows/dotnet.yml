@@ -82,6 +82,18 @@ jobs:
             --outputDir "./Releases" \
             --channel "${{ matrix.runtime }}"
 
+      - name: Delete unnecesary nuspec files
+        shell: bash
+        run: rm ./Releases/*.nuspec
+        
+      - name: Delete unnecesary pkg files
+        shell: bash
+        run: rm ./Releases/*.pkg
+
+      - name: Delete unnecesary zip files
+        shell: bash
+        run: rm ./Releases/*.zip
+        
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
