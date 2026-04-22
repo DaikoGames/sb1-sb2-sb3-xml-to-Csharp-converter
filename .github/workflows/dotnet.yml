@@ -85,17 +85,6 @@ jobs:
           name: vpk-${{ matrix.runtime }}
           path: Releases/
 
-      - name: Pack with Velopack
-        shell: bash
-        run: |
-          vpk pack \
-            -u "Converter" \
-            -v "0.9.${{ github.run_number }}" \
-            --packDir "./publish/${{ matrix.runtime }}" \
-            --outputDir "./Releases" \
-            --channel "${{ matrix.runtime }}" \
-            --mainExe "sb1 sb2 sb3 xml to Csharp converter.exe" # Ensure this matches your exe name
-
       - name: Upload to GitHub Release
         shell: bash
         run: |
