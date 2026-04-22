@@ -6,7 +6,7 @@ on:
       - main
 
 permissions:
-  contents: write 
+  contents: write
 
 jobs:
   build:
@@ -68,10 +68,12 @@ jobs:
           Copy-Item "./ScratchConverter/Convert.js" "$baseDir/ScratchConverter/Convert.js"
           Copy-Item "./ScratchConverter/package.json" "$baseDir/ScratchConverter/package.json"
           Copy-Item "./ScratchConverter/package-lock.json" "$baseDir/ScratchConverter/package-lock.json"
+          
       - name: Check Help
         shell: bash
         run: |
           vpk pack --help
+          
       - name: Pack with Velopack
         shell: bash
         run: |
@@ -100,7 +102,7 @@ jobs:
             --releaseName "Release v0.9.${{ github.run_number }}" \
             --outputDir "./Releases" \
             --channel "${{ matrix.runtime }}"
-
+    
       - name: Delete unwanted assets from GitHub Release
         shell: bash
         env:
