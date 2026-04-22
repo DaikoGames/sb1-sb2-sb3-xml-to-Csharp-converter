@@ -75,9 +75,9 @@ jobs:
           vpk pack \
             -u "Converter" \
             -v "0.9.${{ github.run_number }}" \
-            --noPortable 
             --packDir "./publish/${{ matrix.runtime }}" \
             --outputDir "./Releases" \
+            --noPortable 
             --channel "${{ matrix.runtime }}"
 
       - name: Upload Build Artifacts
