@@ -73,6 +73,7 @@ jobs:
             -u Converter \
             -v 0.9.${{ github.run_number }} \
             --packDir "./publish/${{ matrix.runtime }}" \
+            --outputDir "./Releases" \
             --channel ${{ matrix.runtime }}
 
       - name: Upload build artifact
@@ -90,7 +91,7 @@ jobs:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          path: Releases
+          path: Releases/
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -103,7 +104,7 @@ jobs:
       - name: Add dotnet tools to PATH
         run: echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
 
-      - name: Create GitHub Release
+      - name: Publish GitHub Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
