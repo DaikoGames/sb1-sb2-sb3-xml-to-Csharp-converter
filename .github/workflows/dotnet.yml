@@ -82,13 +82,6 @@ jobs:
             --outputDir "./Releases" \
             --channel "${{ matrix.runtime }}"
 
-      - name: Delete unnecesary nuspec files
-        shell: bash
-        run: | 
-          rm -f ./Releases/*.nuspec
-          rm -f ./Releases/*.pkg
-          rm -f ./Releases/*.zip
-
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -107,3 +100,19 @@ jobs:
             --releaseName "Release v0.9.${{ github.run_number }}" \
             --outputDir "./Releases" \
             --channel "${{ matrix.runtime }}"
+
+      - name: Delete unwanted assets from GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Give GitHub a second to process the upload
+          sleep 5
+          
+          # Use the GitHub CLI to delete the specific extensions from the release
+          # This removes them from the website, not just your runner
+          tag="v0.9.${{ github.run_number }}"
+          
+          gh release delete-asset "$tag" "*.nuspec" -y || true
+          gh release delete-asset "$tag" "*.pkg" -y || true
+          gh release delete-asset "$tag" "*.zip" -y || true
