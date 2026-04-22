@@ -73,8 +73,8 @@ jobs:
           Copy-Item "./Install/Install-Chocolately.ps1" "$baseDir/Install/Install-Chocolately.ps1"
           Copy-Item "./Install/Install-Node-and-NPM.ps1" "$baseDir/Install/Install-Node-and-NPM.ps1"
           Copy-Item "./Install/InstallAvalonia.bat" "$baseDir/Install/InstallAvalonia.bat"
-          CopyItem "./Install/InstallAvalonia.ps1" "$baseDir/Install/InstallAvalonia.ps1"
-          CopyItem "./Install/dotnet-install.ps1" "$baseDir/Install/dotnet-install.ps1"
+          Copy-Item "./Install/InstallAvalonia.ps1" "$baseDir/Install/InstallAvalonia.ps1"
+          Copy-Item "./Install/dotnet-install.ps1" "$baseDir/Install/dotnet-install.ps1"
           
       - name: Add Extra Files -> Windows
         shell: pwsh
@@ -92,8 +92,8 @@ jobs:
           New-Item -ItemType Directory -Force -Path "$baseDir/Install"
           
           Copy-Item "./Install/Install-Node-and-NPM.sh" "$baseDir/Install/Install-Node-and-NPM.sh"
-          CopyItem "./Install/InstallAvalonia.sh" "$baseDir/Install/InstallAvalonia.sh"
-          CopyItem "./Install/dotnet-install.sh" "$baseDir/Install/dotnet-install.sh"
+          Copy-Item "./Install/InstallAvalonia.sh" "$baseDir/Install/InstallAvalonia.sh"
+          Copy-Item "./Install/dotnet-install.sh" "$baseDir/Install/dotnet-install.sh"
       - name: Check Help
         shell: bash
         run: |
