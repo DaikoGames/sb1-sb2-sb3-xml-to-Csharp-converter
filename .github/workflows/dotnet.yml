@@ -1,3 +1,13 @@
+name: Deploy to GitHub Releases
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
 jobs:
   build:
     strategy:
@@ -21,57 +31,68 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-dotnet@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 9.0.x
 
-      - name: Build app
+      - name: Build and Publish App
+        shell: bash
         run: |
           dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" \
             -c Release \
             -r ${{ matrix.runtime }} \
-            -o publish/${{ matrix.runtime }} \
+            -o "./publish/${{ matrix.runtime }}" \
             -p:SelfContained=true \
             -p:PublishSingleFile=true
 
-      - name: Install vpk
+      - name: Install Velopack CLI
         run: dotnet tool install -g vpk
 
-      - name: PATH
+      - name: Add dotnet tools to PATH
+        shell: bash
         run: echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
 
-      - name: Add files
+      - name: Add Extra Files (Icons & Scripts)
         shell: pwsh
         run: |
-            New-Item -ItemType Directory -Force -Path "./publish/${{matrix.runtime}}/ConverterIcon"
-            Copy-Item "./ConverterIcon/Converter.ico" "./publish/${{matrix.runtime}}/ConverterIcon/Converter.ico"
-            New-Item -ItemType Directory -Force -Path "./publish/${{matrix.runtime}}/ScratchConverter"
-            Copy-Item "./ScratchConverter/Convert.js" "./publish/${{matrix.runtime}}/ScratchConverter/Convert.js"
-            Copy-Item "./ScratchConverter/package.json" "./publish/${{matrix.runtime}}/ScratchConverter/package.json"
-            Copy-Item "./ScratchConverter/package-lock.json" "./publish/${{matrix.runtime}}/ScratchConverter/package-lock.json"
+          # Zielordner definieren (muss im packDir liegen!)
+          $baseDir = "./publish/${{ matrix.runtime }}"
+          
+          # Icon kopieren
+          New-Item -ItemType Directory -Force -Path "$baseDir/ConverterIcon"
+          Copy-Item "./ConverterIcon/Converter.ico" "$baseDir/ConverterIcon/Converter.ico"
+          
+          # ScratchConverter Dateien kopieren
+          New-Item -ItemType Directory -Force -Path "$baseDir/ScratchConverter"
+          Copy-Item "./ScratchConverter/Convert.js" "$baseDir/ScratchConverter/Convert.js"
+          Copy-Item "./ScratchConverter/package.json" "$baseDir/ScratchConverter/package.json"
+          Copy-Item "./ScratchConverter/package-lock.json" "$baseDir/ScratchConverter/package-lock.json"
 
-      - name: Pack Velopack
+      - name: Pack with Velopack
+        shell: bash
         run: |
           vpk pack \
-            -u Converter \
-            -v 0.9.${{ github.run_number }} \
-            --packDir "./publish/${{matrix.runtime}}" \
-            --channel ${{ matrix.runtime }}
+            -u "Converter" \
+            -v "0.9.${{ github.run_number }}" \
+            --packDir "./publish/${{ matrix.runtime }}" \
+            --outputDir "./Releases" \
+            --channel "${{ matrix.runtime }}"
 
-      - name: Upload artifact
+      - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: vpk-${{ matrix.runtime }}
           path: Releases/
 
- release:
+  release:
     needs: build
     runs-on: ubuntu-latest
-
     steps:
-      - name: Download all artifacts
+      - name: Download all Artifacts
         uses: actions/download-artifact@v4
         with:
           path: ./Releases
@@ -86,9 +107,10 @@ jobs:
         run: dotnet tool install -g vpk
 
       - name: Add dotnet tools to PATH
+        shell: bash
         run: echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
 
-      - name: Publish GitHub Release
+      - name: Publish to GitHub Releases
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
