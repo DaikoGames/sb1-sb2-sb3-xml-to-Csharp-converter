@@ -115,6 +115,7 @@ jobs:
           # This removes them from the website, not just your runner
           tag="v0.9.${{ github.run_number }}"
           
-          gh release delete-asset "$tag" "*.nuspec" -y || true
-          gh release delete-asset "$tag" "*.pkg" -y || true
-          gh release delete-asset "$tag" "*.zip" -y || true
+          gh release delete-asset "$tag" "Converter-${{ matrix.runtime }}-full.nuspec" -y || true
+          gh release delete-asset "$tag" "Converter-${{ matrix.runtime }}-Setup.pkg" -y || true
+          gh release delete-asset "$tag" "Converter-${{ matrix.runtime }}-Portable.zip" -y || true
+          gh release delete-asset "$tag" "releases-${{ matrix.runtime }}.json" -y || true
