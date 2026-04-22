@@ -77,7 +77,7 @@ jobs:
             -v "0.9.${{ github.run_number }}" \
             --packDir "./publish/${{ matrix.runtime }}" \
             --outputDir "./Releases" \
-            --noPortable 
+            --noPortable true \
             --channel "${{ matrix.runtime }}"
 
       - name: Upload Build Artifacts
