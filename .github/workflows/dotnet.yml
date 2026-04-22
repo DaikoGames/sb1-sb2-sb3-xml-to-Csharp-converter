@@ -75,7 +75,7 @@ jobs:
             --packDir "./publish/${{ matrix.runtime }}" \
             --channel ${{ matrix.runtime }}
 
-      - name: Upload build artifacts
+      - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: vpk-${{ matrix.runtime }}
@@ -90,7 +90,12 @@ jobs:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          path: artifacts
+          path: Releases
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
 
       - name: Install Velopack CLI
         run: dotnet tool install -g vpk
