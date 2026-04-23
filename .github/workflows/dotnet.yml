@@ -141,6 +141,5 @@ jobs:
           tag="v0.9.${{ github.run_number }}"
           
           gh release delete-asset "$tag" "Converter-0.9.${{ github.run_number }}-${{ matrix.runtime }}-full.nupkg" -y || true
-          gh release delete-asset "$tag" "Converter-${{ matrix.runtime }}-Setup.pkg" -y || true
           gh release delete-asset "$tag" "Converter-${{ matrix.runtime }}-Portable.zip" -y || true
           gh release delete-asset "$tag" "releases.${{ matrix.runtime }}.json" -y || true
