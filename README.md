@@ -1,3 +1,4 @@
+[![Deploy to GitHub Releases](https://github.com/DaikoGames/sb1-sb2-sb3-xml-to-Csharp-converter/actions/workflows/dotnet.yml/badge.svg)](https://github.com/DaikoGames/sb1-sb2-sb3-xml-to-Csharp-converter/actions/workflows/dotnet.yml)
 ## What is this Project:
 
 This project converts [Scratch](https://scratch.mit.edu/), and [Snap!](https://snap.berkeley.edu/) Projects to [Avalonia](https://avaloniaui.net/) Projects (C#)
