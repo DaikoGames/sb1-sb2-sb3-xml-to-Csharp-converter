@@ -61,10 +61,8 @@ jobs:
         if: contains(matrix.runtime, 'win')  
         run: |
           $baseDir = "./publish/${{ matrix.runtime }}"
-
           New-Item -ItemType Directory -Force -Path "$baseDir/ConverterIcon"
           Copy-Item "./ConverterIcon/Converter.ico" "$baseDir/ConverterIcon/Converter.ico"
-
           New-Item -ItemType Directory -Force -Path "$baseDir/ScratchConverter"
           Copy-Item "./ScratchConverter/Convert.js" "$baseDir/ScratchConverter/Convert.js"
           Copy-Item "./ScratchConverter/package.json" "$baseDir/ScratchConverter/package.json"
@@ -83,16 +81,13 @@ jobs:
         if: contains(matrix.runtime, 'linux') || contains(matrix.runtime, 'osx')
         run: |
           $baseDir = "./publish/${{ matrix.runtime }}"
-
           New-Item -ItemType Directory -Force -Path "$baseDir/ConverterIcon"
           Copy-Item "./ConverterIcon/Converter.ico" "$baseDir/ConverterIcon/Converter.ico"
-
           New-Item -ItemType Directory -Force -Path "$baseDir/ScratchConverter"
           Copy-Item "./ScratchConverter/Convert.js" "$baseDir/ScratchConverter/Convert.js"
           Copy-Item "./ScratchConverter/package.json" "$baseDir/ScratchConverter/package.json"
           Copy-Item "./ScratchConverter/package-lock.json" "$baseDir/ScratchConverter/package-lock.json"
           New-Item -ItemType Directory -Force -Path "$baseDir/Install"
-          
           Copy-Item "./Install/Install-Node-and-NPM.sh" "$baseDir/Install/Install-Node-and-NPM.sh"
           Copy-Item "./Install/InstallAvalonia.sh" "$baseDir/Install/InstallAvalonia.sh"
           Copy-Item "./Install/dotnet-install.sh" "$baseDir/Install/dotnet-install.sh"
