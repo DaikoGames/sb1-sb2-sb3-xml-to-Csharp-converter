@@ -58,7 +58,7 @@ jobs:
 
       - name: Add files (Windows)
         shell: pwsh
-        if: contains(matrix.runtime, 'win') 
+        if: contains(matrix.runtime, 'win')  
         run: |
           $baseDir = "./publish/${{ matrix.runtime }}"
 
@@ -78,7 +78,7 @@ jobs:
           
       - name: Add Files (Linux, MacOS)
         shell: pwsh
-        if: contains(matrix.runtime, 'linux') 
+        if: contains(matrix.runtime, 'linux') || contains(matrix.runtime, 'osx')
         run: |
           $baseDir = "./publish/${{ matrix.runtime }}"
 
