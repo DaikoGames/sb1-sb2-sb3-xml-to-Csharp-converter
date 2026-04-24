@@ -1,13 +1,16 @@
 name: Deploy to GitHub Releases
-
-on:
+on: 
+  schedule:
+     - cron: '0 13 1-7 * 6'
   push:
-    branches:
-      - main
+      branches:
+        - main
 
 permissions:
   contents: write
 
+
+   
 jobs:
   build:
     strategy:
@@ -140,5 +143,4 @@ jobs:
           tag="v0.9.${{ github.run_number }}"
           
           gh release delete-asset "$tag" "Converter-0.9.${{ github.run_number }}-${{ matrix.runtime }}-full.nupkg" -y || true
-          gh release delete-asset "$tag" "Converter-${{ matrix.runtime }}-Portable.zip" -y || true
           gh release delete-asset "$tag" "releases.${{ matrix.runtime }}.json" -y || true
