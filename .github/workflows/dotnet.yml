@@ -106,7 +106,7 @@ jobs:
         run: |
           vpk pack \
             -u "Converter" \
-            -v "0.9.${{ github.run_number }}" \
+            -v "0.9.8.${{ github.run_number }}" \
             --packDir "./publish/${{ matrix.runtime }}" \
             --outputDir "./Releases" \
             --channel "${{ matrix.runtime }}"
@@ -125,8 +125,8 @@ jobs:
             --merge \
             --repoUrl "${{ github.server_url }}/${{ github.repository }}" \
             --token "${{ secrets.GITHUB_TOKEN }}" \
-            --tag "v0.9.${{ github.run_number }}" \
-            --releaseName "Release v0.9.${{ github.run_number }}" \
+            --tag "v0.9.8.${{ github.run_number }}" \
+            --releaseName "Release v0.9.8.${{ github.run_number }}" \
             --outputDir "./Releases" \
             --channel "${{ matrix.runtime }}"
     
