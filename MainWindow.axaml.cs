@@ -1,6 +1,7 @@
 //This Code belongs to Daiko Games - it is copyrighted - don�t use it without permission
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Input.TextInput;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.OpenGL;
@@ -28,6 +29,7 @@ using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Net;
 using System.Net.Sockets;
 using System.Numerics;
@@ -35,12 +37,15 @@ using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics.X86;
+using System.Security.Cryptography.X509Certificates;
+using ImageMagick;
 //using Microsoft.Win32.SafeHandles;
 using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Linq;
 using Tmds.DBus.Protocol;
 using Velopack;
+using Velopack.Locators;
 
 namespace sb1_sb2_sb3_xml_to_Csharp_converter;
 
@@ -70,9 +75,10 @@ public partial class MainWindow : Window
     public string extensionS;
     public string ICON;
     public string LastObject;
+
+    public string LastSprite;
     public string LastAXAMLname;
     public int SoundNumber = 0;
-
 
     bool LastLight = false;
 
@@ -141,9 +147,93 @@ public partial class MainWindow : Window
         Core.Initialize();
         this.Icon = new WindowIcon(Path.Combine(AppDomain.CurrentDomain.BaseDirectory + "ConverterIcon", "Converter.ico"));
         Theme();
-
+        Task.Run(() => CheckRequirements());
         Task.Run(() => ThemeChange());
+
     }
+    public async Task CheckRequirements()
+    {
+
+        while (true)
+        {
+            string ConverterFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ScratchConverter");
+            if (!Directory.Exists(ConverterFolder))
+            {
+                Directory.CreateDirectory(ConverterFolder);
+            }
+
+            //Initialize Components 
+            string InstallerFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Install");
+            if (!Directory.Exists(InstallerFolder))
+            {
+                Directory.CreateDirectory(InstallerFolder);
+            }
+
+            string DotnetInstallerFile = Path.Combine(InstallerFolder, "dotnet-install.ps1");
+            if (!File.Exists(DotnetInstallerFile))
+            {
+                await Cli.Wrap("powershell").WithArguments(args => args.Add("-Command").Add("Invoke-WebRequest -Uri https://dot.net/v1/dotnet-install.ps1 -OutFile dotnet-install.ps1")).WithWorkingDirectory(InstallerFolder).ExecuteBufferedAsync();
+            }
+
+            string ConverterFile = Path.Combine(ConverterFolder, "ScratchConverter", "Convert.js");
+            if (!File.Exists(ConverterFile))
+            {
+                await Cli.Wrap("powershell").WithArguments(args => args.Add("-Command").Add("Invoke-WebRequest -Uri https://raw.githubusercontent.com/DaikoGames/Scratch-Format-converter/refs/heads/main/Convert.js -OutFile Convert.js")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync();
+            }
+
+            string NPMpackageJSON = Path.Combine(ConverterFolder, "ScratchConverter", "package.json");
+            if (!File.Exists(NPMpackageJSON))
+            {
+                await Cli.Wrap("powershell").WithArguments(args => args.Add("-Command").Add("Invoke-WebRequest -Uri https://raw.githubusercontent.com/DaikoGames/Scratch-Format-converter/refs/heads/main/package.json -OutFile package.json")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync();
+            }
+
+            string NPMpackageLockJSON = Path.Combine(ConverterFolder, "ScratchConverter", "package-lock.json");
+            if (!File.Exists(NPMpackageLockJSON))
+            {
+                await Cli.Wrap("powershell").WithArguments(args => args.Add("-Command").Add("Invoke-WebRequest -Uri https://github.com/DaikoGames/Scratch-Format-converter/blob/main/package-lock.json -OutFile package-lock.json")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync();
+            }
+
+            //First check if winget exist
+            var WingetVersion = await Cli.Wrap("winget").WithArguments(args => args.Add("--version")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync();
+            if (WingetVersion.ExitCode != 0)
+            {
+                //https://github.com/microsoft/winget-cli/releases/download/v1.28.240/Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle
+            }
+
+            var PowershellVersion = await Cli.Wrap("pwsh").WithArguments(args => args.Add("-Version")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync();
+            if (PowershellVersion.ExitCode != 0)
+            {
+                await Cli.Wrap("winget").WithArguments(args => args.Add("install").Add("--id").Add("Microsoft.PowerShell").Add("--source").Add("winget")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync();
+            }
+
+            var ChocolateyVersion = await Cli.Wrap("choco").WithArguments(args => args.Add("--version")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync();
+            if (ChocolateyVersion.ExitCode != 0)
+            {
+                await Cli.Wrap("pwsh").WithArguments(args => args.Add("-c").Add("irm https://community.chocolatey.org/install.ps1|iex")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync();
+            }
+
+            var DotnetVersion = await Cli.Wrap("dotnet").WithArguments(args => args.Add("--version")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync();
+            if (DotnetVersion.ExitCode != 0)
+            {
+                //install Dotnet, and Avalonia Template too
+                await Cli.Wrap("pwsh").WithArguments(args => args.Add("./dotnet-install.ps1").Add("-Runtime").Add("dotnet").Add("-Version").Add("9.0.0")).ExecuteBufferedAsync(); ;
+                await Cli.Wrap("dotnet").WithArguments(args => args.Add("new").Add("install").Add("Avalonia.Templates")).ExecuteBufferedAsync();
+            }
+
+            var CheckNodeJS = await Cli.Wrap("node").WithArguments(args => args.Add("--version")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync();
+            if (CheckNodeJS.ExitCode != 0)
+            {
+                await Cli.Wrap("choco").WithArguments(args => args.Add("install").Add("nodejs")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync();
+            }
+
+            //Check if npm is installed at the location of ScratchConverter
+            await (Cli.Wrap("npm").WithArguments(args => args.Add("install")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync());
+            await Task.Delay(6000);
+
+        }
+
+    }
+
     public async Task ThemeChange()
     {
         Trace.WriteLine("Changing the Theme");
@@ -283,7 +373,7 @@ public partial class MainWindow : Window
             {
                 new FilePickerFileType("All Filetypes")
                 {
-                    Patterns = new[] { "*.sb", "*.sb2", "*.sb3", "*.xml"}
+                    Patterns = new[] { "*.sb", "*.sb2", "*.sb3", "*.sjr" , "*.xml"}
                 },
                 new FilePickerFileType("sb Files")
                 {
@@ -296,6 +386,10 @@ public partial class MainWindow : Window
                 new FilePickerFileType("sb3 Files")
                 {
                     Patterns = new[] { "*.sb3" }
+                },
+                new FilePickerFileType("sjr Files")
+                {
+                    Patterns = new[] { "*.sjr" }
                 },
                 new FilePickerFileType("xml Files")
                 {
@@ -417,11 +511,12 @@ public partial class MainWindow : Window
             }
         }
     }
+
     public async void GithubLinkPressed(object sender, RoutedEventArgs args)
     {
         Trace.WriteLine("Visiting my Github :)");
         string Link = "https://github.com/DaikoGames";
-        //Process.Start(new ProcessStartInfo(Link) { UseShellExecute = true });
+        Process.Start(new ProcessStartInfo(Link) { UseShellExecute = true });
         //System.Diagnostics.Process.Start("explorer", Link);
     }
 
@@ -476,16 +571,23 @@ public partial class MainWindow : Window
 
         if (WindowsCheckBox.IsChecked == true | LinuxCheckBox.IsChecked == true | MacOSCheckBox.IsChecked == true)
         {
-            if (extensionS.Contains(".sb") | extensionS.Contains(".sb2") | extensionS.Contains(".sb3"))
+            try
             {
-                if (Scratch == true | Snapinator == true)
+                if (extensionS.Contains(".sb") | extensionS.Contains(".sb2") | extensionS.Contains(".sb3") | extensionS.Contains(".sjr"))
                 {
-                    await Task.Run(() => sbfiles(extensionS));
+                    if (Scratch == true | Snapinator == true)
+                    {
+                        await Task.Run(() => sbfiles(extensionS));
+                    }
+                }
+                if (extensionS.Contains(".xml"))
+                {
+                    await Task.Run(() => xmlfiles(extensionS));
                 }
             }
-            if (extensionS.Contains(".xml"))
+            catch (Exception ex)
             {
-                await Task.Run(() => xmlfiles(extensionS));
+                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => MessageBoxManager.GetMessageBoxStandard("Succesful Build", "Your Project was built for " + formatOfApplication + ", \n and is located at " + Foldername, ButtonEnum.Ok, MsBox.Avalonia.Enums.Icon.Info).ShowAsync());
             }
         }
 
@@ -505,246 +607,261 @@ public partial class MainWindow : Window
         string FileExtension = Path.GetExtension(Filename);
         if (FileExtension == ".sb" | FileExtension == ".sb2" | FileExtension == ".sb3")
         {
-                if (OperatingSystem.IsWindows() | OperatingSystem.IsLinux() | OperatingSystem.IsMacOS())
+            if (OperatingSystem.IsWindows() | OperatingSystem.IsLinux() | OperatingSystem.IsMacOS())
+            {
+                string ConverterFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ScratchConverter");
+                string ConvertDestination = Path.Combine(ConverterFolder, "project.sb");
+                File.Copy(Filename, ConvertDestination, true);
+                string JSFile = Path.Combine(ConverterFolder, "Convert.js");
+                //Ok it works, now check if the modules are installed - if not install with npm again LOL
+                //My users have to have Powershell, i know it sounds bad, but it is the most efficient way there is
+
+                if (FileExtension == ".sb" | FileExtension == ".sb2")
                 {
-                    string ConverterFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ScratchConverter");
-                    string ConvertDestination = Path.Combine(ConverterFolder, "project.sb");
-                    File.Copy(Filename, ConvertDestination, true);
-                    string JSFile = Path.Combine(ConverterFolder, "Convert.js");
-                    //Ok it works, now check if the modules are installed - if not install with npm again LOL
-                    //My users have to have Powershell, i know it sounds bad, but it is the most efficient way there is
-                    if (FileExtension == ".sb" | FileExtension == ".sb2")
+                    if (OperatingSystem.IsWindows())
                     {
-                        var PlsNoError = await (Cli.Wrap("npm").WithArguments(args => args.Add("list").Add("--depth=0")).WithWorkingDirectory(ConverterFolder).WithValidation(CommandResultValidation.None).ExecuteBufferedAsync());
-                        if (PlsNoError.ExitCode == 0)
-                        {
-                            await (Cli.Wrap("node").WithArguments(args => args.Add("Convert.js")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync());
 
-                        }
-                        if (PlsNoError.ExitCode != 0)
-                        {
-                            await (Cli.Wrap("npm").WithArguments(args => args.Add("install")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync());
-                        }
-
-                        await (Cli.Wrap("node").WithArguments(args => args.Add("Convert.js")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync());
-                        File.Delete(ConvertDestination);
-                        string NewFile = Path.Combine(ConverterFolder, "project.sb3");
-                        string FolderDestination = Path.Combine(Foldername, "project.sb3");
-
-                        File.Copy(NewFile, FolderDestination, true);
-                        File.Delete(NewFile);
-
-                    }
-
-                    if (FileExtension == ".sb3")
-                    {
+                        await Cli.Wrap("node").WithArguments(args => args.Add("Convert.js")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync();
+                        string OldSB3 = Path.Combine(ConverterFolder, "project.sb3");
                         string NewSB3 = Path.Combine(Foldername, "project.sb3");
-                        File.Copy(Filename, NewSB3, true);
-                    }
-                    Trace.WriteLine("Done with .sb/.sb2 to .sb3 conversion, converting to .xml now");
-                    string SB3File = Path.Combine(Foldername, "project.sb3");
-                    string Zipfile = Path.GetFileNameWithoutExtension(Filename) + ".zip";
-                    File.Copy(SB3File, Zipfile, true);
-                    File.Delete(SB3File);
-                    ZipFile.ExtractToDirectory(Zipfile, Foldername, true);
-                    string JSONFile = Path.Combine(Foldername, "project.json");
-                    var parsedJSON = JToken.Parse(File.ReadAllText(JSONFile));
-                    string PrettyJSON = parsedJSON.ToString(Newtonsoft.Json.Formatting.Indented);
-                    File.WriteAllText(JSONFile, PrettyJSON);
-                    string XMLfile = Path.Combine(Foldername, "project.xml");
-                    string[] JSONlines = File.ReadAllLines(JSONFile);
-                    int Line = 0;
-                    File.AppendAllText(XMLfile, "<project name=\"project\" app=\"Scratch to Snap! converter\" version=\"1\">");
-                    File.AppendAllText(XMLfile, "\n<stage name=\"Stage\" width=\"480\" height=\"360\">");
-                    bool CostumeBool = false;
-                    bool SoundBool = false;
-                    int CostumeInt = 0;
-                    bool SpriteBool = false;
-                    bool EdgeComma = false;
-
-                    //This will take another year of my life LOL 
-
-                    foreach (string Jsonline in JSONlines)
-                    {
-                        Console.WriteLine("it works :)");
-                        //"isStage": false -> this is a object
-
-                        if (Jsonline.Contains("\"name\":"))
-                        {
-                            if (CostumeBool == true)
-                            {
-                                CostumeInt = CostumeInt + 1;
-                            }
-                        }
-
-                        if (Jsonline.Contains("],"))
-                        {
-                            if (CostumeBool == true)
-                            {
-                                CostumeBool = false;
-                                File.AppendAllText(XMLfile, " costume=\"" + CostumeInt + "\" tempo=\"60\" threadsafe=\"false\" lines=\"round\" codify=\"false\" schedule=\"false\">");
-                            }
-                        }
-                    }
-                    CostumeBool = false;
-                    foreach (string jsonlines in JSONlines)
-                    {
-                        Line = Line + 1;
-                        if (jsonlines.Contains("\"costumes\""))
-                        {
-                            CostumeBool = true;
-                            File.AppendAllText(XMLfile, "\n<costumes>");
-                            File.AppendAllText(XMLfile, "\n<list>");
-                        }
-
-                        if (jsonlines.Contains("\"sounds\""))
-                        {
-                            SoundBool = true;
-                            File.AppendAllText(XMLfile, "\n<sounds>");
-                            File.AppendAllText(XMLfile, "\n<list>");
-                        }
-
-                        if (jsonlines.Contains("\"name\""))
-                        {
-                            string CheckIfSprite = File.ReadAllLines(JSONFile).Skip(Line - 2).Take(1).First();
-                            string Name = jsonlines.Replace("\"name\":", "").Replace("\"", "").Replace(",", "").Trim();
-                            string CheckEndNumberOne = File.ReadAllLines(JSONFile).Skip(Line + 6).Take(1).First();
-                            if (CheckIfSprite.Contains("\"isStage\": false"))
-                            {
-                                File.AppendAllText(XMLfile, "\n</sprite> \n <sprite name=\"" + Name + "\"");
-                                SpriteBool = true;
-                            }
-                            else
-                            {
-                                if (CostumeBool == true | SoundBool == true)
-                                {
-                                    if (CostumeBool == true)
-                                    {
-                                        File.AppendAllText(XMLfile, "\n<item><costume ");
-                                    }
-                                    if (SoundBool == true)
-                                    {
-                                        File.AppendAllText(XMLfile, "\n<item><sound ");
-                                    }
-                                    if(CheckEndNumberOne.Contains("}") | CheckEndNumberOne.Contains("},"))
-                                    {
-                                        File.AppendAllText(XMLfile, "name=\"" + Name + "\"");
-                                    }
-                                    else
-                                    {
-                                        File.AppendAllText(XMLfile, "name=\"" + Name + "\"/></item>");
-                                    }
-                                }
-                            }
-
-                        }
-
-                        if (jsonlines.Contains("\"md5ext\""))
-                        {
-                            if (CostumeBool == true)
-                            {
-                                string ActualDocumentName = jsonlines.Replace("\"md5ext\":", "").Replace("\"", "").Replace(",", "").Trim();
-                                string DocumentPath = Path.Combine(Foldername, ActualDocumentName);
-                                string DocumentBase64 = Convert.ToBase64String(File.ReadAllBytes(DocumentPath));
-                                if (ActualDocumentName.Contains(".svg"))
-                                {
-                                    File.AppendAllText(XMLfile, " image=\"data:image/svg+xml;base64," + DocumentBase64 + "\"/></item>");
-                                }
-                                if (ActualDocumentName.Contains(".png"))
-                                {
-                                    File.AppendAllText(XMLfile, " image=\"data:image/png;base64," + DocumentBase64 + "\"/></item>");
-                                }
-                            }
-                            if (SoundBool == true)
-                            {
-                                string ActualDocumentName = jsonlines.Replace("\"md5ext\":", "").Replace("\"", "").Replace(",", "").Trim();
-                                string DocumentPath = Path.Combine(Foldername, ActualDocumentName);
-                                string DocumentBase64 = Convert.ToBase64String(File.ReadAllBytes(DocumentPath));
-                                if (ActualDocumentName.Contains(".wav"))
-                                {
-                                    File.AppendAllText(XMLfile, " sound=\"data:audio/x-wav;base64," + DocumentBase64 + "\"/></item>");
-                                }
-
-                            }
-                        }
-
-                        //Check the scripts and make a <script> thingie LOL
-                        if (jsonlines.Contains("],"))
-                        {
-                            if (CostumeBool == true)
-                            {
-                                File.AppendAllText(XMLfile, "\n</list>");
-                                File.AppendAllText(XMLfile, "\n</costumes>");
-                                CostumeBool = false;
-                            }
-
-                            if (SoundBool == true)
-                            {
-                                File.AppendAllText(XMLfile, "\n</list>");
-                                File.AppendAllText(XMLfile, "\n</sounds>");
-                                SoundBool = false;
-                            }
-                        }
-                        if (jsonlines.Contains("\"x\""))
-                        {
-                            if (SpriteBool == true)
-                            {
-                                string XValue = jsonlines.Replace("\"x\":", "").Replace(",", "").Trim();
-                                File.AppendAllText(XMLfile, " x=\"" + XValue + "\"");
-                            }
-                        }
-                        if (jsonlines.Contains("\"y\""))
-                        {
-                            if (SpriteBool == true)
-                            {
-                                string CheckBracket = File.ReadAllLines(JSONFile).Skip(Line).Take(1).First();
-                                string YValue = jsonlines.Replace("\"y\":", "").Replace(",", "").Trim();
-                                if(CheckBracket.Contains("},"))
-                                {
-                                    File.AppendAllText(XMLfile, " y=\"" + YValue + "\">");
-                                }
-                                else
-                                {
-                                    File.AppendAllText(XMLfile, " y=\"" + YValue + "\"");
-                                }
-                            }
-                        }
-                        if (jsonlines.Contains("},"))
-                        {
-                            string LastLineIsY = File.ReadAllLines(JSONFile).Skip(Line - 2).Take(1).First();
-                            if (LastLineIsY.Contains("\"y\""))
-                            {
-                                if (SpriteBool == true)
-                                {
-                                    SpriteBool = false;
-                                }
-                            }
-                        }
-                    }
-                    File.AppendAllText(XMLfile, "</stage>");
-                    File.AppendAllText(XMLfile, "</project>");
-                    try
-                    {
-                        //string[] XMLTextUnformatted = File.ReadAllLines(XMLfile);
-                    //string OneLinerXML = string.Join("", XMLTextUnformatted);
-                    //File.WriteAllText(XMLfile, OneLinerXML);
-                    //XDocument XMLDocument = XDocument.Parse(OneLinerXML);
-                    //File.WriteAllText(XMLfile, Convert.ToString(XMLDocument));
-                    }
-                    catch(Exception ex)
-                    {
-                        Trace.WriteLine(ex);
+                        File.Copy(OldSB3, NewSB3, true);
+                        File.Delete(ConvertDestination);
+                        File.Delete(OldSB3);
                     }
                 }
+
+                if (FileExtension == ".sb3")
+                {
+                    string NewSB3 = Path.Combine(Foldername, "project.sb3");
+                    File.Copy(Filename, NewSB3, true);
+                }
+                //Convert to C# now directly
             }
-            if (FileExtension == ".sb3")
+        }
+        if (FileExtension == ".sjr")
+        {
+            //Now convert the Scratch Junior project to normal Scratch
+            string Zipfile = Path.Combine(Foldername, Path.GetFileNameWithoutExtension(Filename) + ".zip");
+            File.Copy(Filename, Zipfile, true);
+            ZipFile.ExtractToDirectory(Zipfile, Foldername, true);
+            File.Delete(Zipfile);
+            string MainJSON = Path.Combine(Foldername, "project", "data.json");
+            var parsedJSON = JToken.Parse(File.ReadAllText(MainJSON));
+            string PrettyJSON = parsedJSON.ToString(Newtonsoft.Json.Formatting.Indented);
+            File.WriteAllText(MainJSON, PrettyJSON);
+            string[] JSONText = File.ReadAllLines(MainJSON);
+            ApplicationName = "ScratchJnr";
+            GameFolder = Path.Combine(Foldername, ApplicationName);
+
+            await (Cli.Wrap("dotnet").WithArguments(args => args.Add("new").Add("avalonia.mvvm").Add("-o").Add(ApplicationName)).WithWorkingDirectory(Foldername).ExecuteAsync());
+            await (Cli.Wrap("dotnet").WithArguments(args => args.Add("new").Add("sln")).WithWorkingDirectory(GameFolder).ExecuteAsync());
+            await (Cli.Wrap("dotnet").WithArguments(args => args.Add("sln").Add("add").Add(ApplicationName + ".csproj")).WithWorkingDirectory(GameFolder).ExecuteAsync());
+            await (Cli.Wrap("dotnet").WithArguments(args => args.Add("add").Add("package").Add("LibVLCSharp")).WithWorkingDirectory(GameFolder).ExecuteAsync());
+            await (Cli.Wrap("dotnet").WithArguments(args => args.Add("add").Add("package").Add("easyAsyncCancel")).WithWorkingDirectory(GameFolder).ExecuteAsync());
+            await (Cli.Wrap("dotnet").WithArguments(args => args.Add("build").Add(ApplicationName + ".slnx")).WithWorkingDirectory(GameFolder).ExecuteAsync());
+
+            string WindowEditorFile = Path.Combine(GameFolder, "MainWindow.axaml");
+            string WindowCsFile = Path.Combine(GameFolder, "MainWindow.axaml.cs");
+
+            File.AppendAllText(WindowEditorFile, "<Window             Name=\"Default\""); //Es fehlt hier was
+            File.AppendAllText(WindowEditorFile, "\n                  xmlns=\"https://github.com/avaloniaui\"");
+            File.AppendAllText(WindowEditorFile, "\n                  xmlns:x=\"http://schemas.microsoft.com/winfx/2006/xaml\"");
+            File.AppendAllText(WindowEditorFile, "\n                  xmlns:d=\"http://schemas.microsoft.com/expression/blend/2008\"");
+            File.AppendAllText(WindowEditorFile, "\n                  xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\"");
+            File.AppendAllText(WindowEditorFile, "\n                  mc:Ignorable=\"d\"");
+            File.AppendAllText(WindowEditorFile, "\n                  d:DesignWidth=\"" + 240 + "\"");
+            File.AppendAllText(WindowEditorFile, "\n                  d:DesignHeight=\"" + 180 + "\"");
+            File.AppendAllText(WindowEditorFile, "\n                  Width=\"" + 480 + "\"");
+            File.AppendAllText(WindowEditorFile, "\n                  Height=\"" + 360 + "\"");
+            File.AppendAllText(WindowEditorFile, "\n                  x:Class=\"" + ApplicationName + ".MainWindow\"");
+            File.AppendAllText(WindowEditorFile, "\n                  Title=\"" + ApplicationName + "\"");
+            File.AppendAllText(WindowEditorFile, "\n                  RequestedThemeVariant =\"Light\"");
+            File.AppendAllText(WindowEditorFile, "\n                  CanResize =\"False\"");
+            File.AppendAllText(WindowEditorFile, "\n>");
+            File.AppendAllText(WindowEditorFile, "\n<Canvas Name=\"ProjectCanvas\">");
+            //File.AppendAllText(WindowEditorFile, "\n   <Canvas>");
+            //Background and Icon Feature at last - its hard :-/
+
+            //need to make a void that check everything, based on the things that will be used inside of the project
+            File.WriteAllText(WindowCsFile, "\n using System;");
+            File.AppendAllText(WindowCsFile, "\n using System.IO;");
+            File.AppendAllText(WindowCsFile, "\n using Avalonia.Controls;");
+            File.AppendAllText(WindowCsFile, "\n using LibVLCSharp.Shared;");
+            File.AppendAllText(WindowCsFile, "\n using Avalonia.Interactivity;");
+            File.AppendAllText(WindowCsFile, "\n using Avalonia.Media.Imaging;");
+            File.AppendAllText(WindowCsFile, "\n namespace " + ApplicationName + ";");
+            File.AppendAllText(WindowCsFile, "\n public partial class MainWindow : Window {");
+
+            int Line = 0;
+            string XCoordinate;
+            string YCoordinate;
+            string Width;
+            string Height;
+            string TimeToWait;
+            string MessageOfSprite;
+
+            foreach (string LINE in JSONText)
             {
-                //Use Scratch to .xml File converter here
-                //
+                Line = Line + 1;
+                if (LINE.Contains("\"lastSprite\""))
+                {
+                    LastSprite = LINE.Replace("\"lastSprite\":", "").Replace("\"", "").Replace(",", "").Replace(" ", "_").Trim();
+                }
+
+                if (LINE.Contains("\"xcoor\""))
+                {
+                    XCoordinate = LINE.Replace("\"xcoor\":", "").Replace(",", "").Trim();
+                    File.AppendAllText(WindowCsFile, "\n public double " + LastSprite + "XCOORDINATE = " + XCoordinate + ";");
+                }
+
+                if (LINE.Contains("\"ycoor\""))
+                {
+                    YCoordinate = LINE.Replace("\"ycoor\":", "").Replace(",", "").Trim();
+                    File.AppendAllText(WindowCsFile, "\n public double " + LastSprite + "YCOORDINATE = " + YCoordinate + ";");
+                }
+
+                if (LINE.Contains("\"message\""))
+                {
+                    MessageOfSprite = File.ReadAllLines(MainJSON).Skip(Line).Take(1).First().Replace("\"", "").Replace(",", "").Trim();
+                    File.AppendAllText(WindowCsFile, "\n public bool " + MessageOfSprite + " = false;");
+                }
             }
-        
-            
+            Line = 0;
+            foreach (string LINE in JSONText)
+            {
+                Line = Line + 1;
+                if (LINE.Contains("\"lastSprite\""))
+                {
+                    //The Name of a sprite
+                }
+                if (LINE.Contains("\"xcoor\""))
+                {
+                    XCoordinate = LINE.Replace("\"xcoor\":", "").Replace(",", "").Trim();
+                }
+                if (LINE.Contains("\"ycoor\""))
+                {
+                    YCoordinate = LINE.Replace("\"ycoor\":", "").Replace(",", "").Trim();
+                }
+                if (LINE.Contains("\"w\""))
+                {
+                    Width = LINE.Replace("\"w\":", "").Replace(",", "").Trim();
+                    //Width
+                }
+                if (LINE.Contains("\"h\""))
+                {
+                    Height = LINE.Replace("\"w\":", "").Replace(",", "").Trim();
+                    //Height
+                }
+                if (LINE.Contains("\"forward\""))
+                {
+
+                }
+                if (LINE.Contains("\"back\""))
+                {
+
+                }
+                if (LINE.Contains("\"up\""))
+                {
+
+                }
+                if (LINE.Contains("\"down\""))
+                {
+
+                }
+                if (LINE.Contains("\"right\""))
+                {
+                    //turn right
+                }
+
+                if (LINE.Contains("\"left\""))
+                {
+                    //turn right
+                }
+
+                if (LINE.Contains("\"hop\""))
+                {
+                    //Hopping
+                }
+
+                if (LINE.Contains("\"onclick\""))
+                {
+                    //Clicking
+                }
+
+                if (LINE.Contains("\"say\""))
+                {
+
+                }
+
+                if (LINE.Contains("\"grow\""))
+                {
+
+                }
+
+                if (LINE.Contains("\"shrink\""))
+                {
+
+                }
+
+                if (LINE.Contains("\"same\""))
+                {
+
+                }
+
+                if (LINE.Contains("\"hide\""))
+                {
+
+                }
+
+                if (LINE.Contains("\"show\""))
+                {
+
+                }
+
+                if (LINE.Contains("\"ontouch\""))
+                {
+
+                }
+
+                if (LINE.Contains("\"playsnd\""))
+                {
+
+                }
+
+                if (LINE.Contains("\"wait\""))
+                {
+
+                }
+
+                if (LINE.Contains("\"stopmine\""))
+                {
+
+                }
+
+                if (LINE.Contains("\"setspeed\""))
+                {
+
+                }
+
+                if (LINE.Contains("\"repeat\""))
+                {
+
+                }
+
+                if (LINE.Contains("\"onmessage\""))
+                {
+
+                }
+
+
+                if (LINE.Contains("\"forever\""))
+                {
+
+                }
+            }
+        }
     }
+
     private async void xmlfiles(string extension)
     {
         string jsonPath = Path.Combine(Foldername, "Project.json");
@@ -754,7 +871,6 @@ public partial class MainWindow : Window
         document.Load(newxml);
         string json = JsonConvert.SerializeXmlNode(document, Newtonsoft.Json.Formatting.Indented);
         File.WriteAllText(jsonPath, json);
-
 
         //CodeExtractor(jsonPath);
         await Task.Run(() => NameOfProjectChanger(jsonPath, extension));
