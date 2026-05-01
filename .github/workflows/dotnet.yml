@@ -98,37 +98,40 @@ jobs:
             --packDir "./publish/${{ matrix.runtime }}" \
             --outputDir "./Releases" \
             --channel "${{ matrix.runtime }}"
+            
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-      - name: Upload Build Artifacts
-        uses: actions/upload-artifact@v4
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
         with:
-          name: vpk-${{ matrix.runtime }}
-          path: Releases/
+          path: ./AllReleases
+          pattern: vpk-*
+          merge-multiple: true
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Install Velopack CLI
+        run: dotnet tool install -g vpk
+
+      - name: Add dotnet tools to PATH
+        run: echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
 
       - name: Upload to GitHub Release
         shell: bash
         run: |
           vpk upload github \
             --publish \
-            --merge \
             --repoUrl "${{ github.server_url }}/${{ github.repository }}" \
             --token "${{ secrets.GITHUB_TOKEN }}" \
             --tag "v0.9.${{ github.run_number }}" \
             --releaseName "Release v0.9.${{ github.run_number }}" \
-            --outputDir "./Releases" \
-            --channel "${{ matrix.runtime }}"
-    
-      - name: Delete unwanted assets from GitHub Release
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          # Give GitHub a second to process the upload
-          sleep 5
-          
-          # Use the GitHub CLI to delete the specific extensions from the release
-          # This removes them from the website, not just your runner
-          tag="v0.9.${{ github.run_number }}"
-          
-          gh release delete-asset "$tag" "Converter-0.9.${{ github.run_number }}-${{ matrix.runtime }}-full.nupkg" -y || true
-          gh release delete-asset "$tag" "releases.${{ matrix.runtime }}.json" -y || true
+            --outputDir "./AllReleases"
+            
