@@ -1,1 +1,0 @@
-dotnet new install Avalonia.Templates
