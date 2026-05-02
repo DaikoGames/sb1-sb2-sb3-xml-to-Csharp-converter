@@ -20,16 +20,7 @@ Well it is pretty simple, i as a Developer saw Projects like [Turbowarp](https:/
 | [Avalonia-Custom-Message-Box](https://github.com/AvaloniaCommunity/MessageBox.Avalonia)|[MIT-License](https://github.com/AvaloniaCommunity/MessageBox.Avalonia?tab=MIT-1-ov-file)|
 | [.NET](https://dotnet.microsoft.com/en-us/download/dotnet/10.0)| [Linux](https://mit-license.org/) [Windows](https://qphelp.quest.com/Content/ThirdPartyComponents/MSDotNetLibraryLicense.htm?TocPath=Legal%2525252525252520Notices%252525252525257CLicenses%252525252525257C_____5)| 
 
-## You have to install this to make the project work
-
-On Linux: you have to start Installprerequesitaries.sh with the Shell
-
-On Windows: you just have to start the Installprerequesitaries.bat
-
-On MacOS: you just have to start the Installprerequesitaries.sh, but i
-am not sure if this works
-
-Both install Dotnet and Avalonia.Templates automatically, and fast!
+## You don´t have to install anything. The programm installs it automatically for you :)
 
 ## For Source Compilation:
 
@@ -44,4 +35,3 @@ For more infos you can join my [Discord](https://discord.gg/dvJwx5Mzzj) Server
 
 
 This Markdown File was a .html File originell and was ported to Makrdown with [Pandoc](https://github.com/jgm/pandoc?tab=readme-ov-file), and i edited it so it Looks perfect on Github.
-
