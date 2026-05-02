@@ -108,43 +108,25 @@ jobs:
   release:
     needs: build
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Download All Artifacts
+      - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          path: ./AllReleases
-          pattern: vpk-*
-          # CRITICAL: Set this to false so each runtime stays in its own folder
-          merge-multiple: false
+          path: ./all-releases
+          pattern: vpk-artifacts-*
+          merge-multiple: true # This puts all files from all matrix runs into one folder
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          dotnet-version: 9.0.x
-
-      - name: Install Velopack CLI
-        run: dotnet tool install -g vpk
-
-      - name: Add dotnet tools to PATH
-        run: echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
-
-      - name: Upload to GitHub Release
-        shell: bash
-        run: |
-          # We loop through every subfolder (vpk-win-x64, vpk-linux-arm64, etc.)
-          # and upload them to the SAME release tag.
-          for dir in ./AllReleases/*/ ; do
-            echo "Uploading assets from $dir..."
-            vpk upload github \
-              --publish \
-              --repoUrl "${{ github.server_url }}/${{ github.repository }}" \
-              --token "${{ secrets.GITHUB_TOKEN }}" \
-              --tag "v0.9.${{ github.run_number }}" \
-              --releaseName "Release v0.9.${{ github.run_number }}" \
-              --outputDir "$dir"
-          done
+          tag_name: v0.9.${{ github.run_number }}
+          name: Release v0.9.${{ github.run_number }}
+          draft: false
+          prerelease: false
+          files: |
+            ./all-releases/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
