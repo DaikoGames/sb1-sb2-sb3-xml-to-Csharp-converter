@@ -102,8 +102,8 @@ jobs:
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: vpk-${{ matrix.runtime }}
-          path: ./Releases/
+          name: vpk-artifacts-${{ matrix.runtime }}
+          path: ./Releases/*
           
   release:
     needs: build
@@ -115,18 +115,17 @@ jobs:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          path: ./all-releases
+          path: ./Releases
           pattern: vpk-artifacts-*
-          merge-multiple: true # This puts all files from all matrix runs into one folder
+          merge-multiple: true
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v0.9.${{ github.run_number }}
-          name: Release v0.9.${{ github.run_number }}
-          draft: false
-          prerelease: false
-          files: |
-            ./all-releases/*
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload to GitHub Release
+        shell: bash
+        run: |
+          vpk upload github \
+            --repoUrl "https://github.com/${{ github.repository }}" \
+            --token "${{ secrets.GITHUB_TOKEN }}" \
+            --publish \
+            --releaseName "MyProject 0.9.${{ github.run_number }}" \
+            --tag "v0.9.${{ github.run_number }}" \
+            --pkgDir "./Releases"
