@@ -105,27 +105,3 @@ jobs:
           name: vpk-artifacts-${{ matrix.runtime }}
           path: ./Releases/*
           
-  release:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: ./Releases
-          pattern: vpk-artifacts-*
-          merge-multiple: true
-
-      - name: Upload to GitHub Release
-        shell: bash
-        run: |
-          vpk upload github \
-            --repoUrl "https://github.com/${{ github.repository }}" \
-            --token "${{ secrets.GITHUB_TOKEN }}" \
-            --publish \
-            --releaseName "MyProject 0.9.${{ github.run_number }}" \
-            --tag "v0.9.${{ github.run_number }}" \
-            --pkgDir "./Releases"
