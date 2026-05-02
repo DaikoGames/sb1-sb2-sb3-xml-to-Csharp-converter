@@ -127,7 +127,7 @@ jobs:
                  ./all-assets/Converter-linux-x64.AppImage
                  ./all-assets/Converter-linux-arm64.AppImage
                  ./all-assets/Converter-win-x86-Portable.zip
-                 ./all-assets/Converter-win-X64-Portable.zip
+                 ./all-assets/Converter-win-x64-Portable.zip
                  ./all-assets/Converter-win-arm64-Portable.zip
                  ./all-assets/Converter-osx-x64-Portable.zip
                  ./all-assets/Converter-osx-arm64-Portable.zip
