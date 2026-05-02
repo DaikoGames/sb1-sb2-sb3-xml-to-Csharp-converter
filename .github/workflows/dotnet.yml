@@ -119,7 +119,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v0.9.${{ github.run_number }}
-          files: ./all-assets/Converter-win-x86-Setup.exe
+          files: |
+                 ./all-assets/Converter-win-x86-Setup.exe
                  ./all-assets/Converter-win-x64-Setup.exe
                  ./all-assets/Converter-win-arm64-Setup.exe
                  ./all-assets/Converter-osx-x64-Setup.pkg
