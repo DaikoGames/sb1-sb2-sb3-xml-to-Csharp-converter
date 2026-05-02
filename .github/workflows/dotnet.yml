@@ -1,7 +1,7 @@
 name: Deploy to GitHub Releases
 on: 
   schedule:
-     - cron: '30 14 * * 5' 
+     - cron: '30 14 * * 6' 
   workflow_dispatch:
      
 permissions:
@@ -104,7 +104,7 @@ jobs:
         with:
           name: vpk-${{ matrix.runtime }}
           path: ./Releases/
-            
+          
   release:
     needs: build
     runs-on: ubuntu-latest
@@ -115,6 +115,7 @@ jobs:
       - name: Download All Artifacts
         uses: actions/download-artifact@v4
         with:
+          # This downloads everything into the './AllReleases' folder
           path: ./AllReleases
           pattern: vpk-*
           merge-multiple: true
@@ -128,6 +129,7 @@ jobs:
         run: dotnet tool install -g vpk
 
       - name: Add dotnet tools to PATH
+        # Using GITHUB_PATH ensures vpk is available in the next step
         run: echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
 
       - name: Upload to GitHub Release
@@ -139,5 +141,4 @@ jobs:
             --token "${{ secrets.GITHUB_TOKEN }}" \
             --tag "v0.9.${{ github.run_number }}" \
             --releaseName "Release v0.9.${{ github.run_number }}" \
-            --outputDir "./AllReleases"
-            
+            --releaseDir "./AllReleases"
