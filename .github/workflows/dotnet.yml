@@ -119,19 +119,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v0.9.${{ github.run_number }}
-          files: ./all-assets/**
-          
-      - name: Delete unwanted assets from GitHub Release
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          sleep 5
-          
-          tag="v0.9.${{ github.run_number }}"
-          
-          gh release delete-asset "$tag" "Converter-0.9.${{ github.run_number }}-${{ matrix.runtime }}-full.nupkg" -y || true
-          gh release delete-asset "$tag" "Converter-${{ matrix.runtime }}-Setup.pkg" -y || true
-          gh release delete-asset "$tag" "releases.${{ matrix.runtime }}.json" -y || true
-          gh release delete-asset "$tag" "assets.${{ matrix.runtime }}.json" -y || true
-          gh release delete-asset "$tag" "RELEASES-${{ matrix.runtime }}" -y || true
+          files: ./all-assets/*.exe
+                 ./all-assets/*.pkg
+                 ./all-assets/*.AppImage
+                 ./all-assets/*.zip
