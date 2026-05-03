@@ -20,6 +20,21 @@ Well it is pretty simple, i as a Developer saw Projects like [Turbowarp](https:/
 | [Avalonia-Custom-Message-Box](https://github.com/AvaloniaCommunity/MessageBox.Avalonia)|[MIT-License](https://github.com/AvaloniaCommunity/MessageBox.Avalonia?tab=MIT-1-ov-file)|
 | [.NET](https://dotnet.microsoft.com/en-us/download/dotnet/10.0)| [Linux](https://mit-license.org/) [Windows](https://qphelp.quest.com/Content/ThirdPartyComponents/MSDotNetLibraryLicense.htm?TocPath=Legal%2525252525252520Notices%252525252525257CLicenses%252525252525257C_____5)| 
 
+## What works and what doesnt for compilation: 
+
+| Publish | CPU Architecture | Working? |
+| :--- | :--- | :--- |
+| Windows | x86 | :white_check_mark: |
+|         | x64 | :white_check_mark: |
+|         | arm64 | :white_check_mark: |
+| Linux | x86 | :x: |
+|       | x64 | :white_check_mark: |
+|       | arm64 | :white_check_mark: |
+| MacOS | x86 | :x: |
+|       | x64 | :white_check_mark: |
+|       | arm64 | :white_check_mark: |
+| Web | none | :x: |
+
 ## You don´t have to install anything. The programm installs it automatically for you :)
 
 ## For Source Compilation:
