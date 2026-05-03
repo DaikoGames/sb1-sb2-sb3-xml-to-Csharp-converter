@@ -35,7 +35,8 @@ Well it is pretty simple, i as a Developer saw Projects like [Turbowarp](https:/
 |       | arm64 | :white_check_mark: |
 | Web | none | :x: |
 
-## You don´t have to install anything. The programm installs it automatically for you :)
+## You don´t have to install anything. 
+The programm installs it automatically for you :)
 
 ## For Source Compilation:
 
@@ -47,6 +48,3 @@ On MacOS: use the CompileMacOS.sh
 
 For more infos you can join my [Discord](https://discord.gg/dvJwx5Mzzj) Server
 
-
-
-This Markdown File was a .html File originell and was ported to Makrdown with [Pandoc](https://github.com/jgm/pandoc?tab=readme-ov-file), and i edited it so it Looks perfect on Github.
