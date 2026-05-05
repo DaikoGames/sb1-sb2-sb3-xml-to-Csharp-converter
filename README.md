@@ -18,7 +18,8 @@ Well it is pretty simple, i as a Developer saw Projects like [Turbowarp](https:/
 | [CliWrap](https://github.com/Tyrrrz/CliWrap)|[MIT-License](https://mit-license.org/)|
 | [Velopack](https://github.com/velopack/velopack)|[MIT-License](https://mit-license.org/)|
 | [Avalonia-Custom-Message-Box](https://github.com/AvaloniaCommunity/MessageBox.Avalonia)|[MIT-License](https://github.com/AvaloniaCommunity/MessageBox.Avalonia?tab=MIT-1-ov-file)|
-| [.NET](https://dotnet.microsoft.com/en-us/download/dotnet/10.0)| [Linux](https://mit-license.org/) [Windows](https://qphelp.quest.com/Content/ThirdPartyComponents/MSDotNetLibraryLicense.htm?TocPath=Legal%2525252525252520Notices%252525252525257CLicenses%252525252525257C_____5)| 
+| [.NET](https://dotnet.microsoft.com/en-us/download/dotnet/10.0)|[Linux](https://mit-license.org/) [Windows](https://qphelp.quest.com/Content/ThirdPartyComponents/MSDotNetLibraryLicense.htm?TocPath=Legal%2525252525252520Notices%252525252525257CLicenses%252525252525257C_____5)| 
+| [Scratch Junior Sprite Pictures & Default Sounds](https://github.com/scratchfoundation/scratchjr)|[BSD-3-Clause](https://github.com/scratchfoundation/scratchjr?tab=BSD-3-Clause-1-ov-file) 
 
 ## What works and what doesnt for compilation: 
 
