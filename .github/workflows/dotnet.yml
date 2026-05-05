@@ -70,6 +70,7 @@ jobs:
           Copy-Item "./ScratchConverter/package-lock.json" "$baseDir/ScratchConverter/package-lock.json"
           New-Item -ItemType Directory -Force -Path "$baseDir/Install"
           Copy-Item "./Install/dotnet-install.ps1" "$baseDir/Install/dotnet-install.ps1"
+          Copy-Item -Path "./svg_library_ScratchJnr/*" -Destination "$baseDir/svg_library_ScratchJnr" -Recurse -Force
           
       - name: Add Files (Linux, MacOS)
         shell: pwsh
@@ -84,6 +85,7 @@ jobs:
           Copy-Item "./ScratchConverter/package-lock.json" "$baseDir/ScratchConverter/package-lock.json"
           New-Item -ItemType Directory -Force -Path "$baseDir/Install"
           Copy-Item "./Install/dotnet-install.sh" "$baseDir/Install/dotnet-install.sh"
+          Copy-Item -Path "./svg_library_ScratchJnr/*" -Destination "$baseDir/svg_library_ScratchJnr" -Recurse -Force
           
       - name: Check Help
         shell: bash
