@@ -72,6 +72,7 @@ jobs:
           Copy-Item "./Install/dotnet-install.ps1" "$baseDir/Install/dotnet-install.ps1"
           New-Item -ItemType Directory -Force -Path "$baseDir/svg_library_ScratchJnr"
           Copy-Item -Path "./svg_library_ScratchJnr/*" "$baseDir/svg_library_ScratchJnr"
+          Copy-Item "./README.md" "$baseDir/README.md"
           
       - name: Add Files (Linux, MacOS)
         shell: pwsh
@@ -88,6 +89,7 @@ jobs:
           Copy-Item "./Install/dotnet-install.sh" "$baseDir/Install/dotnet-install.sh"
           New-Item -ItemType Directory -Force -Path "$baseDir/svg_library_ScratchJnr"
           Copy-Item "./svg_library_ScratchJnr/*" "$baseDir/svg_library_ScratchJnr" 
+          Copy-Item "./README.md" "$baseDir/README.md"
           
       - name: Check Help
         shell: bash
