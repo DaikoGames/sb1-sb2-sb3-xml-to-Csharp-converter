@@ -232,29 +232,6 @@ public partial class MainWindow : Window
                     Directory.CreateDirectory(SOUNDfolder);
                 }
 
-                foreach (string ScratchJnrFile in ScratchJnrFiles)
-                {
-                    if (!File.Exists(ScratchJnrFile))
-                    {
-                        SomethingNotInstalled = true;
-                        Trace.WriteLine("File Fails - SVGLibrary");
-
-                        string FileURI = "https://github.com/DaikoGames/sb1-sb2-sb3-xml-to-Csharp-converter/raw/refs/heads/main/svg_library_ScratchJnr/" + Path.GetFileName(ScratchJnrFile);
-                        await Cli.Wrap("curl").WithArguments(args => args.Add("-L").Add("-o").Add(ScratchJnrFile).Add(FileURI)).WithWorkingDirectory(SVGFolder).ExecuteBufferedAsync();
-                    }
-                }
-
-                foreach (string ScratchJnrFile in ScratchJnrSoundFiles)
-                {
-                    if (!File.Exists(ScratchJnrFile))
-                    {
-                        SomethingNotInstalled = true;
-                        Trace.WriteLine("File Fails - WAVLibrary");
-                        string FileURI = "https://github.com/DaikoGames/sb1-sb2-sb3-xml-to-Csharp-converter/raw/refs/heads/main/wav_library_ScratchJnr/" + Path.GetFileName(ScratchJnrFile);
-                        await Cli.Wrap("curl").WithArguments(args => args.Add("-L").Add("-o").Add(ScratchJnrFile).Add(FileURI)).WithWorkingDirectory(SOUNDfolder).ExecuteBufferedAsync();
-                    }
-                }
-
                 string DotnetInstallerFile = Path.Combine(InstallerFolder, "dotnet-install.ps1");
                 if (!File.Exists(DotnetInstallerFile))
                 {
@@ -329,6 +306,31 @@ public partial class MainWindow : Window
                     Trace.WriteLine("Dependency Fails node");
                     await Cli.Wrap("choco").WithArguments(args => args.Add("install").Add("nodejs")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync();
                 }
+
+                foreach (string ScratchJnrFile in ScratchJnrFiles)
+                {
+                    if (!File.Exists(ScratchJnrFile))
+                    {
+                        SomethingNotInstalled = true;
+                        Trace.WriteLine("File Fails - SVGLibrary");
+
+                        string FileURI = "https://github.com/DaikoGames/sb1-sb2-sb3-xml-to-Csharp-converter/raw/refs/heads/main/svg_library_ScratchJnr/" + Path.GetFileName(ScratchJnrFile);
+                        await Cli.Wrap("curl").WithArguments(args => args.Add("-L").Add("-o").Add(ScratchJnrFile).Add(FileURI)).WithWorkingDirectory(SVGFolder).ExecuteBufferedAsync();
+                    }
+                }
+
+                foreach (string ScratchJnrFile in ScratchJnrSoundFiles)
+                {
+                    if (!File.Exists(ScratchJnrFile))
+                    {
+                        SomethingNotInstalled = true;
+                        Trace.WriteLine("File Fails - WAVLibrary");
+                        string FileURI = "https://github.com/DaikoGames/sb1-sb2-sb3-xml-to-Csharp-converter/raw/refs/heads/main/wav_library_ScratchJnr/" + Path.GetFileName(ScratchJnrFile);
+                        await Cli.Wrap("curl").WithArguments(args => args.Add("-L").Add("-o").Add(ScratchJnrFile).Add(FileURI)).WithWorkingDirectory(SOUNDfolder).ExecuteBufferedAsync();
+                    }
+                }
+
+               
 
                 Trace.WriteLine("Nothing Fails anymore");
                 SomethingNotInstalled = false;
@@ -662,7 +664,7 @@ public partial class MainWindow : Window
             var DotnetVersionOfComputer = await Cli.Wrap("dotnet").WithArguments("--version").ExecuteBufferedAsync();
             string DotnetVersionT = DotnetVersionOfComputer.StandardOutput.Trim();
             DotnetVersion = Convert.ToString(int.Parse(DotnetVersionT.Split('.')[0])) + ".0";
-            Console.WriteLine("dotnet version: ");
+            Trace.WriteLine("dotnet version: " + DotnetVersion);
 
             if (WindowsCheckBox.IsChecked == true)
             {
@@ -777,6 +779,7 @@ public partial class MainWindow : Window
         }
         if (FileExtension == ".sjr")
         {
+
             //Now convert the Scratch Junior project to normal Scratch
             string Zipfile = Path.Combine(Foldername, Path.GetFileNameWithoutExtension(Filename) + ".zip");
             File.Copy(Filename, Zipfile, true);
@@ -788,17 +791,25 @@ public partial class MainWindow : Window
             File.WriteAllText(MainJSON, PrettyJSON);
             string[] JSONText = File.ReadAllLines(MainJSON);
             ApplicationName = "ScratchJnr";
-            GameFolder = Path.Combine(Foldername, ApplicationName);
-
+            string DefaultFolder = Path.Combine(Foldername, ApplicationName);
+            if (OperatingSystem.IsWindows())
+            {
+                GameFolder = Path.Combine(DefaultFolder + "\\bin\\Debug\\net" + DotnetVersion);
+            }
+            if (OperatingSystem.IsLinux() | OperatingSystem.IsMacOS())
+            {
+                GameFolder = Path.Combine(DefaultFolder + "/bin/Debug/net" + DotnetVersion);
+            }
             await (Cli.Wrap("dotnet").WithArguments(args => args.Add("new").Add("avalonia.mvvm").Add("-o").Add(ApplicationName)).WithWorkingDirectory(Foldername).ExecuteAsync());
-            await (Cli.Wrap("dotnet").WithArguments(args => args.Add("new").Add("sln")).WithWorkingDirectory(GameFolder).ExecuteAsync());
-            await (Cli.Wrap("dotnet").WithArguments(args => args.Add("sln").Add("add").Add(ApplicationName + ".csproj")).WithWorkingDirectory(GameFolder).ExecuteAsync());
-            await (Cli.Wrap("dotnet").WithArguments(args => args.Add("add").Add("package").Add("LibVLCSharp")).WithWorkingDirectory(GameFolder).ExecuteAsync());
-            await (Cli.Wrap("dotnet").WithArguments(args => args.Add("add").Add("package").Add("easyAsyncCancel")).WithWorkingDirectory(GameFolder).ExecuteAsync());
-            await (Cli.Wrap("dotnet").WithArguments(args => args.Add("build").Add(ApplicationName + ".slnx")).WithWorkingDirectory(GameFolder).ExecuteAsync());
+            await (Cli.Wrap("dotnet").WithArguments(args => args.Add("new").Add("sln")).WithWorkingDirectory(DefaultFolder).ExecuteAsync());
+            await (Cli.Wrap("dotnet").WithArguments(args => args.Add("sln").Add("add").Add(ApplicationName + ".csproj")).WithWorkingDirectory(DefaultFolder).ExecuteAsync());
+            await (Cli.Wrap("dotnet").WithArguments(args => args.Add("add").Add("package").Add("LibVLCSharp")).WithWorkingDirectory(DefaultFolder).ExecuteAsync());
+            await (Cli.Wrap("dotnet").WithArguments(args => args.Add("add").Add("package").Add("easyAsyncCancel")).WithWorkingDirectory(DefaultFolder).ExecuteAsync());
+            await (Cli.Wrap("dotnet").WithArguments(args => args.Add("build").Add(ApplicationName + ".slnx")).WithWorkingDirectory(DefaultFolder).ExecuteAsync());
 
-            string WindowEditorFile = Path.Combine(GameFolder, "MainWindow.axaml");
-            string WindowCsFile = Path.Combine(GameFolder, "MainWindow.axaml.cs");
+
+            string WindowEditorFile = Path.Combine(DefaultFolder , "MainWindow.axaml");
+            string WindowCsFile = Path.Combine(DefaultFolder, "MainWindow.axaml.cs");
 
             File.AppendAllText(WindowEditorFile, "<Window             Name=\"Default\""); //Es fehlt hier was
             File.AppendAllText(WindowEditorFile, "\n                  xmlns=\"https://github.com/avaloniaui\"");
@@ -874,6 +885,8 @@ public partial class MainWindow : Window
             File.AppendAllText(WindowCsFile, "\n this.Icon = new WindowIcon(Path.Combine(AppDomain.CurrentDomain.BaseDirectory + \"GameIcon\", \"GameIcon.ico\"));");
             Line = 0;
 
+
+
             foreach (string LINE in JSONText)
             {
                 Line = Line + 1;
@@ -886,12 +899,39 @@ public partial class MainWindow : Window
                     if (File.Exists(SpriteFolder))
                     {
                         //now add the axaml and the C# Text
-                        string NewSpriteFolder = Path.Combine(Foldername, ".\\bin\\Debug\\net10.0", SpriteName);
-                        File.Copy(SpriteFolder, NewSpriteFolder, true);
+
+                        //Values (Messages) are the same names as Images currently -FIX IT ASAP lol
+                        
+                        string NewImageName = Path.Combine(GameFolder, Path.GetFileNameWithoutExtension(SpriteName) + ".png");
+                        
+                        using (var SVGImage = new MagickImage(SpriteFolder))
+                        {
+                            SVGImage.Format = MagickFormat.Png;
+                            SVGImage.Write(NewImageName);
+                        }
+                        using (var PNGimage = new MagickImage(NewImageName))
+                        {
+                            string RoughPNGwidth = Convert.ToString(PNGimage.Width);
+                            string RoughPNGheight = Convert.ToString(PNGimage.Height);
+                            double PNGwidth = Convert.ToDouble(RoughPNGwidth);
+                            double PNGheight = Convert.ToDouble(RoughPNGheight);
+                            File.AppendAllText(WindowEditorFile, "\n <Image");
+                            File.AppendAllText(WindowEditorFile, " Name=\"" + Path.GetFileNameWithoutExtension(SpriteName) + "\"");
+                            File.AppendAllText(WindowEditorFile, "\n                  Width=\"" + (PNGwidth)  + "\"");
+                            File.AppendAllText(WindowEditorFile, "\n                  Height=\"" + (PNGheight) + "\"");
+                            //THESE COORDINATE SYSTEMS ARE DIFFERENT -need to understand canvas coordinate system correctly
+                            File.AppendAllText(WindowEditorFile, "\n                  Canvas.Left=\"" + 0 + "\"");
+                            File.AppendAllText(WindowEditorFile, "\n                  Canvas.Top=\"" + 0 + "\"");
+                            File.AppendAllText(WindowEditorFile, ">");
+                            File.AppendAllText(WindowEditorFile, "\n           </Image>");
+                            File.AppendAllText(WindowCsFile, "\n " + Path.GetFileNameWithoutExtension(SpriteName) + ".Source = new Bitmap(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, \"" + Path.GetFileName(NewImageName) + "\"));");
+                        }
 
                     }
                 }
             }
+            File.AppendAllText(WindowEditorFile, "</Canvas>");
+            File.AppendAllText(WindowEditorFile, "</Window>");
             Line = 0;
             foreach (string LINE in JSONText)
             {
