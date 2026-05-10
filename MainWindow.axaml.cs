@@ -2,6 +2,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Documents;
+using Avalonia.Data;
 using Avalonia.Input;
 using Avalonia.Input.TextInput;
 using Avalonia.Interactivity;
@@ -17,6 +18,7 @@ using ImageMagick;
 using ImageMagick.Drawing;
 using LibVLCSharp.Avalonia;
 using LibVLCSharp.Shared;
+using Microsoft.ML.OnnxRuntimeGenAI;
 using MsBox.Avalonia;
 using MsBox.Avalonia.Enums;
 using Newtonsoft.Json;
@@ -43,6 +45,7 @@ using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
 using System.Runtime.ConstrainedExecution;
 using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.Marshalling;
 using System.Runtime.Intrinsics.X86;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.RegularExpressions;
@@ -53,6 +56,7 @@ using System.Xml.Linq;
 using Tmds.DBus.Protocol;
 using Velopack;
 using Velopack.Locators;
+using static System.Net.Mime.MediaTypeNames;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
 
@@ -95,7 +99,8 @@ public partial class MainWindow : Window
     bool LastLight = false;
 
     public bool SomethingNotInstalled = false;
-
+    public string ModelPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "AImodel");
+    
     public List<string> ScratchJnrFiles = new List<string>() { Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Tulip2.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Tree4.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Tree2.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Tree3.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Tree1.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Tornado.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Thundercloud.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Theatre.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "TeenGirl3.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "TeenGirl2.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "TeenGirl1.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "TeenBoy3.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "TeenBoy2.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "TeenBoy1.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Teen3.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Teen2.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Table.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Summer.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Sun.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Suburbs.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Stool.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Starfish.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Star3.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Star2.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Spring.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Star.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Space.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "SoccerNet.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Soccerball.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Snake.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Shop.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "ShootingStar.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Seahorse.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Scubadiver.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "School.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Savannah.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "SailBoat.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Rowboat.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Rocket.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Red.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Rancher.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Rabbit.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Purple.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "PolarBear.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Planet.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Penguin.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Pig.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Peach.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Pasture.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Park.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "NightTable.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Mushroom.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Mother.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "MoonBkg.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Monkey.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Moon.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Lizard.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Mailbox.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Library.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Lake.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Jungle.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Inuit.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Igloo.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "House4.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "House1.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "House3.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "House.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Horse.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Gym2.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Gym.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Grandmother.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Grandfather.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Girl3.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Girl2.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Girl1.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Girl.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Giraffe.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Frog.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Fort.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Fly.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Fish2.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Flowers.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Fence.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Fish1.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Father.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Farmer1.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Farmer.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Farm.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Fall.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Fairy.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Evergreen.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "EmptyRoom.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Elephant.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Earth.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Duck.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Dragon.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Dog.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Desert.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Daisy3.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Daisy2.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Daisy1.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Daffodil.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "CrescentMoon.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Creek.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Crab.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Cloud1.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Classroom.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "City.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Child1.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Chicken.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Castle.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Car2.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Car1.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Car.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Camel.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Cake.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Butterfly.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Cactus.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Bus.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Boy3.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Boy2.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Boy1.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Boy.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Boat2.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Blue.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Bird.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Bike2.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Bike.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Bedroom.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Bed.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "BeachSunrise.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "BeachDay.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "BeachNight.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Bat.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Barn.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Basketball.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Bank.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Baby.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Ball.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Astronaut.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Arctic.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Apple.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Aeroplane.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Apartment.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Zebra.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Woods.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Wizard.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Winter.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Whale.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Weed.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Underwater.svg") };
     public List<string> ScratchJnrSoundFiles = new List<string>() { Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wav_library_ScratchJnr", "copy.wav"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wav_library_ScratchJnr", "cut.wav"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wav_library_ScratchJnr", "entertap.wav"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wav_library_ScratchJnr", "exittap.wav"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wav_library_ScratchJnr", "grab.wav"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wav_library_ScratchJnr", "keydown.wav"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wav_library_ScratchJnr", "pop.mp3"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wav_library_ScratchJnr", "snap.wav"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wav_library_ScratchJnr", "splash.wav"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wav_library_ScratchJnr", "tap.wav"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wav_library_ScratchJnr", "boing.wav") };
     public MainWindow()
@@ -103,58 +108,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         Task.Run(() => ShowOrNot());
         Trace.WriteLine("Initializing the App");
-        CultureInfo LanguageOfUser = CultureInfo.CurrentUICulture;
-        string Language = LanguageOfUser.TwoLetterISOLanguageName;
-        if (Language == "de")
-        {
-            //German
-            Text1.Content = "Bitte Wählen, oder schreiben Sie die Datei die Sie bearbeiten wollen";
-            FileFolderNameTextBox.Watermark = "Ihre Datei sollte eine .sb, .sb2, .sb3 oder eine .xml Datei sein:";
-            Text2.Content = "Bitte suchen Sie sich ihren Ordner aus wo das Projekt gespeichert werden soll";
-            FolderNameTextBox.Watermark = "Ihr Ordner";
-            IconText.Content = "Bitte Wählen Sie die Icon Datei aus wenn es für Sie nötig ist";
-            IconTextBox.Watermark = "Die Icon Datei vom Projekt (nicht notwendig)";
-            SnapinatorOrNot.Content = "Soll der Converter den Snapinator Weg oder den Scratch Weg nehmen?";
-            SnapinatorCheckBox.Content = "Snapinator";
-            ScratchCheckBox.Content = "Scratch";
-            OSTextAndCPU.Content = "Bitte suchen Sie das OS, und die Architektur aus ";
-            WindowsCheckBox.Content = "Windows";
-            LinuxCheckBox.Content = "Linux";
-            MacOSCheckBox.Content = "Mac OS";
-            convertButton.Content = "Convert!";
-            GithubRepo.Content = "Dieses Projekt wurde von Daiko Games erstellt";
-        }
-
-        if (Language == "en")
-        {
-            //English
-            Text1.Content = "Please Select the File you want to convert or write it down here:";
-            FileFolderNameTextBox.Watermark = "Your File, it should be a .sb, .sb2, .sb3, .xml File";
-            Text2.Content = "Please select the Folder where your converted Project should be stored:";
-            FolderNameTextBox.Watermark = "Your Folder";
-            IconText.Content = "Please select the Icon File if necessary:";
-            IconTextBox.Watermark = "the Icon of the Application(Not necessary)";
-            SnapinatorOrNot.Content = "Should the converter use Snapinator or the default Scratch Way?:";
-            SnapinatorCheckBox.Content = "Snapinator";
-            ScratchCheckBox.Content = "Scratch";
-            OSTextAndCPU.Content = "Please select the OS you want to build it for and what architecture:";
-            WindowsCheckBox.Content = "Windows";
-            LinuxCheckBox.Content = "Linux";
-            MacOSCheckBox.Content = "Mac OS";
-            convertButton.Content = "Convert!";
-            GithubRepo.Content = "This Project was made by: Daiko Games";
-        }
-
-        if (Language == "nl")
-        {
-
-        }
-
-        if (Language == "sp")
-        {
-
-        }
-
+        Task.Run(() => ChangeLanguage());
         ProgressBarConverter.Minimum = 0;
         ProgressBarConverter.Maximum = 100;
         ProgressBarConverter.Value = 0;
@@ -170,6 +124,143 @@ public partial class MainWindow : Window
         
     }
 
+    public async Task ChangeLanguage()
+    {
+        CultureInfo LanguageOfUser = CultureInfo.CurrentUICulture;
+        string Language = LanguageOfUser.TwoLetterISOLanguageName;
+        Trace.Write(Language);
+        List<string> TranslateText = new List<string> { "Bitte Wählen, oder schreiben Sie die Datei die Sie bearbeiten wollen", "Ihre Datei sollte eine .sb, .sb2, .sb3 oder eine .xml Datei sein:", "Bitte suchen Sie sich ihren Ordner aus wo das Projekt gespeichert werden soll", "Ihr Ordner", "Bitte Wählen Sie die Icon Datei aus wenn es für Sie nötig ist", "Die Icon Datei vom Projekt (nicht notwendig)", "Soll der Converter den Snap Weg oder den Scratch Weg nehmen?", "Snapinator", "Scratch", "Bitte suchen Sie das OS, und die Architektur aus ", "Windows", "Linux", "Mac OS", "konvertieren!", "Dieses Projekt wurde von Daiko Games erstellt" };
+        
+        if (Language.Contains("de"))
+        {
+            //German
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => Text1.Content = "Bitte Wählen, oder schreiben Sie die Datei die Sie bearbeiten wollen");
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => FileFolderNameTextBox.Watermark = "Ihre Datei sollte eine .sb, .sb2, .sb3 oder eine .xml Datei sein:");
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => Text2.Content = "Bitte suchen Sie sich ihren Ordner aus wo das Projekt gespeichert werden soll");
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => FolderNameTextBox.Watermark = "Ihr Ordner");
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => IconText.Content = "Bitte Wählen Sie die Icon Datei aus wenn es für Sie nötig ist");
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => IconTextBox.Watermark = "Die Icon Datei vom Projekt (nicht notwendig)");
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => SnapinatorOrNot.Content = "Soll der Converter den Snap Weg oder den Scratch Weg nehmen?");
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => SnapinatorCheckBox.Content = "Snapinator");
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => ScratchCheckBox.Content = "Scratch");
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => OSTextAndCPU.Content = "Bitte suchen Sie das OS, und die Architektur aus ");
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => WindowsCheckBox.Content = "Windows");
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => LinuxCheckBox.Content = "Linux");
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => MacOSCheckBox.Content = "Mac OS");
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => convertButton.Content = "konvertieren!");
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => GithubRepo.Content = "Dieses Projekt wurde von Daiko Games erstellt");
+         }
+
+        if (Language == "en")
+        {
+            //English
+            Text1.Content = "Please Select the File you want to convert or write it down here:";
+            FileFolderNameTextBox.Watermark = "Your File, it should be a .sb, .sb2, .sb3, .xml File";
+            Text2.Content = "Please select the Folder where your converted Project should be stored:";
+            FolderNameTextBox.Watermark = "Your Folder";
+            IconText.Content = "Please select the Icon File if necessary:";
+            IconTextBox.Watermark = "the Icon of the Application(Not necessary)";
+            SnapinatorOrNot.Content = "Should the converter use Snap! or the Scratch Way?:";
+            SnapinatorCheckBox.Content = "Snap";
+            ScratchCheckBox.Content = "Scratch";
+            OSTextAndCPU.Content = "Please select the OS you want to build it for and what architecture:";
+            WindowsCheckBox.Content = "Windows";
+            LinuxCheckBox.Content = "Linux";
+            MacOSCheckBox.Content = "Mac OS";
+            convertButton.Content = "Convert!";
+            GithubRepo.Content = "This Project was made by: Daiko Games";
+        }
+
+        else
+        {
+            CultureInfo UIcult = CultureInfo.CurrentUICulture;
+            string NativeName = UIcult.NativeName;
+            //need to translate it somehow different
+            foreach (string TextString in TranslateText)
+            {
+                using var Translationmodel = new Model(ModelPath);
+                using var Tokenizer = new Tokenizer(Translationmodel);
+                //it seems like de is not enough, i need the full language name lol
+                //{Language}
+                string prompt = $"""<|im_start|>system You ONLY output the translation of the text to ({NativeName}), do not include anything else<|im_end|> <|im_start|>user Translate this Text: {TextString} <|im_end|> <|im_start|>assistant""";
+                var tokens = Tokenizer.Encode(prompt);
+                using var GeneratorParams = new GeneratorParams(Translationmodel);
+                GeneratorParams.SetSearchOption("max_length", 700);
+                GeneratorParams.SetSearchOption("past_present_share_buffer", false);
+                using var generator = new Generator(Translationmodel, GeneratorParams);
+                generator.AppendTokenSequences(tokens);
+                while (!generator.IsDone())
+                {
+                    generator.GenerateNextToken();
+                }
+                var outputTokens = generator.GetSequence(0);
+                string result = Tokenizer.Decode(outputTokens).ToString();
+                Trace.Write(result);
+                string TextOnWindow = result.Replace($"system You ONLY output the translation of the text to ({NativeName}), do not include anything else user Translate this Text:", "").Replace(TextString, "").Replace("assistant", "").Trim();
+                
+                if (result.Contains("Bitte Wählen, oder schreiben Sie die Datei die Sie bearbeiten wollen"))
+                {
+                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => Text1.Content = TextOnWindow);
+                }
+                if (result.Contains("Ihre Datei sollte eine .sb, .sb2, .sb3 oder eine .xml Datei sein:"))
+                {
+                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => FileFolderNameTextBox.Watermark = TextOnWindow);
+                }
+                if (result.Contains("Bitte suchen Sie sich ihren Ordner aus wo das Projekt gespeichert werden soll"))
+                {
+                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => Text2.Content = TextOnWindow);
+                }
+                if (result.Contains("Ihr Ordner"))
+                {
+                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => FolderNameTextBox.Watermark = TextOnWindow);
+                }
+                if (result.Contains("Bitte Wählen Sie die Icon Datei aus wenn es für Sie nötig ist"))
+                {
+                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => IconText.Content = TextOnWindow);
+                }
+                if (result.Contains("Die Icon Datei vom Projekt (nicht notwendig)"))
+                {
+                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => IconTextBox.Watermark = TextOnWindow);
+                }
+                if (result.Contains("Soll der Converter den Snap Weg oder den Scratch Weg nehmen?"))
+                {
+                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => SnapinatorOrNot.Content = TextOnWindow);
+                }
+                if (result.Contains("Snapinator"))
+                {
+                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => SnapinatorCheckBox.Content = TextOnWindow);
+                }
+                if (result.Contains("Scratch"))
+                {
+                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => ScratchCheckBox.Content = TextOnWindow);
+                }
+                if (result.Contains("Bitte suchen Sie das OS, und die Architektur aus"))
+                {
+                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => OSTextAndCPU.Content = TextOnWindow);
+                }
+                if (result.Contains("Windows"))
+                {
+                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => WindowsCheckBox.Content = TextOnWindow);
+                }
+                if (result.Contains("Linux"))
+                {
+                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => LinuxCheckBox.Content = TextOnWindow);
+                }
+                if (result.Contains("Mac OS"))
+                {
+                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => MacOSCheckBox.Content = TextOnWindow);
+                }
+                if (result.Contains("konvertieren"))
+                {
+                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => convertButton.Content = TextOnWindow);
+                }
+                if (result.Contains("Dieses Projekt wurde von Daiko Games erstellt"))
+                {
+                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => GithubRepo.Content = TextOnWindow);
+                }
+            }
+        }
+    }
     public async Task ShowOrNot()
     {
         while (true)
@@ -804,6 +895,8 @@ public partial class MainWindow : Window
             await (Cli.Wrap("dotnet").WithArguments(args => args.Add("new").Add("sln")).WithWorkingDirectory(DefaultFolder).ExecuteAsync());
             await (Cli.Wrap("dotnet").WithArguments(args => args.Add("sln").Add("add").Add(ApplicationName + ".csproj")).WithWorkingDirectory(DefaultFolder).ExecuteAsync());
             await (Cli.Wrap("dotnet").WithArguments(args => args.Add("add").Add("package").Add("LibVLCSharp")).WithWorkingDirectory(DefaultFolder).ExecuteAsync());
+            await (Cli.Wrap("dotnet").WithArguments(args => args.Add("add").Add("package").Add("VideoLAN.LibVLC.Windows")).WithWorkingDirectory(DefaultFolder).ExecuteAsync());
+            await (Cli.Wrap("dotnet").WithArguments(args => args.Add("add").Add("package").Add("VideoLAN.LibVLC.Mac")).WithWorkingDirectory(DefaultFolder).ExecuteAsync());
             await (Cli.Wrap("dotnet").WithArguments(args => args.Add("add").Add("package").Add("easyAsyncCancel")).WithWorkingDirectory(DefaultFolder).ExecuteAsync());
             await (Cli.Wrap("dotnet").WithArguments(args => args.Add("build").Add(ApplicationName + ".slnx")).WithWorkingDirectory(DefaultFolder).ExecuteAsync());
 
@@ -880,12 +973,61 @@ public partial class MainWindow : Window
                 }
             }
 
-            File.AppendAllText(WindowCsFile, "\n public MainWindow(){");
-            File.AppendAllText(WindowCsFile, "\n InitializeComponent();");
-            File.AppendAllText(WindowCsFile, "\n this.Icon = new WindowIcon(Path.Combine(AppDomain.CurrentDomain.BaseDirectory + \"GameIcon\", \"GameIcon.ico\"));");
             Line = 0;
 
+            foreach (string LINE in JSONText)
+            {
+                if (LINE.Contains("\"playsnd\""))
+                {
+                    Line = Line + 1;
+                    //The sound player must be given  above lol
+                    //Example:
 
+                    /* System;
+                    using System.IO;
+                    using Avalonia.Controls;
+                    using LibVLCSharp.Shared;
+                    using Avalonia.Interactivity;
+                    using Avalonia.Media.Imaging;
+                    namespace ScratchJnr;
+
+                   public partial class MainWindow : Window
+                   {
+                       private LibVLC _libVLC;
+                       private MediaPlayer _mediaPlayer;
+
+                       public MainWindow()
+                       {
+                           InitializeComponent();
+                           Core.Initialize();
+
+                           Blue.Source = new Bitmap(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Blue.png"));
+
+                           // 2. Initialize the class-level fields (NO 'using' or 'var' here)
+                           _libVLC = new LibVLC();
+                           _mediaPlayer = new MediaPlayer(_libVLC);
+
+                           // 3. Create the media and play
+                           var media = new Media(_libVLC, Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "pop.mp3"), FromType.FromPath);
+
+                           _mediaPlayer.Media = media;
+                           _mediaPlayer.Play();
+                       }
+                   }*/
+                    string SOUNDname = File.ReadAllLines(MainJSON).Skip(Line).Take(1).First().Replace("\"", "").Replace(",", "").Trim();
+                    File.AppendAllText(WindowCsFile, "\n private LibVLC libVLC" + SOUNDname + ";");
+                    File.AppendAllText(WindowCsFile, "\n private LibVLC MediaPlayer MediaPlayer" + SOUNDname + ";");
+                }
+            }
+            File.AppendAllText(WindowCsFile, "\n public MainWindow(){");
+            File.AppendAllText(WindowCsFile, "\n InitializeComponent();");
+            /*if(IconTextBox.Text != null)
+            {
+                File.Copy(IconTextBox.Text.ToString(), Path.Combine(GameFolder, "GameIcon.ico"), true);
+                File.AppendAllText(WindowCsFile, "\n this.Icon = new WindowIcon(Path.Combine(AppDomain.CurrentDomain.BaseDirectory + \"GameIcon.ico\"));");
+            }*/
+            
+            Line = 0;
 
             foreach (string LINE in JSONText)
             {
@@ -901,14 +1043,15 @@ public partial class MainWindow : Window
                         //now add the axaml and the C# Text
 
                         //Values (Messages) are the same names as Images currently -FIX IT ASAP lol
-                        
+
                         string NewImageName = Path.Combine(GameFolder, Path.GetFileNameWithoutExtension(SpriteName) + ".png");
-                        
+
                         using (var SVGImage = new MagickImage(SpriteFolder))
                         {
                             SVGImage.Format = MagickFormat.Png;
                             SVGImage.Write(NewImageName);
                         }
+
                         using (var PNGimage = new MagickImage(NewImageName))
                         {
                             string RoughPNGwidth = Convert.ToString(PNGimage.Width);
@@ -917,7 +1060,7 @@ public partial class MainWindow : Window
                             double PNGheight = Convert.ToDouble(RoughPNGheight);
                             File.AppendAllText(WindowEditorFile, "\n <Image");
                             File.AppendAllText(WindowEditorFile, " Name=\"" + Path.GetFileNameWithoutExtension(SpriteName) + "\"");
-                            File.AppendAllText(WindowEditorFile, "\n                  Width=\"" + (PNGwidth)  + "\"");
+                            File.AppendAllText(WindowEditorFile, "\n                  Width=\"" + (PNGwidth) + "\"");
                             File.AppendAllText(WindowEditorFile, "\n                  Height=\"" + (PNGheight) + "\"");
                             //THESE COORDINATE SYSTEMS ARE DIFFERENT -need to understand canvas coordinate system correctly
                             File.AppendAllText(WindowEditorFile, "\n                  Canvas.Left=\"" + 0 + "\"");
@@ -929,10 +1072,20 @@ public partial class MainWindow : Window
 
                     }
                 }
+
+                if (LINE.Contains("playsnd"))
+                {
+                    string SoundName = File.ReadAllLines(MainJSON).Skip(Line).Take(1).First().Replace("\"", "").Replace(",", "").Trim();
+                    string SoundPathOrigin = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wav_library_ScratchJnr", SoundName);
+                    string NewSoundPath = Path.Combine(GameFolder,SoundName);
+                    File.Copy(SoundPathOrigin, NewSoundPath, true);
+                }
+
             }
             File.AppendAllText(WindowEditorFile, "</Canvas>");
             File.AppendAllText(WindowEditorFile, "</Window>");
             Line = 0;
+
             foreach (string LINE in JSONText)
             {
                 Line = Line + 1;
@@ -1031,6 +1184,14 @@ public partial class MainWindow : Window
 
                 if (LINE.Contains("\"playsnd\""))
                 {
+                    //The sound player must be given  above lol
+
+                    string SOUNDname = File.ReadAllLines(MainJSON).Skip(Line).Take(1).First().Replace("\"", "").Replace(",", "").Trim();
+                    File.AppendAllText(WindowCsFile, "\n LibVLC" + Path.GetFileNameWithoutExtension(SOUNDname)  + " = new LibVLC();");
+                    File.AppendAllText(WindowCsFile, "\n MediaPlayer MediaPlayer" + Path.GetFileNameWithoutExtension(SOUNDname) + " = new MediaPlayer(LibVLC" + Path.GetFileNameWithoutExtension(SOUNDname) + ");");
+                    File.AppendAllText(WindowCsFile, "\n var MediaOfMediaPlayer" + Path.GetFileNameWithoutExtension(SOUNDname) + " = new Media(LibVLC" + Path.GetFileNameWithoutExtension(SOUNDname) + " , Path.Combine(AppDomain.CurrentDomain.BaseDirectory, \"" + SOUNDname + "\")" + ", FromType.FromPath);");
+                    File.AppendAllText(WindowCsFile, "\n MediaPlayer" + Path.GetFileNameWithoutExtension(SOUNDname) + ".Media = MediaOfMediaPlayer" + Path.GetFileNameWithoutExtension(SOUNDname));
+                    File.AppendAllText(WindowCsFile, "\n MediaPlayer" + Path.GetFileNameWithoutExtension(SOUNDname)+ ".Play();");
 
                 }
 
@@ -1065,6 +1226,8 @@ public partial class MainWindow : Window
 
                 }
             }
+
+            File.AppendAllText(WindowCsFile, "}");
         }
     }
 
@@ -1129,8 +1292,12 @@ public partial class MainWindow : Window
             await (Cli.Wrap("dotnet").WithArguments(args => args.Add("new").Add("sln")).WithWorkingDirectory(GameFolder).ExecuteAsync());
             await (Cli.Wrap("dotnet").WithArguments(args => args.Add("sln").Add("add").Add(ApplicationName + ".csproj")).WithWorkingDirectory(GameFolder).ExecuteAsync());
             await (Cli.Wrap("dotnet").WithArguments(args => args.Add("add").Add("package").Add("LibVLCSharp")).WithWorkingDirectory(GameFolder).ExecuteAsync());
+            await (Cli.Wrap("dotnet").WithArguments(args => args.Add("add").Add("package").Add("VideoLAN.LibVLC.Windows")).WithWorkingDirectory(GameFolder).ExecuteAsync());
+            await (Cli.Wrap("dotnet").WithArguments(args => args.Add("add").Add("package").Add("VideoLAN.LibVLC.Mac")).WithWorkingDirectory(GameFolder).ExecuteAsync());
             await (Cli.Wrap("dotnet").WithArguments(args => args.Add("add").Add("package").Add("easyAsyncCancel")).WithWorkingDirectory(GameFolder).ExecuteAsync());
             await (Cli.Wrap("dotnet").WithArguments(args => args.Add("build").Add(ApplicationName + ".slnx")).WithWorkingDirectory(GameFolder).ExecuteAsync());
+            await (Cli.Wrap("dotnet").WithArguments(args => args.Add("new").Add("avalonia.mvvm").Add("-o").Add(ApplicationName)).WithWorkingDirectory(Foldername).ExecuteAsync());
+
             //Need multiple Cli.Wraps
             if (Snapinator == true && Scratch == false)
             {
