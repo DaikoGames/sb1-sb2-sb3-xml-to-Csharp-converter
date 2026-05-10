@@ -39,6 +39,7 @@ Well it is pretty simple, i as a Developer saw Projects like [Turbowarp](https:/
 
 Currently the Only stable languages are german and english. Everything else is translated via AI, because i can´t translate it myself
 I am still working on the translation stuff
+Btw. AI model is downloaded after you already downloaded the project, because it is way faster to do it that way, it reduces the download time a lot
 
 ## You don´t have to install anything. 
 The programm installs it automatically for you :)
