@@ -108,6 +108,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         Task.Run(() => ShowOrNot());
         Trace.WriteLine("Initializing the App");
+        Task.Run(() => CheckRequirements());
         Task.Run(() => ChangeLanguage());
         ProgressBarConverter.Minimum = 0;
         ProgressBarConverter.Maximum = 100;
@@ -119,7 +120,6 @@ public partial class MainWindow : Window
         this.Icon = new WindowIcon(Path.Combine(AppDomain.CurrentDomain.BaseDirectory + "ConverterIcon", "Converter.ico"));
         Theme();
 
-        Task.Run(() => CheckRequirements());
         Task.Run(() => ThemeChange());
         
     }
@@ -323,6 +323,14 @@ public partial class MainWindow : Window
                     Directory.CreateDirectory(SOUNDfolder);
                 }
 
+                string AIFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "AImodel");
+                if (!Directory.Exists(AIFolder))
+                {
+                    SomethingNotInstalled = true;
+                    Trace.WriteLine("Directory Fails");
+                    Directory.CreateDirectory(AIFolder);
+                }
+
                 string DotnetInstallerFile = Path.Combine(InstallerFolder, "dotnet-install.ps1");
                 if (!File.Exists(DotnetInstallerFile))
                 {
@@ -353,6 +361,86 @@ public partial class MainWindow : Window
                     SomethingNotInstalled = true;
                     Trace.WriteLine("File Fails - package-lock.json");
                     await Cli.Wrap("powershell").WithArguments(args => args.Add("-Command").Add("Invoke-WebRequest -Uri https://github.com/DaikoGames/Scratch-Format-converter/blob/main/package-lock.json -OutFile package-lock.json")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync();
+                }
+
+                string AddedtokensFile = Path.Combine(AIFolder, "added_tokens.json");
+                if (!File.Exists(AddedtokensFile))
+                {
+                    SomethingNotInstalled = true;
+                    Trace.WriteLine("File Fails - added_tokens.json");
+                    await Cli.Wrap("powershell").WithArguments(args => args.Add("-Command").Add("Invoke-WebRequest -Uri https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/added_tokens.json -OutFile added_tokens.json")).WithWorkingDirectory(AIFolder).ExecuteBufferedAsync();
+                }
+
+                string ConfigJSONfile = Path.Combine(AIFolder, "config.json");
+                if (!File.Exists(ConfigJSONfile))
+                {
+                    SomethingNotInstalled = true;
+                    Trace.WriteLine("File Fails - config.json");
+                    await Cli.Wrap("powershell").WithArguments(args => args.Add("-Command").Add("Invoke-WebRequest -Uri https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/config.json -OutFile config.json")).WithWorkingDirectory(AIFolder).ExecuteBufferedAsync();
+                }
+
+                string GenAIConfigJSONfile = Path.Combine(AIFolder, "genai_config.json");
+                if (!File.Exists(GenAIConfigJSONfile))
+                {
+                    SomethingNotInstalled = true;
+                    Trace.WriteLine("File Fails - genai_config.json");
+                    await Cli.Wrap("powershell").WithArguments(args => args.Add("-Command").Add("Invoke-WebRequest -Uri https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/genai_config.json -OutFile genai_config.json")).WithWorkingDirectory(AIFolder).ExecuteBufferedAsync();
+                }
+
+                string MergesTXT = Path.Combine(AIFolder, "merges.txt");
+                if (!File.Exists(MergesTXT))
+                {
+                    SomethingNotInstalled = true;
+                    Trace.WriteLine("File Fails - merges.txt");
+                    await Cli.Wrap("powershell").WithArguments(args => args.Add("-Command").Add("Invoke-WebRequest -Uri https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/merges.txt -OutFile merges.txt")).WithWorkingDirectory(AIFolder).ExecuteBufferedAsync();
+                }
+
+                string ONNXfile = Path.Combine(AIFolder, "qwen-2.5-32k-500m-instruct.onnx");
+                if (!File.Exists(ONNXfile))
+                {
+                    SomethingNotInstalled = true;
+                    Trace.WriteLine("File Fails - qwen-2.5-32k-500m-instruct.onnx");
+                    await Cli.Wrap("powershell").WithArguments(args => args.Add("-Command").Add("Invoke-WebRequest -Uri https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/qwen-2.5-32k-500m-instruct.onnx -OutFile qwen-2.5-32k-500m-instruct.onnx")).WithWorkingDirectory(AIFolder).ExecuteBufferedAsync();
+                }
+
+                string ONNXdataFILE = Path.Combine(AIFolder, "qwen-2.5-32k-500m-instruct.onnx.data");
+                if (!File.Exists(ONNXdataFILE))
+                {
+                    SomethingNotInstalled = true;
+                    Trace.WriteLine("File Fails - qwen-2.5-32k-500m-instruct.onnx.data");
+                    await Cli.Wrap("powershell").WithArguments(args => args.Add("-Command").Add("Invoke-WebRequest -Uri https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/qwen-2.5-32k-500m-instruct.onnx.data -OutFile qwen-2.5-32k-500m-instruct.onnx.data")).WithWorkingDirectory(AIFolder).ExecuteBufferedAsync();
+                }
+
+                string SpecialTokensFILE = Path.Combine(AIFolder, "special_tokens_map.json");
+                if (!File.Exists(SpecialTokensFILE))
+                {
+                    SomethingNotInstalled = true;
+                    Trace.WriteLine("File Fails - special_tokens_map.json");
+                    await Cli.Wrap("powershell").WithArguments(args => args.Add("-Command").Add("Invoke-WebRequest -Uri https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/special_tokens_map.json -OutFile special_tokens_map.json")).WithWorkingDirectory(AIFolder).ExecuteBufferedAsync();
+                }
+
+                string Tokenizer = Path.Combine(AIFolder, "tokenizer.json");
+                if (!File.Exists(Tokenizer))
+                {
+                    SomethingNotInstalled = true;
+                    Trace.WriteLine("File Fails - tokenizer.json");
+                    await Cli.Wrap("powershell").WithArguments(args => args.Add("-Command").Add("Invoke-WebRequest -Uri https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/tokenizer.json -OutFile tokenizer.json")).WithWorkingDirectory(AIFolder).ExecuteBufferedAsync();
+                }
+
+                string TokenizerConfig = Path.Combine(AIFolder, "tokenizer_config.json");
+                if (!File.Exists(TokenizerConfig))
+                {
+                    SomethingNotInstalled = true;
+                    Trace.WriteLine("File Fails - tokenizer_config.json");
+                    await Cli.Wrap("powershell").WithArguments(args => args.Add("-Command").Add("Invoke-WebRequest -Uri https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/tokenizer_config.json -OutFile tokenizer_config.json")).WithWorkingDirectory(AIFolder).ExecuteBufferedAsync();
+                }
+
+                string VocabFILE = Path.Combine(AIFolder, "vocab.json");
+                if (!File.Exists(VocabFILE))
+                {
+                    SomethingNotInstalled = true;
+                    Trace.WriteLine("File Fails - vocab.json");
+                    await Cli.Wrap("powershell").WithArguments(args => args.Add("-Command").Add("Invoke-WebRequest -Uri https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/vocab.json -OutFile vocab.json")).WithWorkingDirectory(AIFolder).ExecuteBufferedAsync();
                 }
 
                 //First check if winget exist
