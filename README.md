@@ -21,7 +21,7 @@ Well it is pretty simple, i as a Developer saw Projects like [Turbowarp](https:/
 | [.NET](https://dotnet.microsoft.com/en-us/download/dotnet/10.0)|[Linux](https://mit-license.org/) [Windows](https://qphelp.quest.com/Content/ThirdPartyComponents/MSDotNetLibraryLicense.htm?TocPath=Legal%2525252525252520Notices%252525252525257CLicenses%252525252525257C_____5)| 
 | [Scratch Junior Sprite Pictures & Default Sounds](https://github.com/scratchfoundation/scratchjr)|[BSD-3-Clause](https://github.com/scratchfoundation/scratchjr?tab=BSD-3-Clause-1-ov-file) |
 | [qwen-2.5-32k-500m-instruct](https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/tree/main)|[Apache 2.0](https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct/blob/main/LICENSE)|
-
+| [Downloader](https://www.nuget.org/packages/Downloader/5.5.0?_src=template) | [MIT-License](https://licenses.nuget.org/MIT)
 ## What works and what doesnt for compilation: 
 
 | Publish | CPU Architecture | Working? |
