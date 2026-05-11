@@ -576,12 +576,31 @@ public partial class MainWindow : Window
 
                         if (Lines.Contains("Ubuntu"))
                         {
+                            var DotnetVersion = await Cli.Wrap("dotnet").WithArguments(args => args.Add("--version")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync();
+                            if (DotnetVersion.ExitCode != 0)
+                            {
+                                await Cli.Wrap("sudo").WithArguments(args => args.Add("apt-get").Add("install").Add("-y").Add("dotnet-sdk" + DotnetVersion)).ExecuteBufferedAsync();
+                            }
 
+                            //I need homebrew to install npm and nodeJS
+                            var CheckCurl = await Cli.Wrap("curl").WithArguments(args => args.Add("--version")).ExecuteBufferedAsync();
+                            if (CheckCurl.ExitCode != 0)
+                            {
+                                await Cli.Wrap("sudo").WithArguments(args => args.Add("apt").Add("install").Add("curl")).ExecuteBufferedAsync();
+                            }
+
+                            var CheckHomebrew = await Cli.Wrap("brew").WithArguments(args => args.Add("--version")).ExecuteBufferedAsync();
+                            if (CheckHomebrew.ExitCode != 0)
+                            {
+                                await Cli.Wrap("curl").WithArguments(args => args.Add("-o-").Add("https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh | bash")).WithEnvironmentVariables(env => env.Set("NONINTERACTIVE", "1")).ExecuteBufferedAsync();
+                            }
+                            await Cli.Wrap("brew").WithArguments(args => args.Add("install").Add("node@25")).ExecuteBufferedAsync();
                         }
-                        if (Lines.Contains("RHEL"))
+                        if (Lines.Contains("Arch"))
                         {
-
+                            
                         }
+
                     }
                 }
             }
