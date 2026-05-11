@@ -58,6 +58,7 @@ using Velopack;
 using Velopack.Locators;
 using static System.Net.Mime.MediaTypeNames;
 using static System.Runtime.InteropServices.JavaScript.JSType;
+using Downloader;
 
 
 namespace sb1_sb2_sb3_xml_to_Csharp_converter;
@@ -185,7 +186,7 @@ public partial class MainWindow : Window
             await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => GithubRepo.Content = "This Project was made by: Daiko Games");
         }
 
-        else
+        else if(Language != "de" | Language != "en")
         {
             CultureInfo UIcult = CultureInfo.CurrentUICulture;
             string NativeName = UIcult.NativeName;
@@ -300,164 +301,192 @@ public partial class MainWindow : Window
         while (true)
         {
             StillDoing = true;
+            var DownloadOption = new DownloadConfiguration
+            {
+                ParallelDownload = true,
+                ChunkCount = 8
+            };
             string ConverterFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ScratchConverter");
+            Trace.WriteLine("Checking Requirements");
+            if (!Directory.Exists(ConverterFolder))
+            {
+                Trace.WriteLine("Directory Fails");
+                SomethingNotInstalled = true;
+                Directory.CreateDirectory(ConverterFolder);
+            }
+
+            //Initialize Components 
+
+            string InstallerFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Install");
+
+            if (!Directory.Exists(InstallerFolder))
+            {
+                Trace.WriteLine("Directory Fails");
+                SomethingNotInstalled = true;
+                Directory.CreateDirectory(InstallerFolder);
+            }
+
+            string SVGFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr");
+
+            if (!Directory.Exists(SVGFolder))
+            {
+                SomethingNotInstalled = true;
+                Trace.WriteLine("Directory Fails");
+                Directory.CreateDirectory(SVGFolder);
+            }
+            // i somehow didn´t includdee all sounds into the github
+            string SOUNDfolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wav_library_ScratchJnr");
+
+            if (!Directory.Exists(SOUNDfolder))
+            {
+                SomethingNotInstalled = true;
+                Trace.WriteLine("Directory Fails");
+                Directory.CreateDirectory(SOUNDfolder);
+            }
+
+            string AIFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "AImodel");
+            if (!Directory.Exists(AIFolder))
+            {
+                SomethingNotInstalled = true;
+                Trace.WriteLine("Directory Fails");
+                Directory.CreateDirectory(AIFolder);
+            }
+
+            string ConverterFile = Path.Combine(ConverterFolder, "Convert.js");
+            if (!File.Exists(ConverterFile))
+            {
+                SomethingNotInstalled = true;
+                var ConverterFileDownloader = new DownloadService(DownloadOption);
+                await ConverterFileDownloader.DownloadFileTaskAsync("https://raw.githubusercontent.com/DaikoGames/Scratch-Format-converter/refs/heads/main/Convert.js", new DirectoryInfo(ConverterFolder));
+            }
+
+            string NPMpackageJSON = Path.Combine(ConverterFolder, "package.json");
+            if (!File.Exists(NPMpackageJSON))
+            {
+                SomethingNotInstalled = true;
+                var NPMpackageJSONDownloader = new DownloadService(DownloadOption);
+                await NPMpackageJSONDownloader.DownloadFileTaskAsync("https://raw.githubusercontent.com/DaikoGames/Scratch-Format-converter/refs/heads/main/package.json", new DirectoryInfo(ConverterFolder));
+
+            }
+
+            string NPMpackageLockJSON = Path.Combine(ConverterFolder, "package-lock.json");
+            if (!File.Exists(NPMpackageLockJSON))
+            {
+                SomethingNotInstalled = true;
+                var NPMpackageLockJSONDownloader = new DownloadService(DownloadOption);
+                await NPMpackageLockJSONDownloader.DownloadFileTaskAsync("https://github.com/DaikoGames/Scratch-Format-converter/blob/main/package-lock.json", new DirectoryInfo(ConverterFolder));
+            }
+
+            string AddedtokensFile = Path.Combine(AIFolder, "added_tokens.json");
+            if (!File.Exists(AddedtokensFile))
+            {
+                SomethingNotInstalled = true;
+                var AddedtokensDownloader = new DownloadService(DownloadOption);
+                await AddedtokensDownloader.DownloadFileTaskAsync("https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/added_tokens.json", new DirectoryInfo(AIFolder));
+            }
+
+            string ConfigJSONfile = Path.Combine(AIFolder, "config.json");
+            if (!File.Exists(ConfigJSONfile))
+            {
+                SomethingNotInstalled = true;
+                var ConfigJSONDownloader = new DownloadService(DownloadOption);
+                await ConfigJSONDownloader.DownloadFileTaskAsync("https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/config.json", new DirectoryInfo(AIFolder));
+            }
+
+            string GenAIConfigJSONfile = Path.Combine(AIFolder, "genai_config.json");
+            if (!File.Exists(GenAIConfigJSONfile))
+            {
+                SomethingNotInstalled = true;
+                var GenAIConfigJSONDownloader = new DownloadService(DownloadOption);
+                await GenAIConfigJSONDownloader.DownloadFileTaskAsync("https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/genai_config.json", new DirectoryInfo(AIFolder));
+            }
+
+            string MergesTXT = Path.Combine(AIFolder, "merges.txt");
+            if (!File.Exists(MergesTXT))
+            {
+                SomethingNotInstalled = true;
+                var MergesTXTDownloader = new DownloadService(DownloadOption);
+                await MergesTXTDownloader.DownloadFileTaskAsync("https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/merges.txt", new DirectoryInfo(AIFolder));
+            }
+
+            string ONNXfile = Path.Combine(AIFolder, "qwen-2.5-32k-500m-instruct.onnx");
+            if (!File.Exists(ONNXfile))
+            {
+                SomethingNotInstalled = true;
+                var ONNXfileDownloader = new DownloadService(DownloadOption);
+                await ONNXfileDownloader.DownloadFileTaskAsync("https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/qwen-2.5-32k-500m-instruct.onnx", new DirectoryInfo(AIFolder));
+            }
+
+            string ONNXdataFILE = Path.Combine(AIFolder, "qwen-2.5-32k-500m-instruct.onnx.data");
+            if (!File.Exists(ONNXdataFILE))
+            {
+                SomethingNotInstalled = true;
+                var ONNXdataDownloader = new DownloadService(DownloadOption);
+                await ONNXdataDownloader.DownloadFileTaskAsync("https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/qwen-2.5-32k-500m-instruct.onnx.data", new DirectoryInfo(AIFolder));
+            }
+
+            string SpecialTokensFILE = Path.Combine(AIFolder, "special_tokens_map.json");
+            if (!File.Exists(SpecialTokensFILE))
+            {
+                SomethingNotInstalled = true;
+                var SpecialTokensDownloader = new DownloadService(DownloadOption);
+                await SpecialTokensDownloader.DownloadFileTaskAsync("https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/special_tokens_map.json", new DirectoryInfo(AIFolder));
+            }
+
+            string Tokenizer = Path.Combine(AIFolder, "tokenizer.json");
+            if (!File.Exists(Tokenizer))
+            {
+                SomethingNotInstalled = true;
+                var TokenizerDownloader = new DownloadService(DownloadOption);
+                await TokenizerDownloader.DownloadFileTaskAsync("https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/tokenizer.json", new DirectoryInfo(AIFolder));
+            }
+
+            string TokenizerConfig = Path.Combine(AIFolder, "tokenizer_config.json");
+            if (!File.Exists(TokenizerConfig))
+            {
+                SomethingNotInstalled = true;
+                var TokenizerConfigDownloader = new DownloadService(DownloadOption);
+                await TokenizerConfigDownloader.DownloadFileTaskAsync("https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/tokenizer_config.json", new DirectoryInfo(AIFolder));
+            }
+
+            string VocabFILE = Path.Combine(AIFolder, "vocab.json");
+            if (!File.Exists(VocabFILE))
+            {
+                SomethingNotInstalled = true;
+                var VocabFILEDownloader = new DownloadService(DownloadOption);
+                await VocabFILEDownloader.DownloadFileTaskAsync("https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/vocab.json", new DirectoryInfo(AIFolder));
+            }
+
+            foreach (string ScratchJnrFile in ScratchJnrFiles)
+            {
+                if (!File.Exists(ScratchJnrFile))
+                {
+                    SomethingNotInstalled = true;
+                    Trace.WriteLine("File Fails - SVGLibrary");
+                    var SVGDownloader = new DownloadService(DownloadOption);
+                    await SVGDownloader.DownloadFileTaskAsync("https://github.com/DaikoGames/sb1-sb2-sb3-xml-to-Csharp-converter/raw/refs/heads/main/svg_library_ScratchJnr/" + Path.GetFileName(ScratchJnrFile), new DirectoryInfo(SVGFolder));
+                }
+            }
+
+            foreach (string ScratchJnrFile in ScratchJnrSoundFiles)
+            {
+                if (!File.Exists(ScratchJnrFile))
+                {
+                    SomethingNotInstalled = true;
+                    var WAVDownloader = new DownloadService(DownloadOption);
+                    await WAVDownloader.DownloadFileTaskAsync("https://github.com/DaikoGames/sb1-sb2-sb3-xml-to-Csharp-converter/raw/refs/heads/main/wav_library_ScratchJnr/" + Path.GetFileName(ScratchJnrFile), new DirectoryInfo(SOUNDfolder));
+                }
+            }
+
             if (OperatingSystem.IsWindows())
             {
-                Trace.WriteLine("Checking Requirements");
-                if (!Directory.Exists(ConverterFolder))
-                {
-                    Trace.WriteLine("Directory Fails");
-                    SomethingNotInstalled = true;
-                    Directory.CreateDirectory(ConverterFolder);
-                }
-
-                //Initialize Components 
-
-                string InstallerFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Install");
-
-                if (!Directory.Exists(InstallerFolder))
-                {
-                    Trace.WriteLine("Directory Fails");
-                    SomethingNotInstalled = true;
-                    Directory.CreateDirectory(InstallerFolder);
-                }
-
-                string SVGFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr");
-
-                if (!Directory.Exists(SVGFolder))
-                {
-                    SomethingNotInstalled = true;
-                    Trace.WriteLine("Directory Fails");
-                    Directory.CreateDirectory(SVGFolder);
-                }
-
-                string SOUNDfolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wav_library_ScratchJnr");
-
-                if (!Directory.Exists(SOUNDfolder))
-                {
-                    SomethingNotInstalled = true;
-                    Trace.WriteLine("Directory Fails");
-                    Directory.CreateDirectory(SOUNDfolder);
-                }
-
-                string AIFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "AImodel");
-                if (!Directory.Exists(AIFolder))
-                {
-                    SomethingNotInstalled = true;
-                    Trace.WriteLine("Directory Fails");
-                    Directory.CreateDirectory(AIFolder);
-                }
-
                 string DotnetInstallerFile = Path.Combine(InstallerFolder, "dotnet-install.ps1");
                 if (!File.Exists(DotnetInstallerFile))
                 {
-                    SomethingNotInstalled = true;
-                    Trace.WriteLine("File Fails - dotnetinstall");
-                    await Cli.Wrap("powershell").WithArguments(args => args.Add("-Command").Add("Invoke-WebRequest -Uri https://dot.net/v1/dotnet-install.ps1 -OutFile dotnet-install.ps1")).WithWorkingDirectory(InstallerFolder).ExecuteBufferedAsync();
-                }
 
-                string ConverterFile = Path.Combine(ConverterFolder, "Convert.js");
-                if (!File.Exists(ConverterFile))
-                {
                     SomethingNotInstalled = true;
-                    Trace.WriteLine("File Fails - Convert.js");
-                    await Cli.Wrap("powershell").WithArguments(args => args.Add("-Command").Add("Invoke-WebRequest -Uri https://raw.githubusercontent.com/DaikoGames/Scratch-Format-converter/refs/heads/main/Convert.js -OutFile Convert.js")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync();
-                }
-
-                string NPMpackageJSON = Path.Combine(ConverterFolder, "package.json");
-                if (!File.Exists(NPMpackageJSON))
-                {
-                    SomethingNotInstalled = true;
-                    Trace.WriteLine("File Fails -package.json");
-                    await Cli.Wrap("powershell").WithArguments(args => args.Add("-Command").Add("Invoke-WebRequest -Uri https://raw.githubusercontent.com/DaikoGames/Scratch-Format-converter/refs/heads/main/package.json -OutFile package.json")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync();
-                }
-
-                string NPMpackageLockJSON = Path.Combine(ConverterFolder, "package-lock.json");
-                if (!File.Exists(NPMpackageLockJSON))
-                {
-                    SomethingNotInstalled = true;
-                    Trace.WriteLine("File Fails - package-lock.json");
-                    await Cli.Wrap("powershell").WithArguments(args => args.Add("-Command").Add("Invoke-WebRequest -Uri https://github.com/DaikoGames/Scratch-Format-converter/blob/main/package-lock.json -OutFile package-lock.json")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync();
-                }
-
-                string AddedtokensFile = Path.Combine(AIFolder, "added_tokens.json");
-                if (!File.Exists(AddedtokensFile))
-                {
-                    SomethingNotInstalled = true;
-                    Trace.WriteLine("File Fails - added_tokens.json");
-                    await Cli.Wrap("powershell").WithArguments(args => args.Add("-Command").Add("Invoke-WebRequest -Uri https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/added_tokens.json -OutFile added_tokens.json")).WithWorkingDirectory(AIFolder).ExecuteBufferedAsync();
-                }
-
-                string ConfigJSONfile = Path.Combine(AIFolder, "config.json");
-                if (!File.Exists(ConfigJSONfile))
-                {
-                    SomethingNotInstalled = true;
-                    Trace.WriteLine("File Fails - config.json");
-                    await Cli.Wrap("powershell").WithArguments(args => args.Add("-Command").Add("Invoke-WebRequest -Uri https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/config.json -OutFile config.json")).WithWorkingDirectory(AIFolder).ExecuteBufferedAsync();
-                }
-
-                string GenAIConfigJSONfile = Path.Combine(AIFolder, "genai_config.json");
-                if (!File.Exists(GenAIConfigJSONfile))
-                {
-                    SomethingNotInstalled = true;
-                    Trace.WriteLine("File Fails - genai_config.json");
-                    await Cli.Wrap("powershell").WithArguments(args => args.Add("-Command").Add("Invoke-WebRequest -Uri https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/genai_config.json -OutFile genai_config.json")).WithWorkingDirectory(AIFolder).ExecuteBufferedAsync();
-                }
-
-                string MergesTXT = Path.Combine(AIFolder, "merges.txt");
-                if (!File.Exists(MergesTXT))
-                {
-                    SomethingNotInstalled = true;
-                    Trace.WriteLine("File Fails - merges.txt");
-                    await Cli.Wrap("powershell").WithArguments(args => args.Add("-Command").Add("Invoke-WebRequest -Uri https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/merges.txt -OutFile merges.txt")).WithWorkingDirectory(AIFolder).ExecuteBufferedAsync();
-                }
-
-                string ONNXfile = Path.Combine(AIFolder, "qwen-2.5-32k-500m-instruct.onnx");
-                if (!File.Exists(ONNXfile))
-                {
-                    SomethingNotInstalled = true;
-                    Trace.WriteLine("File Fails - qwen-2.5-32k-500m-instruct.onnx");
-                    await Cli.Wrap("powershell").WithArguments(args => args.Add("-Command").Add("Invoke-WebRequest -Uri https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/qwen-2.5-32k-500m-instruct.onnx -OutFile qwen-2.5-32k-500m-instruct.onnx")).WithWorkingDirectory(AIFolder).ExecuteBufferedAsync();
-                }
-
-                string ONNXdataFILE = Path.Combine(AIFolder, "qwen-2.5-32k-500m-instruct.onnx.data");
-                if (!File.Exists(ONNXdataFILE))
-                {
-                    SomethingNotInstalled = true;
-                    Trace.WriteLine("File Fails - qwen-2.5-32k-500m-instruct.onnx.data");
-                    await Cli.Wrap("powershell").WithArguments(args => args.Add("-Command").Add("Invoke-WebRequest -Uri https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/qwen-2.5-32k-500m-instruct.onnx.data -OutFile qwen-2.5-32k-500m-instruct.onnx.data")).WithWorkingDirectory(AIFolder).ExecuteBufferedAsync();
-                }
-
-                string SpecialTokensFILE = Path.Combine(AIFolder, "special_tokens_map.json");
-                if (!File.Exists(SpecialTokensFILE))
-                {
-                    SomethingNotInstalled = true;
-                    Trace.WriteLine("File Fails - special_tokens_map.json");
-                    await Cli.Wrap("powershell").WithArguments(args => args.Add("-Command").Add("Invoke-WebRequest -Uri https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/special_tokens_map.json -OutFile special_tokens_map.json")).WithWorkingDirectory(AIFolder).ExecuteBufferedAsync();
-                }
-
-                string Tokenizer = Path.Combine(AIFolder, "tokenizer.json");
-                if (!File.Exists(Tokenizer))
-                {
-                    SomethingNotInstalled = true;
-                    Trace.WriteLine("File Fails - tokenizer.json");
-                    await Cli.Wrap("powershell").WithArguments(args => args.Add("-Command").Add("Invoke-WebRequest -Uri https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/tokenizer.json -OutFile tokenizer.json")).WithWorkingDirectory(AIFolder).ExecuteBufferedAsync();
-                }
-
-                string TokenizerConfig = Path.Combine(AIFolder, "tokenizer_config.json");
-                if (!File.Exists(TokenizerConfig))
-                {
-                    SomethingNotInstalled = true;
-                    Trace.WriteLine("File Fails - tokenizer_config.json");
-                    await Cli.Wrap("powershell").WithArguments(args => args.Add("-Command").Add("Invoke-WebRequest -Uri https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/tokenizer_config.json -OutFile tokenizer_config.json")).WithWorkingDirectory(AIFolder).ExecuteBufferedAsync();
-                }
-
-                string VocabFILE = Path.Combine(AIFolder, "vocab.json");
-                if (!File.Exists(VocabFILE))
-                {
-                    SomethingNotInstalled = true;
-                    Trace.WriteLine("File Fails - vocab.json");
-                    await Cli.Wrap("powershell").WithArguments(args => args.Add("-Command").Add("Invoke-WebRequest -Uri https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/vocab.json -OutFile vocab.json")).WithWorkingDirectory(AIFolder).ExecuteBufferedAsync();
+                    var DotnetInstallerFileDownloader = new DownloadService(DownloadOption);
+                    await DotnetInstallerFileDownloader.DownloadFileTaskAsync("https://dot.net/v1/dotnet-install.ps1", new DirectoryInfo(InstallerFolder));
                 }
 
                 //First check if winget exist
@@ -503,29 +532,6 @@ public partial class MainWindow : Window
                     await Cli.Wrap("choco").WithArguments(args => args.Add("install").Add("nodejs")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync();
                 }
 
-                foreach (string ScratchJnrFile in ScratchJnrFiles)
-                {
-                    if (!File.Exists(ScratchJnrFile))
-                    {
-                        SomethingNotInstalled = true;
-                        Trace.WriteLine("File Fails - SVGLibrary");
-
-                        string FileURI = "https://github.com/DaikoGames/sb1-sb2-sb3-xml-to-Csharp-converter/raw/refs/heads/main/svg_library_ScratchJnr/" + Path.GetFileName(ScratchJnrFile);
-                        await Cli.Wrap("curl").WithArguments(args => args.Add("-L").Add("-o").Add(ScratchJnrFile).Add(FileURI)).WithWorkingDirectory(SVGFolder).ExecuteBufferedAsync();
-                    }
-                }
-
-                foreach (string ScratchJnrFile in ScratchJnrSoundFiles)
-                {
-                    if (!File.Exists(ScratchJnrFile))
-                    {
-                        SomethingNotInstalled = true;
-                        Trace.WriteLine("File Fails - WAVLibrary");
-                        string FileURI = "https://github.com/DaikoGames/sb1-sb2-sb3-xml-to-Csharp-converter/raw/refs/heads/main/wav_library_ScratchJnr/" + Path.GetFileName(ScratchJnrFile);
-                        await Cli.Wrap("curl").WithArguments(args => args.Add("-L").Add("-o").Add(ScratchJnrFile).Add(FileURI)).WithWorkingDirectory(SOUNDfolder).ExecuteBufferedAsync();
-                    }
-                }
-
 
 
                 Trace.WriteLine("Nothing Fails anymore");
@@ -549,7 +555,7 @@ public partial class MainWindow : Window
                             var DotnetVersion = await Cli.Wrap("dotnet").WithArguments(args => args.Add("--version")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync();
                             if (DotnetVersion.ExitCode != 0)
                             {
-                                await Cli.Wrap("sudo").WithArguments(args => args.Add("apt-get").Add("install").Add("-y").Add("dotnet-sdk-9.0")).ExecuteBufferedAsync();
+                                await Cli.Wrap("sudo").WithArguments(args => args.Add("apt-get").Add("install").Add("-y").Add("dotnet-sdk" + DotnetVersion)).ExecuteBufferedAsync();
                             }
 
                             //I need homebrew to install npm and nodeJS
@@ -956,20 +962,23 @@ public partial class MainWindow : Window
                 {
                     if (OperatingSystem.IsWindows())
                     {
-
                         await Cli.Wrap("node").WithArguments(args => args.Add("Convert.js")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync();
                         string OldSB3 = Path.Combine(ConverterFolder, "project.sb3");
                         string NewSB3 = Path.Combine(Foldername, "project.sb3");
                         File.Copy(OldSB3, NewSB3, true);
                         File.Delete(ConvertDestination);
                         File.Delete(OldSB3);
+                        FileExtension = ".sb3";
+                        Filename = NewSB3;
                     }
                 }
 
                 if (FileExtension == ".sb3")
                 {
-                    string NewSB3 = Path.Combine(Foldername, "project.sb3");
-                    File.Copy(Filename, NewSB3, true);
+                    string ZipFILE = Path.Combine(Foldername, Path.GetFileNameWithoutExtension(Filename) + ".zip");
+                    File.Copy(Filename, ZipFILE);
+                    File.Delete(Filename);
+                    ZipFile.ExtractToDirectory(ZipFILE, Foldername, true);
                 }
                 //Convert to C# now directly
             }
