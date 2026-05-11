@@ -114,7 +114,54 @@ public partial class MainWindow : Window
 
         Task.Run(() => ShowOrNot());
         Trace.WriteLine("Initializing the App");
-        Task.Run(() => ChangeLanguage());
+        CultureInfo LanguageOfUser = CultureInfo.CurrentUICulture;
+        string Language = LanguageOfUser.TwoLetterISOLanguageName;
+        Trace.Write(Language);
+
+        if (Language.Contains("de"))
+        {
+            //German
+            Text1.Content = "Bitte Wählen, oder schreiben Sie die Datei die Sie bearbeiten wollen";
+            FileFolderNameTextBox.Watermark = "Ihre Datei sollte eine .sb, .sb2, .sb3 oder eine .xml Datei sein:";
+            Text2.Content = "Bitte suchen Sie sich ihren Ordner aus wo das Projekt gespeichert werden soll";
+            FolderNameTextBox.Watermark = "Ihr Ordner";
+            IconText.Content = "Bitte Wählen Sie die Icon Datei aus wenn es für Sie nötig ist";
+            IconTextBox.Watermark = "Die Icon Datei vom Projekt (nicht notwendig)";
+            SnapinatorOrNot.Content = "Soll der Converter den Snap Weg oder den Scratch Weg nehmen?";
+            SnapinatorCheckBox.Content = "Snapinator";
+            ScratchCheckBox.Content = "Scratch";
+            OSTextAndCPU.Content = "Bitte suchen Sie das OS, und die Architektur aus ";
+            WindowsCheckBox.Content = "Windows";
+            LinuxCheckBox.Content = "Linux";
+            MacOSCheckBox.Content = "Mac OS";
+            convertButton.Content = "konvertieren!";
+            GithubRepo.Content = "Dieses Projekt wurde von Daiko Games erstellt";
+        }
+
+        if (Language == "en")
+        {
+            //English
+            Text1.Content = "Please Select the File you want to convert or write it down here:";
+            FileFolderNameTextBox.Watermark = "Your File, it should be a .sb, .sb2, .sb3, .xml File";
+            Text2.Content = "Please select the Folder where your converted Project should be stored:";
+            FolderNameTextBox.Watermark = "Your Folder";
+            IconText.Content = "Please select the Icon File if necessary:";
+            IconTextBox.Watermark = "the Icon of the Application(Not necessary)";
+            SnapinatorOrNot.Content = "Should the converter use Snap! or the Scratch Way?:";
+            SnapinatorCheckBox.Content = "Snap";
+            ScratchCheckBox.Content = "Scratch";
+            OSTextAndCPU.Content = "Please select the OS you want to build it for and what architecture:";
+            WindowsCheckBox.Content = "Windows";
+            LinuxCheckBox.Content = "Linux";
+            MacOSCheckBox.Content = "Mac OS";
+            convertButton.Content = "Convert!";
+            GithubRepo.Content = "This Project was made by: Daiko Games";
+        }
+
+        if(!Language.Contains("de") && !Language.Contains("en"))
+        {
+            Task.Run(() => ChangeLanguage());
+        }
         ProgressBarConverter.Minimum = 0;
         ProgressBarConverter.Maximum = 100;
         ProgressBarConverter.Value = 0;
@@ -141,140 +188,94 @@ public partial class MainWindow : Window
 
     public async Task ChangeLanguage()
     {
-        CultureInfo LanguageOfUser = CultureInfo.CurrentUICulture;
-        string Language = LanguageOfUser.TwoLetterISOLanguageName;
-        Trace.Write(Language);
+        CultureInfo UIcult = CultureInfo.CurrentUICulture;
+        string NativeName = UIcult.NativeName;
+        //need to translate it somehow different
         List<string> TranslateText = new List<string> { "Bitte Wählen, oder schreiben Sie die Datei die Sie bearbeiten wollen", "Ihre Datei sollte eine .sb, .sb2, .sb3 oder eine .xml Datei sein:", "Bitte suchen Sie sich ihren Ordner aus wo das Projekt gespeichert werden soll", "Ihr Ordner", "Bitte Wählen Sie die Icon Datei aus wenn es für Sie nötig ist", "Die Icon Datei vom Projekt (nicht notwendig)", "Soll der Converter den Snap Weg oder den Scratch Weg nehmen?", "Snapinator", "Scratch", "Bitte suchen Sie das OS, und die Architektur aus ", "Windows", "Linux", "Mac OS", "konvertieren!", "Dieses Projekt wurde von Daiko Games erstellt" };
 
-        if (Language.Contains("de"))
+        foreach (string TextString in TranslateText)
         {
-            //German
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => Text1.Content = "Bitte Wählen, oder schreiben Sie die Datei die Sie bearbeiten wollen");
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => FileFolderNameTextBox.Watermark = "Ihre Datei sollte eine .sb, .sb2, .sb3 oder eine .xml Datei sein:");
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => Text2.Content = "Bitte suchen Sie sich ihren Ordner aus wo das Projekt gespeichert werden soll");
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => FolderNameTextBox.Watermark = "Ihr Ordner");
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => IconText.Content = "Bitte Wählen Sie die Icon Datei aus wenn es für Sie nötig ist");
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => IconTextBox.Watermark = "Die Icon Datei vom Projekt (nicht notwendig)");
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => SnapinatorOrNot.Content = "Soll der Converter den Snap Weg oder den Scratch Weg nehmen?");
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => SnapinatorCheckBox.Content = "Snapinator");
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => ScratchCheckBox.Content = "Scratch");
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => OSTextAndCPU.Content = "Bitte suchen Sie das OS, und die Architektur aus ");
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => WindowsCheckBox.Content = "Windows");
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => LinuxCheckBox.Content = "Linux");
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => MacOSCheckBox.Content = "Mac OS");
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => convertButton.Content = "konvertieren!");
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => GithubRepo.Content = "Dieses Projekt wurde von Daiko Games erstellt");
-        }
-
-        if (Language == "en")
-        {
-            //English
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => Text1.Content = "Please Select the File you want to convert or write it down here:");
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => FileFolderNameTextBox.Watermark = "Your File, it should be a .sb, .sb2, .sb3, .xml File");
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => Text2.Content = "Please select the Folder where your converted Project should be stored:");
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => FolderNameTextBox.Watermark = "Your Folder");
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => IconText.Content = "Please select the Icon File if necessary:");
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => IconTextBox.Watermark = "the Icon of the Application(Not necessary)");
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => SnapinatorOrNot.Content = "Should the converter use Snap! or the Scratch Way?:");
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => SnapinatorCheckBox.Content = "Snap");
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => ScratchCheckBox.Content = "Scratch");
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => OSTextAndCPU.Content = "Please select the OS you want to build it for and what architecture:");
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => WindowsCheckBox.Content = "Windows");
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => LinuxCheckBox.Content = "Linux");
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => MacOSCheckBox.Content = "Mac OS");
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => convertButton.Content = "Convert!");
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => GithubRepo.Content = "This Project was made by: Daiko Games");
-        }
-
-        else if(Language != "de" | Language != "en")
-        {
-            CultureInfo UIcult = CultureInfo.CurrentUICulture;
-            string NativeName = UIcult.NativeName;
-            //need to translate it somehow different
-            foreach (string TextString in TranslateText)
-            {
-                using var Translationmodel = new Model(ModelPath);
-                using var Tokenizer = new Tokenizer(Translationmodel);
-                //it seems like de is not enough, i need the full language name lol
-                //{Language}
-                string prompt = $"""
+            using var Translationmodel = new Model(ModelPath);
+            using var Tokenizer = new Tokenizer(Translationmodel);
+            //it seems like de is not enough, i need the full language name lol
+            //{Language}
+            string prompt = $"""
                     <|im_start|>system only output the translated text, do not use any communication than the translation, you are a helpful translator that answers quickly, and don´t say anything else than the translation<|im_end|> <|im_start|>user Translate this Text: {TextString} <|im_end|> <|im_start|>assistant
                     """;
-                var tokens = Tokenizer.Encode(prompt);
-                using var GeneratorParams = new GeneratorParams(Translationmodel);
-                GeneratorParams.SetSearchOption("max_length", 700);
-                GeneratorParams.SetSearchOption("past_present_share_buffer", false);
-                using var generator = new Generator(Translationmodel, GeneratorParams);
-                generator.AppendTokenSequences(tokens);
-                while (!generator.IsDone())
-                {
-                    generator.GenerateNextToken();
-                }
-                var outputTokens = generator.GetSequence(0);
-                string result = Tokenizer.Decode(outputTokens).ToString();
-                Trace.Write(result);
-                string TextOnWindow = result.Replace($"system You ONLY output the translation of the text to ({NativeName}), do not include anything else user Translate this Text:", "").Replace(TextString, "").Replace("assistant", "").Trim();
+            var tokens = Tokenizer.Encode(prompt);
+            using var GeneratorParams = new GeneratorParams(Translationmodel);
+            GeneratorParams.SetSearchOption("max_length", 700);
+            GeneratorParams.SetSearchOption("past_present_share_buffer", false);
+            using var generator = new Generator(Translationmodel, GeneratorParams);
+            generator.AppendTokenSequences(tokens);
+            while (!generator.IsDone())
+            {
+                generator.GenerateNextToken();
+            }
+            var outputTokens = generator.GetSequence(0);
+            string result = Tokenizer.Decode(outputTokens).ToString();
+            Trace.Write(result);
+            string TextOnWindow = result.Replace($"system You ONLY output the translation of the text to ({NativeName}), do not include anything else user Translate this Text:", "").Replace(TextString, "").Replace("assistant", "").Trim();
 
-                if (result.Contains("Bitte Wählen, oder schreiben Sie die Datei die Sie bearbeiten wollen"))
-                {
-                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => Text1.Content = TextOnWindow);
-                }
-                if (result.Contains("Ihre Datei sollte eine .sb, .sb2, .sb3 oder eine .xml Datei sein:"))
-                {
-                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => FileFolderNameTextBox.Watermark = TextOnWindow);
-                }
-                if (result.Contains("Bitte suchen Sie sich ihren Ordner aus wo das Projekt gespeichert werden soll"))
-                {
-                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => Text2.Content = TextOnWindow);
-                }
-                if (result.Contains("Ihr Ordner"))
-                {
-                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => FolderNameTextBox.Watermark = TextOnWindow);
-                }
-                if (result.Contains("Bitte Wählen Sie die Icon Datei aus wenn es für Sie nötig ist"))
-                {
-                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => IconText.Content = TextOnWindow);
-                }
-                if (result.Contains("Die Icon Datei vom Projekt (nicht notwendig)"))
-                {
-                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => IconTextBox.Watermark = TextOnWindow);
-                }
-                if (result.Contains("Soll der Converter den Snap Weg oder den Scratch Weg nehmen?"))
-                {
-                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => SnapinatorOrNot.Content = TextOnWindow);
-                }
-                if (result.Contains("Snapinator"))
-                {
-                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => SnapinatorCheckBox.Content = TextOnWindow);
-                }
-                if (result.Contains("Scratch"))
-                {
-                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => ScratchCheckBox.Content = TextOnWindow);
-                }
-                if (result.Contains("Bitte suchen Sie das OS, und die Architektur aus"))
-                {
-                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => OSTextAndCPU.Content = TextOnWindow);
-                }
-                if (result.Contains("Windows"))
-                {
-                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => WindowsCheckBox.Content = TextOnWindow);
-                }
-                if (result.Contains("Linux"))
-                {
-                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => LinuxCheckBox.Content = TextOnWindow);
-                }
-                if (result.Contains("Mac OS"))
-                {
-                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => MacOSCheckBox.Content = TextOnWindow);
-                }
-                if (result.Contains("konvertieren"))
-                {
-                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => convertButton.Content = TextOnWindow);
-                }
-                if (result.Contains("Dieses Projekt wurde von Daiko Games erstellt"))
-                {
-                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => GithubRepo.Content = TextOnWindow);
-                }
+            if (result.Contains("Bitte Wählen, oder schreiben Sie die Datei die Sie bearbeiten wollen"))
+            {
+                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => Text1.Content = TextOnWindow);
+            }
+            if (result.Contains("Ihre Datei sollte eine .sb, .sb2, .sb3 oder eine .xml Datei sein:"))
+            {
+                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => FileFolderNameTextBox.Watermark = TextOnWindow);
+            }
+            if (result.Contains("Bitte suchen Sie sich ihren Ordner aus wo das Projekt gespeichert werden soll"))
+            {
+                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => Text2.Content = TextOnWindow);
+            }
+            if (result.Contains("Ihr Ordner"))
+            {
+                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => FolderNameTextBox.Watermark = TextOnWindow);
+            }
+            if (result.Contains("Bitte Wählen Sie die Icon Datei aus wenn es für Sie nötig ist"))
+            {
+                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => IconText.Content = TextOnWindow);
+            }
+            if (result.Contains("Die Icon Datei vom Projekt (nicht notwendig)"))
+            {
+                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => IconTextBox.Watermark = TextOnWindow);
+            }
+            if (result.Contains("Soll der Converter den Snap Weg oder den Scratch Weg nehmen?"))
+            {
+                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => SnapinatorOrNot.Content = TextOnWindow);
+            }
+            if (result.Contains("Snapinator"))
+            {
+                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => SnapinatorCheckBox.Content = TextOnWindow);
+            }
+            if (result.Contains("Scratch"))
+            {
+                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => ScratchCheckBox.Content = TextOnWindow);
+            }
+            if (result.Contains("Bitte suchen Sie das OS, und die Architektur aus"))
+            {
+                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => OSTextAndCPU.Content = TextOnWindow);
+            }
+            if (result.Contains("Windows"))
+            {
+                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => WindowsCheckBox.Content = TextOnWindow);
+            }
+            if (result.Contains("Linux"))
+            {
+                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => LinuxCheckBox.Content = TextOnWindow);
+            }
+            if (result.Contains("Mac OS"))
+            {
+                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => MacOSCheckBox.Content = TextOnWindow);
+            }
+            if (result.Contains("konvertieren"))
+            {
+                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => convertButton.Content = TextOnWindow);
+            }
+            if (result.Contains("Dieses Projekt wurde von Daiko Games erstellt"))
+            {
+                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => GithubRepo.Content = TextOnWindow);
             }
         }
     }
@@ -474,7 +475,7 @@ public partial class MainWindow : Window
                 {
                     SomethingNotInstalled = true;
                     var WAVDownloader = new DownloadService(DownloadOption);
-                    await WAVDownloader.DownloadFileTaskAsync("https://github.com/DaikoGames/sb1-sb2-sb3-xml-to-Csharp-converter/raw/refs/heads/main/wav_library_ScratchJnr/" + Path.GetFileName(ScratchJnrFile), new DirectoryInfo(SOUNDfolder));
+                    await WAVDownloader.DownloadFileTaskAsync("https://github.com/DaikoGames/sb1-sb2-sb3-xml-to-Csharp-converter/raw/refs/heads/main/wav_library_ScratchJnr/" + Path.GetFileName(ScratchJnrFile), new DirectoryInfo(AppDomain.CurrentDomain.BaseDirectory));
                 }
             }
 
