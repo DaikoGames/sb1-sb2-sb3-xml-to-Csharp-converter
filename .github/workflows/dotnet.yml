@@ -100,8 +100,9 @@ jobs:
         run: |
           vpk pack --help
           
-      - name: Pack with Velopack
+      - name: Pack with Velopack Windows
         shell: bash
+        if: contains(matrix.runtime, 'win')
         run: |
           vpk pack \
             -u "Converter" \
@@ -109,6 +110,29 @@ jobs:
             --packDir "./publish/${{ matrix.runtime }}" \
             --outputDir "./Releases" \
             --icon "./ConverterIcon/Converter.ico" \
+            --channel "${{ matrix.runtime }}"
+      - name: Pack with Velopack Linux
+        shell: bash
+        if: contains(matrix.runtime, 'linux')
+        run: |
+          vpk pack \
+            -u "Converter" \
+            -v "0.9.${{ github.run_number }}" \
+            --packDir "./publish/${{ matrix.runtime }}" \
+            --outputDir "./Releases" \
+            --icon "./ConverterIcon/Converter.png" \
+            --channel "${{ matrix.runtime }}"
+            
+      - name: Pack with Velopack MacOS
+        shell: bash
+        if: contains(matrix.runtime, 'osx')
+        run: |
+          vpk pack \
+            -u "Converter" \
+            -v "0.9.${{ github.run_number }}" \
+            --packDir "./publish/${{ matrix.runtime }}" \
+            --outputDir "./Releases" \
+            --icon "./ConverterIcon/Converter.icns" \
             --channel "${{ matrix.runtime }}"
     
 
