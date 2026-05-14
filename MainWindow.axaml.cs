@@ -116,7 +116,6 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         Core.Initialize();
-        VelopackApp.Build().OnFirstRun(v => CheckRequirements()).Run();
         Task.Run(() => CheckRequirements());
 
         Task.Run(() => ShowOrNot());
@@ -209,7 +208,7 @@ public partial class MainWindow : Window
             //it seems like de is not enough, i need the full language name lol
             //{Language}
             string prompt = $"""
-                    <|im_start|>system <|im_end|> <|im_start|>user only output the translated text, do not use any communication than the translation, you are a helpful translator that answers quickly, and don´t say anything else than the translation. Translate this Text: {TextString} <|im_end|> <|im_start|>assistant
+                    <|im_start|>system <|im_end|> <|im_start|>user only output the translated text, do not use any communication than the translation, you are a helpful translator that answers quickly, and don´t say anything else than the translation. Translate this Text: {TextString} <|im_end|> <|im_start|>assistant<|im_end|> <|im_start|>assistant
                     """;
             var tokens = Tokenizer.Encode(prompt);
             using var GeneratorParams = new GeneratorParams(Translationmodel);
