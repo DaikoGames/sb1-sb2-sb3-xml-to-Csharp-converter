@@ -22,6 +22,9 @@ Well it is pretty simple, i as a Developer saw Projects like [Turbowarp](https:/
 | [Scratch Junior Sprite Pictures & Default Sounds](https://github.com/scratchfoundation/scratchjr)|[BSD-3-Clause](https://github.com/scratchfoundation/scratchjr?tab=BSD-3-Clause-1-ov-file) |
 | [qwen-2.5-32k-500m-instruct](https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/tree/main)|[Apache 2.0](https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct/blob/main/LICENSE)|
 | [Downloader](https://www.nuget.org/packages/Downloader/5.5.0?_src=template) | [MIT-License](https://licenses.nuget.org/MIT)
+
+I used [ImageMagick](tps://imagemagick.org/#gsc.tab=0) for converting the png File to the .icns File. It is a great tool :)
+
 ## What works and what doesnt for compilation: 
 
 | Publish | CPU Architecture | Working? |
