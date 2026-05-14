@@ -108,7 +108,10 @@ jobs:
             -v "0.9.${{ github.run_number }}" \
             --packDir "./publish/${{ matrix.runtime }}" \
             --outputDir "./Releases" \
+            --icon "./ConverterIcon/Converter.ico" \
             --channel "${{ matrix.runtime }}"
+    
+
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
