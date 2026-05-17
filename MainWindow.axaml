@@ -1,203 +1,193 @@
-<Window           Name="Default"
-                  xmlns="https://github.com/avaloniaui"
-                  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-                  xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-                  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-                  mc:Ignorable="d"
-                  d:DesignWidth="600" 
-                  d:DesignHeight="325"
-                  Width="610"
-                  Height="600"
-                  x:Class="sb1_sb2_sb3_xml_to_Csharp_converter.MainWindow"
-                  Title="sb1_sb2_sb3_xml_to_Csharp_converter"
-                  CanResize="True"
-                  RequestedThemeVariant="Default"
-                  
->
-<Canvas Name="CanvasBackground">
-    
-    <Label        Name="Text1"
-                  Content="Please Select the File you want to convert or write it down here:"
-                  Width="500"
-                  Height="30"
-                  Canvas.Top="25"
-                  Canvas.Left="15"
-    />
+<Window
+  x:Class="sb1_sb2_sb3_xml_to_Csharp_converter.MainWindow"
+  xmlns="https://github.com/avaloniaui"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  Name="Default"
+  Title="sb1_sb2_sb3_xml_to_Csharp_converter"
+  Width="610"
+  Height="600"
+  d:DesignHeight="325"
+  d:DesignWidth="600"
+  CanResize="True"
+  RequestedThemeVariant="Default"
+  mc:Ignorable="d">
+  <Canvas Name="CanvasBackground">
 
-    <TextBox      Name="FileFolderNameTextBox"
-                  Width="500"
-                  Height="20"
-                  Canvas.Top="55"
-                  Canvas.Left="15"
-    />
+    <Label
+      Name="Text1"
+      Canvas.Left="15"
+      Canvas.Top="25"
+      Width="500"
+      Height="30"
+      />
 
-    <Button       Name="fileSearcher"
-                  Click="FileSearcherVoid"
-                  ClickMode="Press"
-                  Content="..."
-                  
-                  Width="30"
-                  Height="30"
-                  Canvas.Top="55"
-                  Canvas.Right="50"
-                  
-    />
+    <TextBox
+      Name="FileFolderNameTextBox"
+      Canvas.Left="15"
+      Canvas.Top="55"
+      Width="500"
+      Height="20" />
 
-    <Label        Name="Text2"
-                  Width="500"
-                  Height="30"
-                  Canvas.Top="95"
-                  Canvas.Left="15"/>
+    <Button
+      Name="fileSearcher"
+      Canvas.Top="55"
+      Canvas.Right="50"
+      Width="30"
+      Height="30"
+      Click="FileSearcherVoid"
+      ClickMode="Press"
+      Content="..." />
 
-    <TextBox      Name="FolderNameTextBox"
-                  Width="500"
-                  Height="20"
-                  Canvas.Top="125"
-                  Canvas.Left="15"
-    />
+    <Label
+      Name="Text2"
+      Canvas.Left="15"
+      Canvas.Top="95"
+      Width="500"
+      Height="30" />
 
-    <Button       Name="folderSearcher"
-                  Click="FolderSearcherVoid"
-                  ClickMode="Press"
-                  Content="..."
-                  
-                  Width="30"
-                  Height="30"
-                  Canvas.Top="125"
-                  Canvas.Right="50"
-    />
-   <Label         Name="IconText"
-                  Width="500"
-                  Height="30"
-                  Canvas.Left="15"
-                  Canvas.Top="165"/>
-  
-   <TextBox       Name="IconTextBox"
-                  Width="500"
-                  Height="20"
-                  Canvas.Left="15"
-                  Canvas.Top="195"
-                  
-   />
-  <Button         Name="IconButton"
-                  Click="IconSearcherVoid"
-                  ClickMode="Press"
-                  Content="..."
-                  
-                  Width="30"
-                  Height="30"
-                  Canvas.Top="195"
-                  Canvas.Right="50"
-   />
-    
-   <Label         Name="SnapinatorOrNot"
-                  Width="500"
-                  Height="30"
-                  Canvas.Left="15"
-                  Canvas.Top="235"/>
-    
-    <CheckBox Name="SnapinatorCheckBox"
-              Content="Snapinator"
-              Width="110"
-              Height="10"
-              Canvas.Top="260"
-              Canvas.Left="30"
-    />
+    <TextBox
+      Name="FolderNameTextBox"
+      Canvas.Left="15"
+      Canvas.Top="125"
+      Width="500"
+      Height="20" />
 
-    <CheckBox Name="ScratchCheckBox"
-              Content="Scratch"
-              Width="90"
-              Height="10"
-              Canvas.Top="260"
-              Canvas.Left="150"
-              
-    />
+    <Button
+      Name="folderSearcher"
+      Canvas.Top="125"
+      Canvas.Right="50"
+      Width="30"
+      Height="30"
+      Click="FolderSearcherVoid"
+      ClickMode="Press"
+      Content="..." />
+    <Label
+      Name="IconText"
+      Canvas.Left="15"
+      Canvas.Top="165"
+      Width="500"
+      Height="30" />
 
-    <Label Name="OSTextAndCPU"
-           Width="500"
-           Height="30"
-           Canvas.Top="290"
-           Canvas.Left="15"
+    <TextBox
+      Name="IconTextBox"
+      Canvas.Left="15"
+      Canvas.Top="195"
+      Width="500"
+      Height="20" />
+    <Button
+      Name="IconButton"
+      Canvas.Top="195"
+      Canvas.Right="50"
+      Width="30"
+      Height="30"
+      Click="IconSearcherVoid"
+      ClickMode="Press"
+      Content="..." />
 
-           />
-    <CheckBox     Name="WindowsCheckBox"
-                  Width="90"
-                  Height="10"
-                  Canvas.Top="320"
-                  Canvas.Left="30"
-    />
-    
-    <CheckBox     Name="LinuxCheckBox"
-                  Width="90"
-                  Height="10"
-                  Canvas.Top="320"
-                  Canvas.Left="130"
-    />
+    <Label
+      Name="SnapinatorOrNot"
+      Canvas.Left="15"
+      Canvas.Top="235"
+      Width="500"
+      Height="30" />
 
-    <CheckBox     Name="MacOSCheckBox"
-                  Width="90"
-                  Height="10"
-                  Canvas.Top="320"
-                  Canvas.Left="230"
-    />
-    
-    <CheckBox     Name="X64CheckBox"
-                  Content="x-64"
-                  
-                  Width="90"
-                  Height="10"
-                  Canvas.Top="320"
-                  Canvas.Right="100"
-    />
-    
-    <CheckBox     Name="X32CheckBox"
-                  Content="x-32"
-                  
-                  Width="90"
-                  Height="10"
-                  Canvas.Top="350"
-                  Canvas.Right="100"
-    />
-  
-    <CheckBox     Name="Arm64CheckBox"
-                  Content="arm-64"
-           
-                  Width="90"
-                  Height="10"
-                  Canvas.Top="380"
-                  Canvas.Right="100"
-    />
-    
-    <ProgressBar Name="ProgressBarConverter"
-                 
-                  Canvas.Top="410"
-                  Canvas.Left="15"
-                  Width="500"
-                  Height="25"
-                  Minimum="0"
-                  Maximum="100"
-                  ShowProgressText="True"
-    >
-    </ProgressBar>
-    
-    <Button       Name="convertButton"
-                  Click="ConvertButton"
-                  ClickMode="Press"
-                  Width="75"
-                  Height="30"
-                  Canvas.Top="440"
-                  Canvas.Left="200"
-    />
+    <CheckBox
+      Name="SnapinatorCheckBox"
+      Canvas.Left="30"
+      Canvas.Top="260"
+      Width="110"
+      Height="10"
+      />
 
-    <Button       Name="GithubRepo"
-                  Click="GithubLinkPressed"
-                  ClickMode="Press"
-                  Width="330"
-                  Height="30"
-                  Canvas.Top="500"
-                  Canvas.Left="10"
-    />
-    
+    <CheckBox
+      Name="ScratchCheckBox"
+      Canvas.Left="150"
+      Canvas.Top="260"
+      Width="90"
+      Height="10"
+      />
+
+    <Label
+      Name="OSTextAndCPU"
+      Canvas.Left="15"
+      Canvas.Top="290"
+      Width="500"
+      Height="30" />
+    <CheckBox
+      Name="WindowsCheckBox"
+      Canvas.Left="30"
+      Canvas.Top="320"
+      Width="90"
+      Height="10" />
+
+    <CheckBox
+      Name="LinuxCheckBox"
+      Canvas.Left="130"
+      Canvas.Top="320"
+      Width="90"
+      Height="10" />
+
+    <CheckBox
+      Name="MacOSCheckBox"
+      Canvas.Left="230"
+      Canvas.Top="320"
+      Width="90"
+      Height="10" />
+
+    <CheckBox
+      Name="X64CheckBox"
+      Canvas.Top="320"
+      Canvas.Right="100"
+      Width="90"
+      Height="10"
+      Content="x-64" />
+
+    <CheckBox
+      Name="X32CheckBox"
+      Canvas.Top="350"
+      Canvas.Right="100"
+      Width="90"
+      Height="10"
+      Content="x-32" />
+
+    <CheckBox
+      Name="Arm64CheckBox"
+      Canvas.Top="380"
+      Canvas.Right="100"
+      Width="90"
+      Height="10"
+      Content="arm-64" />
+
+    <ProgressBar
+      Name="ProgressBarConverter"
+      Canvas.Left="15"
+      Canvas.Top="410"
+      Width="500"
+      Height="25"
+      Maximum="100"
+      Minimum="0"
+      ShowProgressText="True" />
+
+    <Button
+      Name="convertButton"
+      Canvas.Left="200"
+      Canvas.Top="440"
+      Width="75"
+      Height="30"
+      Click="ConvertButton"
+      ClickMode="Press" />
+
+    <Button
+      Name="GithubRepo"
+      Canvas.Left="10"
+      Canvas.Top="500"
+      Width="330"
+      Height="30"
+      Click="GithubLinkPressed"
+      ClickMode="Press" />
+
   </Canvas>
-  
+
 </Window>

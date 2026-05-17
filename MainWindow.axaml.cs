@@ -19,8 +19,6 @@ using ImageMagick.Drawing;
 using LibVLCSharp.Avalonia;
 using LibVLCSharp.Shared;
 using Microsoft.ML.OnnxRuntimeGenAI;
-using MsBox.Avalonia;
-using MsBox.Avalonia.Enums;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using SkiaSharp;
@@ -60,9 +58,7 @@ using static System.Net.Mime.MediaTypeNames;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 using Downloader;
 using Avalonia.Media.Imaging;
-
-using MsBox.Avalonia.Models;
-using MsBox.Avalonia.Dto;
+using PopUpWindowNamespace;
 using Image = Avalonia.Controls.Image;
 
 
@@ -297,28 +293,12 @@ public partial class MainWindow : Window
                 await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => convertButton.IsEnabled = false);
                 if (REQUIREMENTSmessage == false)
                 {
-                    //await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => MessageBoxManager.GetMessageBoxStandard("Dependency / Dependencies not installed", "Somehow there are one or more Dependencies not installed, wait until those are installed by the program. \nIf the button should be clickable and changes to beeing non clickable the whole time, it is because of an internal error. \nIn that case it is good if you´d restart the application. ", ButtonEnum.Ok, MsBox.Avalonia.Enums.Icon.Error).ShowAsync());
-                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(async () =>
+                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
                     {
-                        var test = MessageBoxManager.GetMessageBoxCustom(
-                        new MessageBoxCustomParams
-                        {
-                            
-                            ButtonDefinitions = new List<ButtonDefinition>
-                            {
-                                new ButtonDefinition{Name = "Ok"}
-                            },
-                            WindowIcon = IconWindow,
-                            Icon = MsBox.Avalonia.Enums.Icon.Error,
-                            ContentTitle = "Error loading Dependency/Dependencies",
-                            ContentMessage = "There was an error loading some dependencies. However you can wait, and it instals them itsef. Do not worry, after inststalling is done you can close the application. However, if th",
-                            
-                        }
-                        );
-                        await test.ShowAsync();
-                    }
-                    );
-                    REQUIREMENTSmessage = true;
+                        PopUp Requirements = new PopUp();
+                        Requirements.PopUpWindow(false, Avalonia.Media.Colors.White, Avalonia.Media.Colors.Black, 500, 250, Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ConverterIcon", "Converter.ico"), "Dependency Error", Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ConverterIcon", "Converter.png"),  "They will be installed asap. If the Progress bar is at 100% and the button should flicker close the whole app and reopen it.", true, true, false, false);
+                        REQUIREMENTSmessage = true;
+                    });
                 }
             }
 
@@ -986,15 +966,8 @@ public partial class MainWindow : Window
                 {
                     await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(async () =>
                     {
-                        var test = MessageBoxManager.GetMessageBoxCustom(
-                        new MessageBoxCustomParams
-                        {
-                            ContentTitle = "Succesful Build",
-                            ContentMessage = "Your Project was built for " + formatOfApplication + " and is located at " + Foldername,
-                            WindowIcon = IconWindow
-                        }
-                        );
-                        await test.ShowAsync();
+                        PopUp Applicationlocation = new PopUp();
+                        Applicationlocation.PopUpWindow(false, Avalonia.Media.Colors.White, Avalonia.Media.Colors.Black, 500, 350,Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ConverterIcon", "Converter.ico"), "Successful Build", Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "MessageBoxImages", "Info.png"), "Your Project was built for " + formatOfApplication + " and is located at " + Foldername, false, true, false, false);
                     }
                     );
 
@@ -1481,7 +1454,6 @@ public partial class MainWindow : Window
             await (Cli.Wrap("dotnet").WithArguments(args => args.Add("add").Add("package").Add("VideoLAN.LibVLC.Mac")).WithWorkingDirectory(GameFolder).ExecuteAsync());
             await (Cli.Wrap("dotnet").WithArguments(args => args.Add("add").Add("package").Add("easyAsyncCancel")).WithWorkingDirectory(GameFolder).ExecuteAsync());
             await (Cli.Wrap("dotnet").WithArguments(args => args.Add("build").Add(ApplicationName + ".slnx")).WithWorkingDirectory(GameFolder).ExecuteAsync());
-            await (Cli.Wrap("dotnet").WithArguments(args => args.Add("new").Add("avalonia.mvvm").Add("-o").Add(ApplicationName)).WithWorkingDirectory(Foldername).ExecuteAsync());
 
             //Need multiple Cli.Wraps
             if (Snapinator == true && Scratch == false)
@@ -1841,6 +1813,8 @@ public partial class MainWindow : Window
                         DaysSince2000 = true;
                     }
                 }
+                File.AppendAllText(WindowCsFile, "\n public int WindowWidth = 480;");
+                File.AppendAllText(WindowCsFile, "\n public int WindowHeight = 360;");
 
                 File.AppendAllText(WindowCsFile, "\n public MainWindow(){");
                 File.AppendAllText(WindowCsFile, "\n InitializeComponent();");
@@ -2406,11 +2380,25 @@ public partial class MainWindow : Window
                             File.AppendAllText(WindowCsFile, "\n //\"doFaceTowards\"");
                             //Get the Object to face towards, get the position of the mouse if it is the mouse
                             //that is actually pretty hard but doable if i have enough brain cells XD
-                            string ObjectToFaceTowards = File.ReadAllLines(jsonPath).Skip(Line).Take(1).First().Replace("\"l\":", "").Replace("\"", "").Trim();
-                            if (ObjectToFaceTowards == "Mouse")
+                            string ObjectToFaceTowards = File.ReadAllLines(jsonPath).Skip(Line).Take(1).First();
+                            if(ObjectToFaceTowards.Contains("\"random position\""))
                             {
-                                //Will probably only be supported when v 1.0 is done
+
                             }
+
+                            if (ObjectToFaceTowards.Contains("\"mouse-pointer\""))
+                            {
+
+                            }
+
+                            if (ObjectToFaceTowards.Contains("\"center\""))
+                            {
+                                File.AppendAllText(WindowCsFile, "\n var Rotation" + LastObject + "Center = new RotateTransform();");
+                                File.AppendAllText(WindowCsFile, "\n var image" + LastObject + "Center = this.FindControl<Image>(\"Image" + LastObject + "\");");
+                                File.AppendAllText(WindowCsFile, "\n Rotation" + LastObject + " = Math.Atan(WindowWidth/2, WindowHeight/2s);");
+                                File.AppendAllText(WindowCsFile, "\n image" + LastObject + ".Angle = Rotation" + LastObject);
+                            }
+
                             else
                             {
                                 ObjectToFaceTowards = LastObject;
@@ -3868,15 +3856,8 @@ public partial class MainWindow : Window
                 }
                 await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(async () =>
                 {
-                    var test = MessageBoxManager.GetMessageBoxCustom(
-                    new MessageBoxCustomParams
-                    {
-                        ContentTitle = "Succesful Build",
-                        ContentMessage = "Your Project was built for " + formatOfApplication + " and is located at " + Foldername,
-                        WindowIcon = IconWindow
-                    }
-                    );
-                    await test.ShowAsync();
+                    PopUp SuccesfulBuild = new PopUp();
+                    SuccesfulBuild.PopUpWindow(false, Avalonia.Media.Colors.White, Avalonia.Media.Colors.Black, 500, 350, Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ConverterIcon", "Converter.ico"), "Succesful Build", Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "MessageBoxImages", "Info.png"), "Your Project was built for " + formatOfApplication + " and is located at " + Foldername, false, true, false, false);
                 }
                 );
                 //ProgressBarConverter.Value = 100; //Need to make the whole script in order so it works way better -rn the code is pure spaghetti code, but later it will be a flat Pizza i promise XD
@@ -3887,15 +3868,8 @@ public partial class MainWindow : Window
         {
             await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(async () =>
             {
-                var test = MessageBoxManager.GetMessageBoxCustom(
-                new MessageBoxCustomParams
-                {
-                    ContentTitle = "Unsuccesful Build",
-                    ContentMessage = "Your Project was sadly not built, \n but it is located at " + Foldername + ", \n either it has some bugs that need to be fixed, or it is just a internal error of this program",
-                    WindowIcon = IconWindow
-                }
-                );
-                await test.ShowAsync();
+                PopUp SuccesfulBuild = new PopUp();
+                SuccesfulBuild.PopUpWindow(false, Avalonia.Media.Colors.White, Avalonia.Media.Colors.Black, 500, 350, Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ConverterIcon", "Converter.ico"), "Unsuccesful Build", Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "MessageBoxImages", "Error.png"), "Your Project was sadly not built, \n but it is located at " + Foldername + ", \n either it has some bugs that need to be fixed, or it is just a internal error of this program", false, true, false, false);
             }
             );
         }
