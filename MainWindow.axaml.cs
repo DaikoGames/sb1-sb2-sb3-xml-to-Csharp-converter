@@ -170,12 +170,15 @@ public partial class MainWindow : Window
         //In the future people can add their languages here: 
         //Velopack Build and run stuff is not working
         IconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory + "ConverterIcon", "Converter.ico");
+        if (!File.Exists(IconPath))
+        {
+            Task.Delay(1000);
+        }
         IconWindow = new Avalonia.Controls.WindowIcon(IconPath);
         this.Icon = new WindowIcon(IconPath);
         Theme();
 
         Task.Run(() => ThemeChange());
-
     }
 
     protected override void OnClosing(WindowClosingEventArgs e)
@@ -313,6 +316,8 @@ public partial class MainWindow : Window
 
     public async Task CheckRequirements()
     {
+        CultureInfo LanguageOfUser = CultureInfo.CurrentUICulture;
+        string Language = LanguageOfUser.TwoLetterISOLanguageName;
         while (true)
         {
             StillDoing = true;
@@ -321,6 +326,15 @@ public partial class MainWindow : Window
                 ParallelDownload = true,
                 ChunkCount = 8
             };
+
+            string IconFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ConverterIcon");
+            if (!Directory.Exists(IconFolder))
+            {
+                Trace.WriteLine("Directory Fails");
+                SomethingNotInstalled = true;
+                Directory.CreateDirectory(IconFolder);
+            }
+
             string ConverterFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ScratchConverter");
             Trace.WriteLine("Checking Requirements");
             if (!Directory.Exists(ConverterFolder))
@@ -367,6 +381,30 @@ public partial class MainWindow : Window
                 Directory.CreateDirectory(AIFolder);
             }
 
+            string PNGFile = Path.Combine(IconFolder, "Convert.png");
+            if (!File.Exists(PNGFile))
+            {
+                SomethingNotInstalled = true;
+                var PNGFileDownloader = new DownloadService(DownloadOption);
+                await PNGFileDownloader.DownloadFileTaskAsync("https://github.com/DaikoGames/sb1-sb2-sb3-xml-to-Csharp-converter/raw/refs/heads/main/ConverterIcon/Converter.png", new DirectoryInfo(IconFolder));
+            }
+
+            string ICOfile = Path.Combine(IconFolder, "Convert.ico");
+            if (!File.Exists(ICOfile))
+            {
+                SomethingNotInstalled = true;
+                var ICOFileDownloader = new DownloadService(DownloadOption);
+                await ICOFileDownloader.DownloadFileTaskAsync("https://github.com/DaikoGames/sb1-sb2-sb3-xml-to-Csharp-converter/raw/refs/heads/main/ConverterIcon/Converter.ico", new DirectoryInfo(IconFolder));
+            }
+
+            string IcnsFile = Path.Combine(IconFolder, "Convert.icns");
+            if (!File.Exists(IcnsFile))
+            {
+                SomethingNotInstalled = true;
+                var ICNSFileDownloader = new DownloadService(DownloadOption);
+                await ICNSFileDownloader.DownloadFileTaskAsync("https://github.com/DaikoGames/sb1-sb2-sb3-xml-to-Csharp-converter/raw/refs/heads/main/ConverterIcon/Converter.icns", new DirectoryInfo(IconFolder));
+            }
+
             string ConverterFile = Path.Combine(ConverterFolder, "Convert.js");
             if (!File.Exists(ConverterFile))
             {
@@ -392,85 +430,89 @@ public partial class MainWindow : Window
                 await NPMpackageLockJSONDownloader.DownloadFileTaskAsync("https://github.com/DaikoGames/Scratch-Format-converter/blob/main/package-lock.json", new DirectoryInfo(ConverterFolder));
             }
 
-            string AddedtokensFile = Path.Combine(AIFolder, "added_tokens.json");
-            if (!File.Exists(AddedtokensFile))
+            if(Language != "de" && Language != "en")
             {
-                SomethingNotInstalled = true;
-                var AddedtokensDownloader = new DownloadService(DownloadOption);
-                await AddedtokensDownloader.DownloadFileTaskAsync("https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/added_tokens.json", new DirectoryInfo(AIFolder));
-            }
+                string AddedtokensFile = Path.Combine(AIFolder, "added_tokens.json");
+                if (!File.Exists(AddedtokensFile))
+                {
+                    SomethingNotInstalled = true;
+                    var AddedtokensDownloader = new DownloadService(DownloadOption);
+                    await AddedtokensDownloader.DownloadFileTaskAsync("https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/added_tokens.json", new DirectoryInfo(AIFolder));
+                }
 
-            string ConfigJSONfile = Path.Combine(AIFolder, "config.json");
-            if (!File.Exists(ConfigJSONfile))
-            {
-                SomethingNotInstalled = true;
-                var ConfigJSONDownloader = new DownloadService(DownloadOption);
-                await ConfigJSONDownloader.DownloadFileTaskAsync("https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/config.json", new DirectoryInfo(AIFolder));
-            }
+                string ConfigJSONfile = Path.Combine(AIFolder, "config.json");
+                if (!File.Exists(ConfigJSONfile))
+                {
+                    SomethingNotInstalled = true;
+                    var ConfigJSONDownloader = new DownloadService(DownloadOption);
+                    await ConfigJSONDownloader.DownloadFileTaskAsync("https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/config.json", new DirectoryInfo(AIFolder));
+                }
 
-            string GenAIConfigJSONfile = Path.Combine(AIFolder, "genai_config.json");
-            if (!File.Exists(GenAIConfigJSONfile))
-            {
-                SomethingNotInstalled = true;
-                var GenAIConfigJSONDownloader = new DownloadService(DownloadOption);
-                await GenAIConfigJSONDownloader.DownloadFileTaskAsync("https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/genai_config.json", new DirectoryInfo(AIFolder));
-            }
+                string GenAIConfigJSONfile = Path.Combine(AIFolder, "genai_config.json");
+                if (!File.Exists(GenAIConfigJSONfile))
+                {
+                    SomethingNotInstalled = true;
+                    var GenAIConfigJSONDownloader = new DownloadService(DownloadOption);
+                    await GenAIConfigJSONDownloader.DownloadFileTaskAsync("https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/genai_config.json", new DirectoryInfo(AIFolder));
+                }
 
-            string MergesTXT = Path.Combine(AIFolder, "merges.txt");
-            if (!File.Exists(MergesTXT))
-            {
-                SomethingNotInstalled = true;
-                var MergesTXTDownloader = new DownloadService(DownloadOption);
-                await MergesTXTDownloader.DownloadFileTaskAsync("https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/merges.txt", new DirectoryInfo(AIFolder));
-            }
+                string MergesTXT = Path.Combine(AIFolder, "merges.txt");
+                if (!File.Exists(MergesTXT))
+                {
+                    SomethingNotInstalled = true;
+                    var MergesTXTDownloader = new DownloadService(DownloadOption);
+                    await MergesTXTDownloader.DownloadFileTaskAsync("https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/merges.txt", new DirectoryInfo(AIFolder));
+                }
 
-            string ONNXfile = Path.Combine(AIFolder, "qwen-2.5-32k-500m-instruct.onnx");
-            if (!File.Exists(ONNXfile))
-            {
-                SomethingNotInstalled = true;
-                var ONNXfileDownloader = new DownloadService(DownloadOption);
-                await ONNXfileDownloader.DownloadFileTaskAsync("https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/qwen-2.5-32k-500m-instruct.onnx", new DirectoryInfo(AIFolder));
-            }
+                string ONNXfile = Path.Combine(AIFolder, "qwen-2.5-32k-500m-instruct.onnx");
+                if (!File.Exists(ONNXfile))
+                {
+                    SomethingNotInstalled = true;
+                    var ONNXfileDownloader = new DownloadService(DownloadOption);
+                    await ONNXfileDownloader.DownloadFileTaskAsync("https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/qwen-2.5-32k-500m-instruct.onnx", new DirectoryInfo(AIFolder));
+                }
 
-            string ONNXdataFILE = Path.Combine(AIFolder, "qwen-2.5-32k-500m-instruct.onnx.data");
-            if (!File.Exists(ONNXdataFILE))
-            {
-                SomethingNotInstalled = true;
-                var ONNXdataDownloader = new DownloadService(DownloadOption);
-                await ONNXdataDownloader.DownloadFileTaskAsync("https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/qwen-2.5-32k-500m-instruct.onnx.data", new DirectoryInfo(AIFolder));
-            }
+                string ONNXdataFILE = Path.Combine(AIFolder, "qwen-2.5-32k-500m-instruct.onnx.data");
+                if (!File.Exists(ONNXdataFILE))
+                {
+                    SomethingNotInstalled = true;
+                    var ONNXdataDownloader = new DownloadService(DownloadOption);
+                    await ONNXdataDownloader.DownloadFileTaskAsync("https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/qwen-2.5-32k-500m-instruct.onnx.data", new DirectoryInfo(AIFolder));
+                }
 
-            string SpecialTokensFILE = Path.Combine(AIFolder, "special_tokens_map.json");
-            if (!File.Exists(SpecialTokensFILE))
-            {
-                SomethingNotInstalled = true;
-                var SpecialTokensDownloader = new DownloadService(DownloadOption);
-                await SpecialTokensDownloader.DownloadFileTaskAsync("https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/special_tokens_map.json", new DirectoryInfo(AIFolder));
-            }
+                string SpecialTokensFILE = Path.Combine(AIFolder, "special_tokens_map.json");
+                if (!File.Exists(SpecialTokensFILE))
+                {
+                    SomethingNotInstalled = true;
+                    var SpecialTokensDownloader = new DownloadService(DownloadOption);
+                    await SpecialTokensDownloader.DownloadFileTaskAsync("https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/special_tokens_map.json", new DirectoryInfo(AIFolder));
+                }
 
-            string Tokenizer = Path.Combine(AIFolder, "tokenizer.json");
-            if (!File.Exists(Tokenizer))
-            {
-                SomethingNotInstalled = true;
-                var TokenizerDownloader = new DownloadService(DownloadOption);
-                await TokenizerDownloader.DownloadFileTaskAsync("https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/tokenizer.json", new DirectoryInfo(AIFolder));
-            }
+                string Tokenizer = Path.Combine(AIFolder, "tokenizer.json");
+                if (!File.Exists(Tokenizer))
+                {
+                    SomethingNotInstalled = true;
+                    var TokenizerDownloader = new DownloadService(DownloadOption);
+                    await TokenizerDownloader.DownloadFileTaskAsync("https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/tokenizer.json", new DirectoryInfo(AIFolder));
+                }
 
-            string TokenizerConfig = Path.Combine(AIFolder, "tokenizer_config.json");
-            if (!File.Exists(TokenizerConfig))
-            {
-                SomethingNotInstalled = true;
-                var TokenizerConfigDownloader = new DownloadService(DownloadOption);
-                await TokenizerConfigDownloader.DownloadFileTaskAsync("https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/tokenizer_config.json", new DirectoryInfo(AIFolder));
-            }
+                string TokenizerConfig = Path.Combine(AIFolder, "tokenizer_config.json");
+                if (!File.Exists(TokenizerConfig))
+                {
+                    SomethingNotInstalled = true;
+                    var TokenizerConfigDownloader = new DownloadService(DownloadOption);
+                    await TokenizerConfigDownloader.DownloadFileTaskAsync("https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/tokenizer_config.json", new DirectoryInfo(AIFolder));
+                }
 
-            string VocabFILE = Path.Combine(AIFolder, "vocab.json");
-            if (!File.Exists(VocabFILE))
-            {
-                SomethingNotInstalled = true;
-                var VocabFILEDownloader = new DownloadService(DownloadOption);
-                await VocabFILEDownloader.DownloadFileTaskAsync("https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/vocab.json", new DirectoryInfo(AIFolder));
+                string VocabFILE = Path.Combine(AIFolder, "vocab.json");
+                if (!File.Exists(VocabFILE))
+                {
+                    SomethingNotInstalled = true;
+                    var VocabFILEDownloader = new DownloadService(DownloadOption);
+                    await VocabFILEDownloader.DownloadFileTaskAsync("https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/vocab.json", new DirectoryInfo(AIFolder));
+                }
             }
+            
 
             foreach (string ScratchJnrFile in ScratchJnrFiles)
             {
@@ -968,7 +1010,9 @@ public partial class MainWindow : Window
                     {
                         PopUp Applicationlocation = new PopUp();
                         Applicationlocation.PopUpWindow(false, Avalonia.Media.Colors.White, Avalonia.Media.Colors.Black, 500, 350,Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ConverterIcon", "Converter.ico"), "Successful Build", Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "MessageBoxImages", "Info.png"), "Your Project was built for " + formatOfApplication + " and is located at " + Foldername, false, true, false, false);
+
                     }
+
                     );
 
                 }
