@@ -349,7 +349,7 @@ public partial class MainWindow : Window
                 Directory.CreateDirectory(IconFolder);
             }
 
-            string ConverterFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ScratchConverter/");
+            string ConverterFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Scratch-Format-converter");
             Trace.WriteLine("Checking Requirements");
             if (!Directory.Exists(ConverterFolder))
             {
