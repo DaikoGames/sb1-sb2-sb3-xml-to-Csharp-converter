@@ -170,12 +170,11 @@ public partial class MainWindow : Window
         //In the future people can add their languages here: 
         //Velopack Build and run stuff is not working
         IconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory + "ConverterIcon", "Converter.ico");
-        if (!File.Exists(IconPath))
+        if (File.Exists(IconPath))
         {
-            Task.Delay(1000);
+            IconWindow = new Avalonia.Controls.WindowIcon(IconPath);
+            this.Icon = new WindowIcon(IconPath);
         }
-        IconWindow = new Avalonia.Controls.WindowIcon(IconPath);
-        this.Icon = new WindowIcon(IconPath);
         Theme();
 
         Task.Run(() => ThemeChange());
@@ -286,6 +285,20 @@ public partial class MainWindow : Window
             }
         }
     }
+    public void YesButtonClick(object? sender, RoutedEventArgs e)
+    {
+
+    }
+
+    public void OkButtonClick(object? sender, RoutedEventArgs e)
+    {
+
+    }
+
+    public void NoButtonClick(object ?sender, RoutedEventArgs e)
+    {
+
+    }
     public async Task ShowOrNot()
     {
 
@@ -299,7 +312,8 @@ public partial class MainWindow : Window
                     await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
                     {
                         PopUp Requirements = new PopUp();
-                        Requirements.PopUpWindow(false, Avalonia.Media.Colors.White, Avalonia.Media.Colors.Black, 500, 250, Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ConverterIcon", "Converter.ico"), "Dependency Error", Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ConverterIcon", "Converter.png"),  "They will be installed asap. If the Progress bar is at 100% and the button should flicker close the whole app and reopen it.", true, true, false, false);
+                        Requirements.PopUpWindow(true, Avalonia.Media.Colors.White, Avalonia.Media.Colors.Black, 500, 250, Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ConverterIcon", "Converter.ico"), "Dependency Error", Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ConverterIcon", "Converter.png"),  "#They will be installed asap. If the Progress bar is at 100% and the button should flicker close the whole app and reopen it.#", true, true, false, false);
+                        Requirements.NoButton.Click += NoButtonClick;
                         REQUIREMENTSmessage = true;
                     });
                 }
@@ -335,7 +349,7 @@ public partial class MainWindow : Window
                 Directory.CreateDirectory(IconFolder);
             }
 
-            string ConverterFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ScratchConverter");
+            string ConverterFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ScratchConverter/");
             Trace.WriteLine("Checking Requirements");
             if (!Directory.Exists(ConverterFolder))
             {
