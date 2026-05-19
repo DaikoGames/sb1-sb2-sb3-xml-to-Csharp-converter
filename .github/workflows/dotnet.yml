@@ -34,7 +34,9 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-
+        with: 
+         submodules: recursive
+        
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
@@ -65,10 +67,10 @@ jobs:
           New-Item -ItemType Directory -Force -Path "$baseDir/ConverterIcon"
           Copy-Item "./ConverterIcon/Converter.ico" "$baseDir/ConverterIcon/Converter.ico"
           Copy-Item "./ConverterIcon/Converter.png" "$baseDir/ConverterIcon/Converter.png"
-          New-Item -ItemType Directory -Force -Path "$baseDir/ScratchConverter"
-          Copy-Item "./ScratchConverter/Convert.js" "$baseDir/ScratchConverter/Convert.js"
-          Copy-Item "./ScratchConverter/package.json" "$baseDir/ScratchConverter/package.json"
-          Copy-Item "./ScratchConverter/package-lock.json" "$baseDir/ScratchConverter/package-lock.json"
+          New-Item -ItemType Directory -Force -Path "$baseDir/Scratch-Format-converter"
+          Copy-Item "./Scratch-Format-converter/Convert.js" "$baseDir/ScratchConverter/Convert.js"
+          Copy-Item "./Scratch-Format-converter/package.json" "$baseDir/ScratchConverter/package.json"
+          Copy-Item "./Scratch-Format-converter/package-lock.json" "$baseDir/ScratchConverter/package-lock.json"
           New-Item -ItemType Directory -Force -Path "$baseDir/Install"
           Copy-Item "./Install/dotnet-install.ps1" "$baseDir/Install/dotnet-install.ps1"
           New-Item -ItemType Directory -Force -Path "$baseDir/svg_library_ScratchJnr"
@@ -85,10 +87,10 @@ jobs:
           New-Item -ItemType Directory -Force -Path "$baseDir/ConverterIcon"
           Copy-Item "./ConverterIcon/Converter.ico" "$baseDir/ConverterIcon/Converter.ico"
           Copy-Item "./ConverterIcon/Converter.png" "$baseDir/ConverterIcon/Converter.png"
-          New-Item -ItemType Directory -Force -Path "$baseDir/ScratchConverter"
-          Copy-Item "./ScratchConverter/Convert.js" "$baseDir/ScratchConverter/Convert.js"
-          Copy-Item "./ScratchConverter/package.json" "$baseDir/ScratchConverter/package.json"
-          Copy-Item "./ScratchConverter/package-lock.json" "$baseDir/ScratchConverter/package-lock.json"
+          New-Item -ItemType Directory -Force -Path "$baseDir/Scratch-Format-converter"
+          Copy-Item "./Scratch-Format-converter/Convert.js" "$baseDir/ScratchConverter/Convert.js"
+          Copy-Item "./Scratch-Format-converter/package.json" "$baseDir/ScratchConverter/package.json"
+          Copy-Item "./Scratch-Format-converter/package-lock.json" "$baseDir/ScratchConverter/package-lock.json"
           New-Item -ItemType Directory -Force -Path "$baseDir/Install"
           Copy-Item "./Install/dotnet-install.sh" "$baseDir/Install/dotnet-install.sh"
           New-Item -ItemType Directory -Force -Path "$baseDir/svg_library_ScratchJnr"
