@@ -112,7 +112,7 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         Core.Initialize();
-        Task.Run(() => CheckRequirements());
+        //Task.Run(() => CheckRequirements());
 
         Task.Run(() => ShowOrNot());
         Trace.WriteLine("Initializing the App");
@@ -178,6 +178,7 @@ public partial class MainWindow : Window
         Theme();
 
         Task.Run(() => ThemeChange());
+        CheckRequirements();
     }
 
     protected override void OnClosing(WindowClosingEventArgs e)
@@ -285,19 +286,20 @@ public partial class MainWindow : Window
             }
         }
     }
+    PopUp Requirements = new PopUp();
     public void YesButtonClick(object? sender, RoutedEventArgs e)
     {
-
+        Requirements.ActualPopUp.Close();
     }
 
     public void OkButtonClick(object? sender, RoutedEventArgs e)
     {
-
+        Requirements.ActualPopUp.Close();
     }
 
     public void NoButtonClick(object ?sender, RoutedEventArgs e)
     {
-
+        Requirements.ActualPopUp.Close();
     }
     public async Task ShowOrNot()
     {
@@ -311,8 +313,9 @@ public partial class MainWindow : Window
                 {
                     await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
                     {
-                        PopUp Requirements = new PopUp();
-                        Requirements.PopUpWindow(true, Avalonia.Media.Colors.White, Avalonia.Media.Colors.Black, 500, 250, Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ConverterIcon", "Converter.ico"), "Dependency Error", Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ConverterIcon", "Converter.png"),  "#They will be installed asap. If the Progress bar is at 100% and the button should flicker close the whole app and reopen it.#", true, true, false, false);
+                        Requirements.PopUpWindow(false, false, Avalonia.Media.Colors.White, Avalonia.Media.Colors.Black, true, 500, 250, Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ConverterIcon", "Converter.ico"), "Dependency Error", Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ConverterIcon", "Converter.png"),  "#They will be installed asap. If the Progress bar is at 100% and the button should flicker close the whole app and reopen it.#", true, true, false, false);
+                        Requirements.YesButton.Click += YesButtonClick;
+                        Requirements.OkButton.Click += OkButtonClick;
                         Requirements.NoButton.Click += NoButtonClick;
                         REQUIREMENTSmessage = true;
                     });
@@ -446,6 +449,9 @@ public partial class MainWindow : Window
 
             if(Language != "de" && Language != "en")
             {
+                //Original AI Model: https://huggingface.co/facebook/m2m100_418M
+                //new AI model: https://huggingface.co/lopatnov/m2m100_418M-onnx
+                //License is MIT!!! Very Important!!
                 string AddedtokensFile = Path.Combine(AIFolder, "added_tokens.json");
                 if (!File.Exists(AddedtokensFile))
                 {
@@ -1023,7 +1029,7 @@ public partial class MainWindow : Window
                     await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(async () =>
                     {
                         PopUp Applicationlocation = new PopUp();
-                        Applicationlocation.PopUpWindow(false, Avalonia.Media.Colors.White, Avalonia.Media.Colors.Black, 500, 350,Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ConverterIcon", "Converter.ico"), "Successful Build", Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "MessageBoxImages", "Info.png"), "Your Project was built for " + formatOfApplication + " and is located at " + Foldername, false, true, false, false);
+                        Applicationlocation.PopUpWindow(false, false, Avalonia.Media.Colors.White, Avalonia.Media.Colors.Black, true, 500, 350,Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ConverterIcon", "Converter.ico"), "Successful Build", Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "MessageBoxImages", "Info.png"), "Your Project was built for " + formatOfApplication + " and is located at " + Foldername, false, true, false, false);
 
                     }
 
@@ -3915,7 +3921,7 @@ public partial class MainWindow : Window
                 await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(async () =>
                 {
                     PopUp SuccesfulBuild = new PopUp();
-                    SuccesfulBuild.PopUpWindow(false, Avalonia.Media.Colors.White, Avalonia.Media.Colors.Black, 500, 350, Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ConverterIcon", "Converter.ico"), "Succesful Build", Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "MessageBoxImages", "Info.png"), "Your Project was built for " + formatOfApplication + " and is located at " + Foldername, false, true, false, false);
+                    SuccesfulBuild.PopUpWindow(false, false, Avalonia.Media.Colors.White, Avalonia.Media.Colors.Black, true, 500, 350, Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ConverterIcon", "Converter.ico"), "Succesful Build", Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "MessageBoxImages", "Info.png"), "Your Project was built for " + formatOfApplication + " and is located at " + Foldername, false, true, false, false);
                 }
                 );
                 //ProgressBarConverter.Value = 100; //Need to make the whole script in order so it works way better -rn the code is pure spaghetti code, but later it will be a flat Pizza i promise XD
@@ -3927,7 +3933,7 @@ public partial class MainWindow : Window
             await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(async () =>
             {
                 PopUp SuccesfulBuild = new PopUp();
-                SuccesfulBuild.PopUpWindow(false, Avalonia.Media.Colors.White, Avalonia.Media.Colors.Black, 500, 350, Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ConverterIcon", "Converter.ico"), "Unsuccesful Build", Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "MessageBoxImages", "Error.png"), "Your Project was sadly not built, \n but it is located at " + Foldername + ", \n either it has some bugs that need to be fixed, or it is just a internal error of this program", false, true, false, false);
+                SuccesfulBuild.PopUpWindow(false, false, Avalonia.Media.Colors.White, Avalonia.Media.Colors.Black, true, 500, 350, Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ConverterIcon", "Converter.ico"), "Unsuccesful Build", Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "MessageBoxImages", "Error.png"), "Your Project was sadly not built, \n but it is located at " + Foldername + ", \n either it has some bugs that need to be fixed, or it is just a internal error of this program", false, true, false, false);
             }
             );
         }
