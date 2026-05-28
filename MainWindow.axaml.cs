@@ -1,65 +1,33 @@
 //This Code belongs to Daiko Games - it is copyrighted - don�t use it without permission
-using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.Documents;
-using Avalonia.Data;
 using Avalonia.Input;
-using Avalonia.Input.TextInput;
 using Avalonia.Interactivity;
 using Avalonia.Media;
-using Avalonia.OpenGL;
 using Avalonia.Platform.Storage;
 using Avalonia.Styling;
 using CliWrap;
 using CliWrap.Buffered;
+using Downloader;
 using ImageMagick;
 //Gotta check if I still need SVG when I have ImageMagick
-using ImageMagick;
 using ImageMagick.Drawing;
-using LibVLCSharp.Avalonia;
 using LibVLCSharp.Shared;
-using Microsoft.ML.OnnxRuntimeGenAI;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using SkiaSharp;
+using PopUpWindowNamespace;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.ComponentModel.Design;
 using System.Diagnostics;
-using System.Diagnostics.Metrics;
-using System.Drawing;
-using System.Globalization;
 using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
-using System.Linq.Expressions;
-using System.Net;
-using System.Net.NetworkInformation;
-using System.Net.Sockets;
-using System.Numerics;
-using System.Reflection.Emit;
-using System.Runtime.CompilerServices;
-using System.Runtime.ConstrainedExecution;
-using System.Runtime.InteropServices;
-using System.Runtime.InteropServices.Marshalling;
-using System.Runtime.Intrinsics.X86;
-using System.Security.Cryptography.X509Certificates;
-using System.Text.RegularExpressions;
+using System.Text;
 //using Microsoft.Win32.SafeHandles;
 using System.Threading.Tasks;
 using System.Xml;
-using System.Xml.Linq;
-using Tmds.DBus.Protocol;
-using Velopack;
-using Velopack.Locators;
-using static System.Net.Mime.MediaTypeNames;
-using static System.Runtime.InteropServices.JavaScript.JSType;
-using Downloader;
-using Avalonia.Media.Imaging;
-using PopUpWindowNamespace;
-using Image = Avalonia.Controls.Image;
+using BergamotTranslatorSharp;
+
 
 
 namespace sb1_sb2_sb3_xml_to_Csharp_converter;
@@ -120,7 +88,7 @@ public partial class MainWindow : Window
         string Language = LanguageOfUser.TwoLetterISOLanguageName;
         Trace.Write(Language);
 
-        if (Language.Contains("de"))
+        /*if (Language.Contains("de"))
         {
             //German
             Text1.Content = "Bitte Wählen, oder schreiben Sie die Datei die Sie bearbeiten wollen";
@@ -158,7 +126,7 @@ public partial class MainWindow : Window
             MacOSCheckBox.Content = "Mac OS";
             convertButton.Content = "Convert!";
             GithubRepo.Content = "This Project was made by: Daiko Games";
-        }
+        }*/
 
         if (!Language.Contains("de") && !Language.Contains("en"))
         {
@@ -178,7 +146,7 @@ public partial class MainWindow : Window
         Theme();
 
         Task.Run(() => ThemeChange());
-        CheckRequirements();
+        //CheckRequirements();
     }
 
     protected override void OnClosing(WindowClosingEventArgs e)
@@ -195,97 +163,111 @@ public partial class MainWindow : Window
 
     public async Task ChangeLanguage()
     {
-        CultureInfo UIcult = CultureInfo.CurrentUICulture;
-        string NativeName = UIcult.NativeName;
-        //need to translate it somehow different
-        List<string> TranslateText = new List<string> { "Bitte Wählen, oder schreiben Sie die Datei die Sie bearbeiten wollen", "Ihre Datei sollte eine .sb, .sb2, .sb3 oder eine .xml Datei sein:", "Bitte suchen Sie sich ihren Ordner aus wo das Projekt gespeichert werden soll", "Ihr Ordner", "Bitte Wählen Sie die Icon Datei aus wenn es für Sie nötig ist", "Die Icon Datei vom Projekt (nicht notwendig)", "Soll der Converter den Snap Weg oder den Scratch Weg nehmen?", "Snapinator", "Scratch", "Bitte suchen Sie das OS, und die Architektur aus ", "Windows", "Linux", "Mac OS", "konvertieren!", "Dieses Projekt wurde von Daiko Games erstellt" };
+        Trace.Write("Changing Language now");
+        //https://github.com/Freeesia/BergamotTranslatorSharp
+        CultureInfo LanguageOfUser = CultureInfo.CurrentUICulture;
+        string Language = LanguageOfUser.TwoLetterISOLanguageName;
+        List<string> TranslateText = new List<string> { "Please Select the File you want to convert or write it down here:", "Your File, it should be a .sb, .sb2, .sb3, .xml File", "Please select the Folder where your converted Project should be stored:", "Your Folder", "Please select the Icon File if necessary:", "the Icon of the Application(Not necessary)", "Should the converter use Snap! or the Scratch Way?:", "Snap", "Scratch", "Please select the OS you want to build it for and what architecture:", "Windows", "Linux", "Mac OS", "Convert!", "This Project was made by: Daiko Games", };
+        Trace.WriteLine("Initializiere den Translator");
+        //https://docs.libretranslate.com
 
-        foreach (string TextString in TranslateText)
+        int TextNmbr = 0;
+        try
         {
-            using var Translationmodel = new Model(ModelPath);
-            using var Tokenizer = new Tokenizer(Translationmodel);
-            //it seems like de is not enough, i need the full language name lol
-            //{Language}
-            string prompt = $"""
-                    <|im_start|>system <|im_end|> <|im_start|>user only output the translated text, do not use any communication than the translation, you are a helpful translator that answers quickly, and don´t say anything else than the translation. Translate this Text: {TextString} <|im_end|> <|im_start|>assistant<|im_end|> <|im_start|>assistant
-                    """;
-            var tokens = Tokenizer.Encode(prompt);
-            using var GeneratorParams = new GeneratorParams(Translationmodel);
-            GeneratorParams.SetSearchOption("max_length", 700);
-            GeneratorParams.SetSearchOption("past_present_share_buffer", false);
-            using var generator = new Generator(Translationmodel, GeneratorParams);
-            generator.AppendTokenSequences(tokens);
-            while (!generator.IsDone())
+            foreach(string translatedText in TranslateText)
             {
-                generator.GenerateNextToken();
-            }
-            var outputTokens = generator.GetSequence(0);
-            string result = Tokenizer.Decode(outputTokens).ToString();
-            Trace.Write(result);
-            string TextOnWindow = result.Replace($"system You ONLY output the translation of the text to ({NativeName}), do not include anything else user Translate this Text:", "").Replace(TextString, "").Replace("assistant", "").Trim();
+                TextNmbr = TextNmbr + 1;
+                var configPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "TranslateFolder", "models", "en-" + Language, "config.yml");
 
-            if (result.Contains("Bitte Wählen, oder schreiben Sie die Datei die Sie bearbeiten wollen"))
-            {
-                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => Text1.Content = TextOnWindow);
-            }
-            if (result.Contains("Ihre Datei sollte eine .sb, .sb2, .sb3 oder eine .xml Datei sein:"))
-            {
-                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => FileFolderNameTextBox.Watermark = TextOnWindow);
-            }
-            if (result.Contains("Bitte suchen Sie sich ihren Ordner aus wo das Projekt gespeichert werden soll"))
-            {
-                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => Text2.Content = TextOnWindow);
-            }
-            if (result.Contains("Ihr Ordner"))
-            {
-                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => FolderNameTextBox.Watermark = TextOnWindow);
-            }
-            if (result.Contains("Bitte Wählen Sie die Icon Datei aus wenn es für Sie nötig ist"))
-            {
-                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => IconText.Content = TextOnWindow);
-            }
-            if (result.Contains("Die Icon Datei vom Projekt (nicht notwendig)"))
-            {
-                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => IconTextBox.Watermark = TextOnWindow);
-            }
-            if (result.Contains("Soll der Converter den Snap Weg oder den Scratch Weg nehmen?"))
-            {
-                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => SnapinatorOrNot.Content = TextOnWindow);
-            }
-            if (result.Contains("Snapinator"))
-            {
-                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => SnapinatorCheckBox.Content = TextOnWindow);
-            }
-            if (result.Contains("Scratch"))
-            {
-                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => ScratchCheckBox.Content = TextOnWindow);
-            }
-            if (result.Contains("Bitte suchen Sie das OS, und die Architektur aus"))
-            {
-                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => OSTextAndCPU.Content = TextOnWindow);
-            }
-            if (result.Contains("Windows"))
-            {
-                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => WindowsCheckBox.Content = TextOnWindow);
-            }
-            if (result.Contains("Linux"))
-            {
-                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => LinuxCheckBox.Content = TextOnWindow);
-            }
-            if (result.Contains("Mac OS"))
-            {
-                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => MacOSCheckBox.Content = TextOnWindow);
-            }
-            if (result.Contains("konvertieren"))
-            {
-                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => convertButton.Content = TextOnWindow);
-            }
-            if (result.Contains("Dieses Projekt wurde von Daiko Games erstellt"))
-            {
-                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => GithubRepo.Content = TextOnWindow);
+                using var service = new BlockingService(configPath);
+
+                var translated = service.Translate(translatedText);
+
+                Trace.WriteLine(translated);
+
+                
+                if(TextNmbr == 1)
+                {
+                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => Text1.Content = translated);
+                }
+
+                if (TextNmbr == 2)
+                {
+                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => FileFolderNameTextBox.Watermark = translated);
+                }
+
+                if (TextNmbr == 3)
+                {
+                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => Text2.Content = translated);
+                }
+
+                if (TextNmbr == 4)
+                {
+                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => FolderNameTextBox.Watermark = translated);
+                }
+
+                if (TextNmbr == 5)
+                {
+                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => IconText.Content = translated);
+                }
+
+                if(TextNmbr == 6)
+                {
+                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => IconTextBox.Watermark = translated);
+                }
+
+                if (TextNmbr == 7)
+                {
+                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => SnapinatorOrNot.Content = translated);
+                }
+
+                if (TextNmbr == 8)
+                {
+                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => SnapinatorCheckBox.Content = translated);
+                }
+
+                if (TextNmbr == 9)
+                {
+                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => ScratchCheckBox.Content = translated);
+                }
+
+                if (TextNmbr == 10)
+                {
+                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => OSTextAndCPU.Content = translated);
+                }
+
+                if (TextNmbr == 11)
+                {
+                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => WindowsCheckBox.Content = translated);
+                }
+
+                if (TextNmbr == 12)
+                {
+                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => LinuxCheckBox.Content = translated);
+                }
+
+                if (TextNmbr == 13)
+                {
+                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => MacOSCheckBox.Content = translated);
+                }
+
+                if(TextNmbr == 14)
+                {
+                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => convertButton.Content = translated);
+                }
+
+                if(TextNmbr == 15)
+                {
+                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => GithubRepo.Content = translated);
+                }
             }
         }
+        catch (Exception ex)
+        {
+            Trace.Write("I am sorry but the language you have is currently not available for the converter :(");
+        }
     }
+
     PopUp Requirements = new PopUp();
     public void YesButtonClick(object? sender, RoutedEventArgs e)
     {
@@ -390,12 +372,12 @@ public partial class MainWindow : Window
                 Directory.CreateDirectory(SOUNDfolder);
             }
 
-            string AIFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "AImodel");
-            if (!Directory.Exists(AIFolder))
+            string TranslationFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translation");
+            if (!Directory.Exists(TranslationFolder))
             {
                 SomethingNotInstalled = true;
                 Trace.WriteLine("Directory Fails");
-                Directory.CreateDirectory(AIFolder);
+                Directory.CreateDirectory(TranslationFolder);
             }
 
             string PNGFile = Path.Combine(IconFolder, "Convert.png");
@@ -449,87 +431,17 @@ public partial class MainWindow : Window
 
             if(Language != "de" && Language != "en")
             {
-                //Original AI Model: https://huggingface.co/facebook/m2m100_418M
-                //new AI model: https://huggingface.co/lopatnov/m2m100_418M-onnx
-                //License is MIT!!! Very Important!!
-                string AddedtokensFile = Path.Combine(AIFolder, "added_tokens.json");
-                if (!File.Exists(AddedtokensFile))
+                var CheckNodeJS = await Cli.Wrap("python").WithArguments(args => args.Add("--version")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync();
+                if (CheckNodeJS.ExitCode != 0)
                 {
                     SomethingNotInstalled = true;
-                    var AddedtokensDownloader = new DownloadService(DownloadOption);
-                    await AddedtokensDownloader.DownloadFileTaskAsync("https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/added_tokens.json", new DirectoryInfo(AIFolder));
-                }
-
-                string ConfigJSONfile = Path.Combine(AIFolder, "config.json");
-                if (!File.Exists(ConfigJSONfile))
-                {
-                    SomethingNotInstalled = true;
-                    var ConfigJSONDownloader = new DownloadService(DownloadOption);
-                    await ConfigJSONDownloader.DownloadFileTaskAsync("https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/config.json", new DirectoryInfo(AIFolder));
-                }
-
-                string GenAIConfigJSONfile = Path.Combine(AIFolder, "genai_config.json");
-                if (!File.Exists(GenAIConfigJSONfile))
-                {
-                    SomethingNotInstalled = true;
-                    var GenAIConfigJSONDownloader = new DownloadService(DownloadOption);
-                    await GenAIConfigJSONDownloader.DownloadFileTaskAsync("https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/genai_config.json", new DirectoryInfo(AIFolder));
-                }
-
-                string MergesTXT = Path.Combine(AIFolder, "merges.txt");
-                if (!File.Exists(MergesTXT))
-                {
-                    SomethingNotInstalled = true;
-                    var MergesTXTDownloader = new DownloadService(DownloadOption);
-                    await MergesTXTDownloader.DownloadFileTaskAsync("https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/merges.txt", new DirectoryInfo(AIFolder));
-                }
-
-                string ONNXfile = Path.Combine(AIFolder, "qwen-2.5-32k-500m-instruct.onnx");
-                if (!File.Exists(ONNXfile))
-                {
-                    SomethingNotInstalled = true;
-                    var ONNXfileDownloader = new DownloadService(DownloadOption);
-                    await ONNXfileDownloader.DownloadFileTaskAsync("https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/qwen-2.5-32k-500m-instruct.onnx", new DirectoryInfo(AIFolder));
-                }
-
-                string ONNXdataFILE = Path.Combine(AIFolder, "qwen-2.5-32k-500m-instruct.onnx.data");
-                if (!File.Exists(ONNXdataFILE))
-                {
-                    SomethingNotInstalled = true;
-                    var ONNXdataDownloader = new DownloadService(DownloadOption);
-                    await ONNXdataDownloader.DownloadFileTaskAsync("https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/qwen-2.5-32k-500m-instruct.onnx.data", new DirectoryInfo(AIFolder));
-                }
-
-                string SpecialTokensFILE = Path.Combine(AIFolder, "special_tokens_map.json");
-                if (!File.Exists(SpecialTokensFILE))
-                {
-                    SomethingNotInstalled = true;
-                    var SpecialTokensDownloader = new DownloadService(DownloadOption);
-                    await SpecialTokensDownloader.DownloadFileTaskAsync("https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/special_tokens_map.json", new DirectoryInfo(AIFolder));
-                }
-
-                string Tokenizer = Path.Combine(AIFolder, "tokenizer.json");
-                if (!File.Exists(Tokenizer))
-                {
-                    SomethingNotInstalled = true;
-                    var TokenizerDownloader = new DownloadService(DownloadOption);
-                    await TokenizerDownloader.DownloadFileTaskAsync("https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/tokenizer.json", new DirectoryInfo(AIFolder));
-                }
-
-                string TokenizerConfig = Path.Combine(AIFolder, "tokenizer_config.json");
-                if (!File.Exists(TokenizerConfig))
-                {
-                    SomethingNotInstalled = true;
-                    var TokenizerConfigDownloader = new DownloadService(DownloadOption);
-                    await TokenizerConfigDownloader.DownloadFileTaskAsync("https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/tokenizer_config.json", new DirectoryInfo(AIFolder));
-                }
-
-                string VocabFILE = Path.Combine(AIFolder, "vocab.json");
-                if (!File.Exists(VocabFILE))
-                {
-                    SomethingNotInstalled = true;
-                    var VocabFILEDownloader = new DownloadService(DownloadOption);
-                    await VocabFILEDownloader.DownloadFileTaskAsync("https://huggingface.co/hazemmabbas/Qwen2.5-0.5B-int4-block-32-acc-3-Instruct-onnx-cpu/resolve/main/vocab.json", new DirectoryInfo(AIFolder));
+                    Trace.WriteLine("Dependency Fails node");
+                    await Cli.Wrap("choco").WithArguments(args => args.Add("install").Add("python --version=3.14.5")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync();
+                    await Cli.Wrap("pip").WithArguments(args => args.Add("install").Add("libretranslate")).WithWorkingDirectory(TranslationFolder).ExecuteBufferedAsync();
+                    await Cli.Wrap("libretranslate").WithArguments(args => args.Add("--load-only de," + Language)).WithWorkingDirectory(TranslationFolder).ExecuteBufferedAsync();
+                    //libretranslate --update-models for all the languages
+                    //libretranslate --load-only en,es,fr,de,it,pt,nl,pl,ru,uk,cs,sk,sl,hu,ro,bg,el,da,sv,nb,fi,et,lv,lt,ga,sq,ca,gl,eu,eo
+                    //python.exe "Lib\site-packages\libretranslate\main.py"
                 }
             }
             
@@ -1236,7 +1148,7 @@ public partial class MainWindow : Window
                            _mediaPlayer.Play();
                        }
                    }*/
-                    string SOUNDname = File.ReadAllLines(MainJSON).Skip(Line).Take(1).First().Replace("\"", "").Replace(",", "").Trim();
+                string SOUNDname = File.ReadAllLines(MainJSON).Skip(Line).Take(1).First().Replace("\"", "").Replace(",", "").Trim();
                     File.AppendAllText(WindowCsFile, "\n private LibVLC libVLC" + SOUNDname + ";");
                     File.AppendAllText(WindowCsFile, "\n private LibVLC MediaPlayer MediaPlayer" + SOUNDname + ";");
                 }
