@@ -88,7 +88,7 @@ public partial class MainWindow : Window
         string Language = LanguageOfUser.TwoLetterISOLanguageName;
         Trace.Write(Language);
 
-        /*if (Language.Contains("de"))
+        if (Language.Contains("de"))
         {
             //German
             Text1.Content = "Bitte Wählen, oder schreiben Sie die Datei die Sie bearbeiten wollen";
@@ -126,7 +126,7 @@ public partial class MainWindow : Window
             MacOSCheckBox.Content = "Mac OS";
             convertButton.Content = "Convert!";
             GithubRepo.Content = "This Project was made by: Daiko Games";
-        }*/
+        }
 
         if (!Language.Contains("de") && !Language.Contains("en"))
         {
