@@ -431,17 +431,14 @@ public partial class MainWindow : Window
 
             if(Language != "de" && Language != "en")
             {
-                var CheckNodeJS = await Cli.Wrap("python").WithArguments(args => args.Add("--version")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync();
-                if (CheckNodeJS.ExitCode != 0)
+                string UpperTranslateFolder = Path.Combine(ConverterFolder, "TranslateFolder");
+                string TranslateFolder = Path.Combine(UpperTranslateFolder, "models");
+                if (!Directory.Exists(TranslateFolder))
                 {
-                    SomethingNotInstalled = true;
-                    Trace.WriteLine("Dependency Fails node");
-                    await Cli.Wrap("choco").WithArguments(args => args.Add("install").Add("python --version=3.14.5")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync();
-                    await Cli.Wrap("pip").WithArguments(args => args.Add("install").Add("libretranslate")).WithWorkingDirectory(TranslationFolder).ExecuteBufferedAsync();
-                    await Cli.Wrap("libretranslate").WithArguments(args => args.Add("--load-only de," + Language)).WithWorkingDirectory(TranslationFolder).ExecuteBufferedAsync();
-                    //libretranslate --update-models for all the languages
-                    //libretranslate --load-only en,es,fr,de,it,pt,nl,pl,ru,uk,cs,sk,sl,hu,ro,bg,el,da,sv,nb,fi,et,lv,lt,ga,sq,ca,gl,eu,eo
-                    //python.exe "Lib\site-packages\libretranslate\main.py"
+                    var TranslateFolderDownloader = new DownloadService(DownloadOption);
+                    await TranslateFolderDownloader.DownloadFileTaskAsync("https://github.com/DaikoGames/sb1-sb2-sb3-xml-to-Csharp-converter/releases/download/v0.9.140/models.zip", new DirectoryInfo(UpperTranslateFolder));
+                    string ZipFILE = Path.Combine(UpperTranslateFolder, "models.zip");
+                    ZipFile.ExtractToDirectory(ZipFILE, TranslateFolder, true);
                 }
             }
             
