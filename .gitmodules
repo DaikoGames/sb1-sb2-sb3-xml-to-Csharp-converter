@@ -1,3 +1,6 @@
 [submodule "Translate-Folder"]
 	path = Translate-Folder
 	url = https://github.com/DaikoGames/Translate-Folder
+[submodule "Scratch-Format-Converter"]
+	path = Scratch-Format-Converter
+	url = https://github.com/DaikoGames/Scratch-Format-converter
