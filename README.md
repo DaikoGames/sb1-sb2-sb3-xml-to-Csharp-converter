@@ -9,8 +9,7 @@ Well it is pretty simple, i as a Developer saw Projects like [Turbowarp](https:/
 ## The Dependencies i used for my Project and their licenses:
 
 | Link to Dependency | Link to License|
-|...|...|
-
+|---|---|
 | [Avalonia](https://github.com/AvaloniaUI/Avalonia) | [MIT-License](https://github.com/AvaloniaUI/Avalonia?tab=MIT-1-ov-file)|
 | [Magick.NET](https://github.com/dlemstra/Magick.NET) | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0)|
 | [Newtonsoft.Json](https://github.com/JamesNK/Newtonsoft.Json) | [MIT-License](https://mit-license.org/)|
