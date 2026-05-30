@@ -17,7 +17,10 @@ Well it is pretty simple, i as a Developer saw Projects like [Turbowarp](https:/
 | [CliWrap](https://github.com/Tyrrrz/CliWrap) | [MIT-License](https://mit-license.org/)|
 | [Velopack](https://github.com/velopack/velopack)| [MIT-License](https://mit-license.org/)|
 | [Avalonia-Custom-Message-Box](https://github.com/AvaloniaCommunity/MessageBox.Avalonia) | [MIT-License](https://github.com/AvaloniaCommunity/MessageBox.Avalonia?tab=MIT-1-ov-file)|
+|[BergamotTranslatorSharp](https://www.nuget.org/packages/BergamotTranslatorSharp/0.3.4?_src=template)| [MPL 2.0](https://github.com/Freeesia/BergamotTranslatorSharp?tab=MPL-2.0-1-ov-file)
+|[Downloader](https://www.nuget.org/packages/Downloader/5.5.0?_src=template)| [MIT-License](https://licenses.nuget.org/MIT)|
 | [.NET](https://dotnet.microsoft.com/en-us/download/dotnet/10.0)| [Linux](https://mit-license.org/) [Windows](https://qphelp.quest.com/Content/ThirdPartyComponents/MSDotNetLibraryLicense.htm?TocPath=Legal%2525252525252520Notices%252525252525257CLicenses%252525252525257C_____5)|
+
 
 ## You on´t have to install anything at all :)
 
