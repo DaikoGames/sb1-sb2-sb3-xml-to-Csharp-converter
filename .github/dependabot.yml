@@ -1,0 +1,12 @@
+
+version: 2
+updates:
+  - package-ecosystem: "nuget"
+    directory: "/" 
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "npm"
+    directory: "/ScratchConverter"
+    schedule:
+      interval: "weekly"
