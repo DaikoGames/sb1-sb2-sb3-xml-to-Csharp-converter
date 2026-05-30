@@ -22,7 +22,7 @@ Well it is pretty simple, i as a Developer saw Projects like [Turbowarp](https:/
 | [.NET](https://dotnet.microsoft.com/en-us/download/dotnet/10.0)| [Linux](https://mit-license.org/) [Windows](https://qphelp.quest.com/Content/ThirdPartyComponents/MSDotNetLibraryLicense.htm?TocPath=Legal%2525252525252520Notices%252525252525257CLicenses%252525252525257C_____5)|
 
 
-## You on´t have to install anything at all :)
+## You don´t have to install anything at all :)
 
 ## For Source Compilation:
 
@@ -33,8 +33,3 @@ On Windows: use the CompileWindows.bat
 On MacOS: use the CompileMacOS.sh
 
 For more infos you can join my [Discord](https://discord.gg/dvJwx5Mzzj) Server
-
-
-
-This Markdown File was a .html File originell and was ported to Makrdown with [Pandoc](https://github.com/jgm/pandoc?tab=readme-ov-file), and i edited it so it Looks perfect on Github.
-
