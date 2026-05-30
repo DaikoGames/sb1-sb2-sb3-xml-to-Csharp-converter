@@ -1,0 +1,174 @@
+name: Deploy to GitHub Releases
+on: 
+  schedule:
+     - cron: '30 14 * * 6' 
+  workflow_dispatch:
+     
+permissions:
+  contents: write
+
+
+   
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            runtime: win-x64
+          - os: windows-latest
+            runtime: win-arm64
+          - os: windows-latest
+            runtime: win-x86
+          - os: ubuntu-latest
+            runtime: linux-x64
+          - os: ubuntu-latest
+            runtime: linux-arm64
+          - os: macos-latest
+            runtime: osx-x64
+          - os: macos-latest
+            runtime: osx-arm64
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Build and Publish App
+        shell: bash
+        run: |
+          dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" \
+            -c Release \
+            -r ${{ matrix.runtime }} \
+            -o "./publish/${{ matrix.runtime }}" \
+            -p:SelfContained=true \
+            -p:PublishSingleFile=true
+
+      - name: Install Velopack CLI
+        run: dotnet tool install -g vpk
+
+      - name: Add dotnet tools to PATH
+        shell: bash
+        run: echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
+
+      - name: Add files (Windows)
+        shell: pwsh
+        if: contains(matrix.runtime, 'win')  
+        run: |
+          $baseDir = "./publish/${{ matrix.runtime }}"
+          New-Item -ItemType Directory -Force -Path "$baseDir/ConverterIcon"
+          Copy-Item "./ConverterIcon/Converter.ico" "$baseDir/ConverterIcon/Converter.ico"
+          Copy-Item "./ConverterIcon/Converter.png" "$baseDir/ConverterIcon/Converter.png"
+          New-Item -ItemType Directory -Force -Path "$baseDir/ScratchConverter"
+          Copy-Item "./ScratchConverter/Convert.js" "$baseDir/ScratchConverter/Convert.js"
+          Copy-Item "./ScratchConverter/package.json" "$baseDir/ScratchConverter/package.json"
+          Copy-Item "./ScratchConverter/package-lock.json" "$baseDir/ScratchConverter/package-lock.json"
+          New-Item -ItemType Directory -Force -Path "$baseDir/Install"
+          Copy-Item "./Install/dotnet-install.ps1" "$baseDir/Install/dotnet-install.ps1"
+          New-Item -ItemType Directory -Force -Path "$baseDir/svg_library_ScratchJnr"
+          Copy-Item -Path "./svg_library_ScratchJnr/*" "$baseDir/svg_library_ScratchJnr"
+          New-Item -ItemType Directory -Force -Path "$baseDir/wav_library_ScratchJnr"
+          Copy-Item "./wav_library_ScratchJnr/*" "$baseDir/wav_library_ScratchJnr" 
+          Copy-Item "./README.md" "$baseDir/README.md"
+          
+      - name: Add Files (Linux, MacOS)
+        shell: pwsh
+        if: contains(matrix.runtime, 'linux') || contains(matrix.runtime, 'osx')
+        run: |
+          $baseDir = "./publish/${{ matrix.runtime }}"
+          New-Item -ItemType Directory -Force -Path "$baseDir/ConverterIcon"
+          Copy-Item "./ConverterIcon/Converter.ico" "$baseDir/ConverterIcon/Converter.ico"
+          Copy-Item "./ConverterIcon/Converter.png" "$baseDir/ConverterIcon/Converter.png"
+          New-Item -ItemType Directory -Force -Path "$baseDir/ScratchConverter"
+          Copy-Item "./ScratchConverter/Convert.js" "$baseDir/ScratchConverter/Convert.js"
+          Copy-Item "./ScratchConverter/package.json" "$baseDir/ScratchConverter/package.json"
+          Copy-Item "./ScratchConverter/package-lock.json" "$baseDir/ScratchConverter/package-lock.json"
+          New-Item -ItemType Directory -Force -Path "$baseDir/Install"
+          Copy-Item "./Install/dotnet-install.sh" "$baseDir/Install/dotnet-install.sh"
+          New-Item -ItemType Directory -Force -Path "$baseDir/svg_library_ScratchJnr"
+          Copy-Item "./svg_library_ScratchJnr/*" "$baseDir/svg_library_ScratchJnr" 
+          New-Item -ItemType Directory -Force -Path "$baseDir/wav_library_ScratchJnr"
+          Copy-Item "./wav_library_ScratchJnr/*" "$baseDir/wav_library_ScratchJnr" 
+          Copy-Item "./README.md" "$baseDir/README.md"
+          
+      - name: Check Help
+        shell: bash
+        run: |
+          vpk pack --help
+          
+      - name: Pack with Velopack Windows
+        shell: bash
+        if: contains(matrix.runtime, 'win')
+        run: |
+          vpk pack \
+            -u "Converter" \
+            -v "0.9.${{ github.run_number }}" \
+            --packDir "./publish/${{ matrix.runtime }}" \
+            --outputDir "./Releases" \
+            --icon "./ConverterIcon/Converter.ico" \
+            --channel "${{ matrix.runtime }}"
+      - name: Pack with Velopack Linux
+        shell: bash
+        if: contains(matrix.runtime, 'linux')
+        run: |
+          vpk pack \
+            -u "Converter" \
+            -v "0.9.${{ github.run_number }}" \
+            --packDir "./publish/${{ matrix.runtime }}" \
+            --outputDir "./Releases" \
+            --icon "./ConverterIcon/Converter.png" \
+            --channel "${{ matrix.runtime }}"
+            
+      - name: Pack with Velopack MacOS
+        shell: bash
+        if: contains(matrix.runtime, 'osx')
+        run: |
+          vpk pack \
+            -u "Converter" \
+            -v "0.9.${{ github.run_number }}" \
+            --packDir "./publish/${{ matrix.runtime }}" \
+            --outputDir "./Releases" \
+            --icon "./ConverterIcon/Converter.icns" \
+            --channel "${{ matrix.runtime }}"
+    
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: vpk-artifacts-${{ matrix.runtime }}
+          path: ./Releases/*
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download
+        uses: actions/download-artifact@v4
+        with:
+          path: ./all-assets
+          merge-multiple: true
+
+      - name: Push to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v0.9.${{ github.run_number }}
+          files: |
+                 ./all-assets/Converter-win-x86-Setup.exe
+                 ./all-assets/Converter-win-x64-Setup.exe
+                 ./all-assets/Converter-win-arm64-Setup.exe
+                 ./all-assets/Converter-osx-x64-Setup.pkg
+                 ./all-assets/Converter-osx-arm64-Setup.pkg
+                 ./all-assets/Converter-linux-x64.AppImage
+                 ./all-assets/Converter-linux-arm64.AppImage
+                 ./all-assets/Converter-win-x86-Portable.zip
+                 ./all-assets/Converter-win-x64-Portable.zip
+                 ./all-assets/Converter-win-arm64-Portable.zip
+                 ./all-assets/Converter-osx-x64-Portable.zip
+                 ./all-assets/Converter-osx-arm64-Portable.zip
+
