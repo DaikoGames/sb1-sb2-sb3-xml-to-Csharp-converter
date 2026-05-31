@@ -104,7 +104,6 @@ jobs:
           foreach ($YMLfile in $YMLFiles){
           $YMLDirectoryName = (Get-Item $YMLfile).Directory.Name
           Copy-Item -Path "$YMLfile" "$baseDir/Translate-Folder/$YMLDirectoryName"
-          
           }
           
           Copy-Item "./README.md" "$baseDir/README.md"
