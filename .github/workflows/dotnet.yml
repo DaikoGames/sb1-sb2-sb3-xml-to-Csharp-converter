@@ -35,6 +35,12 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Checkout External Dependency (Scratch-Format-Converter)
+        uses: actions/checkout@v4
+        with:
+          repository: 'DaikoGames/Scratch-Format-Converter'
+          path: Scratch-Format-Converter
+          
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
