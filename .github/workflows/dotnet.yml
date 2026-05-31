@@ -87,12 +87,12 @@ jobs:
           Copy-Item -Path "./svg_library_ScratchJnr/*" "$baseDir/svg_library_ScratchJnr"
           New-Item -ItemType Directory -Force -Path "$baseDir/wav_library_ScratchJnr"
           Copy-Item "./wav_library_ScratchJnr/*" "$baseDir/wav_library_ScratchJnr" 
-          
           $GZfiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.gz" -ErrorAction Stop
           foreach ($GZfile in $GZfiles) {
           $GZDirectoryName = (Get-Item $GZfile).Directory.Name
           New-Item -ItemType Directory -Force -Path "$baseDir/Translate-Folder/$GZDirectoryName" | Out-Null
-          tar -xzf $GZfile.FullName -C "$baseDir/Translate-Folder/$GZDirectoryName"
+          $OutFileName = $GZfile.Name -replace '\.gz$', ''
+          gunzip -c $GZfile.FullName > "$baseDir/Translate-Folder/$GZDirectoryName/$OutFileName"
           Remove-Item $GZfile.FullName -Force
           }
           $JSONFiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.json" -ErrorAction Stop 
@@ -127,12 +127,12 @@ jobs:
           Copy-Item "./svg_library_ScratchJnr/*" "$baseDir/svg_library_ScratchJnr" 
           New-Item -ItemType Directory -Force -Path "$baseDir/wav_library_ScratchJnr"
           Copy-Item "./wav_library_ScratchJnr/*" "$baseDir/wav_library_ScratchJnr" 
-          
           $GZfiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.gz" -ErrorAction Stop
           foreach ($GZfile in $GZfiles) {
           $GZDirectoryName = (Get-Item $GZfile).Directory.Name
           New-Item -ItemType Directory -Force -Path "$baseDir/Translate-Folder/$GZDirectoryName" | Out-Null
-          tar -xzf $GZfile.FullName -C "$baseDir/Translate-Folder/$GZDirectoryName"
+          $OutFileName = $GZfile.Name -replace '\.gz$', ''
+          gunzip -c $GZfile.FullName > "$baseDir/Translate-Folder/$GZDirectoryName/$OutFileName"
           Remove-Item $GZfile.FullName -Force
           }
           $JSONFiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.json" -ErrorAction Stop 
@@ -148,7 +148,6 @@ jobs:
           Copy-Item -Path $YMLfile.FullName "$baseDir/Translate-Folder/$YMLDirectoryName/$JYMLFileName" -Force
           }
           Copy-Item "./README.md" "$baseDir/README.md"
-          
       - name: Check Help
         shell: bash
         run: |
