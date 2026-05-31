@@ -96,14 +96,16 @@ jobs:
           
           $JSONFiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.json" -ErrorAction Stop 
           foreach ($JSONfile in $JSONFiles){
+          $JSONFileName = $JSONfile.Name
           $JSONDirectoryName = (Get-Item $JSONfile).Directory.Name
-          Copy-Item -Path "$JSONfile" "$baseDir/Translate-Folder/$JSONDirectoryName"
+          Copy-Item -Path "$JSONfile" "$baseDir/Translate-Folder/$JSONDirectoryName/$JSONFileName"
           }
 
           $YMLFiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.yml" -ErrorAction Stop 
           foreach ($YMLfile in $YMLFiles){
+          $JYMLFileName = $YMLfile.Name
           $YMLDirectoryName = (Get-Item $YMLfile).Directory.Name
-          Copy-Item -Path "$YMLfile" "$baseDir/Translate-Folder/$YMLDirectoryName"
+          Copy-Item -Path "$YMLfile" "$baseDir/Translate-Folder/$YMLDirectoryName/$YMLFileName"
           }
           
           Copy-Item "./README.md" "$baseDir/README.md"
@@ -135,14 +137,16 @@ jobs:
           
           $JSONFiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.json" -ErrorAction Stop 
           foreach ($JSONfile in $JSONFiles){
+          $JSONFileName = $JSONfile.Name
           $JSONDirectoryName = (Get-Item $JSONfile).Directory.Name
-          Copy-Item -Path "$JSONfile" "$baseDir/Translate-Folder/$JSONDirectoryName"
+          Copy-Item -Path "$JSONfile" "$baseDir/Translate-Folder/$JSONDirectoryName/$JSONFileName"
           }
 
           $YMLFiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.yml" -ErrorAction Stop 
           foreach ($YMLfile in $YMLFiles){
+          $JYMLFileName = $YMLfile.Name
           $YMLDirectoryName = (Get-Item $YMLfile).Directory.Name
-          Copy-Item -Path "$YMLfile" "$baseDir/Translate-Folder/$YMLDirectoryName"
+          Copy-Item -Path "$YMLfile" "$baseDir/Translate-Folder/$YMLDirectoryName/$YMLFileName"
           }
           
           Copy-Item "./README.md" "$baseDir/README.md"
