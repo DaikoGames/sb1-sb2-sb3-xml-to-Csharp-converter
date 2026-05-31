@@ -91,21 +91,22 @@ jobs:
           $GZfiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.gz" -ErrorAction Stop
           foreach ($GZfile in $GZfiles) {
           $GZDirectoryName = (Get-Item $GZfile).Directory.Name
-          tar -xf $GZfile -C "$baseDir/Translate-Folder/$GZDirectoryName"
+          tar -xf $GZfile.FullName -C "$baseDir/Translate-Folder/$GZDirectoryName"
+          Remove-Item "GZfile.FullName"
           }
           
           $JSONFiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.json" -ErrorAction Stop 
           foreach ($JSONfile in $JSONFiles){
           $JSONFileName = $JSONfile.Name
           $JSONDirectoryName = (Get-Item $JSONfile).Directory.Name
-          Copy-Item -Path "$JSONfile" "$baseDir/Translate-Folder/$JSONDirectoryName/$JSONFileName"
+          Copy-Item -Path "$JSONfile.FullName" "$baseDir/Translate-Folder/$JSONDirectoryName/$JSONFileName"
           }
 
           $YMLFiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.yml" -ErrorAction Stop 
           foreach ($YMLfile in $YMLFiles){
           $JYMLFileName = $YMLfile.Name
           $YMLDirectoryName = (Get-Item $YMLfile).Directory.Name
-          Copy-Item -Path "$YMLfile" "$baseDir/Translate-Folder/$YMLDirectoryName/$YMLFileName"
+          Copy-Item -Path "$YMLfile.FullName" "$baseDir/Translate-Folder/$YMLDirectoryName/$YMLFileName"
           }
           
           Copy-Item "./README.md" "$baseDir/README.md"
@@ -133,20 +134,21 @@ jobs:
           foreach ($GZfile in $GZfiles) {
           $GZDirectoryName = (Get-Item $GZfile).Directory.Name
           tar -xf $GZfile -C "$baseDir/Translate-Folder/$GZDirectoryName"
+          Remove-Item "GZfile.FullName"
           }
           
           $JSONFiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.json" -ErrorAction Stop 
           foreach ($JSONfile in $JSONFiles){
           $JSONFileName = $JSONfile.Name
           $JSONDirectoryName = (Get-Item $JSONfile).Directory.Name
-          Copy-Item -Path "$JSONfile" "$baseDir/Translate-Folder/$JSONDirectoryName/$JSONFileName"
+          Copy-Item -Path "$JSONfile.FullName" "$baseDir/Translate-Folder/$JSONDirectoryName/$JSONFileName"
           }
 
           $YMLFiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.yml" -ErrorAction Stop 
           foreach ($YMLfile in $YMLFiles){
           $JYMLFileName = $YMLfile.Name
           $YMLDirectoryName = (Get-Item $YMLfile).Directory.Name
-          Copy-Item -Path "$YMLfile" "$baseDir/Translate-Folder/$YMLDirectoryName/$YMLFileName"
+          Copy-Item -Path "$YMLfile.FullName" "$baseDir/Translate-Folder/$YMLDirectoryName/$YMLFileName"
           }
           
           Copy-Item "./README.md" "$baseDir/README.md"
