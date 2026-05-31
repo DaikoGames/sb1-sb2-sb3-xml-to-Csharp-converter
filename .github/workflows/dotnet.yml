@@ -81,11 +81,25 @@ jobs:
           Copy-Item -Path "./svg_library_ScratchJnr/*" "$baseDir/svg_library_ScratchJnr"
           New-Item -ItemType Directory -Force -Path "$baseDir/wav_library_ScratchJnr"
           Copy-Item "./wav_library_ScratchJnr/*" "$baseDir/wav_library_ScratchJnr" 
-          Get-ChildItem -Path "./Translate-Folder/" -Filter *.zip -Recurse | ForEach-Object {
-          $destination = Join-Path $_.DirectoryName $_.BaseName
-          Expand-Archive -Path $_.FullName -DestinationPath $destination -Force
-          Remove-Item -Path $_.FullName
+          
+          $GZfiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.gz" -ErrorAction Stop
+          foreach ($GZfile in $GZfiles) {
+          $GZDirectoryName = (Get-Item $GZfile).Directory.Name
+          tar -xf $GZfile -C "$baseDir/Translate-Folder/$GZDirectoryName"
           }
+          
+          $JSONFiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.json" -ErrorAction Stop 
+          foreach ($JSONfile in $JSONFiles){
+          $JSONDirectoryName = (Get-Item $JSONfile).Directory.Name
+          Copy-Item -Path "$JSONfile" "$baseDir/Translate-Folder/$JSONDirectoryName"
+          }
+
+          $YMLFiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.yml" -ErrorAction Stop 
+          foreach ($YMLfile in $YMLFiles){
+          $YMLDirectoryName = (Get-Item $YMLfile).Directory.Name
+          Copy-Item -Path "$YMLfile" "$baseDir/Translate-Folder/$YMLDirectoryName"
+          }
+          
           Copy-Item "./README.md" "$baseDir/README.md"
           
       - name: Add Files (Linux, MacOS)
@@ -106,11 +120,25 @@ jobs:
           Copy-Item "./svg_library_ScratchJnr/*" "$baseDir/svg_library_ScratchJnr" 
           New-Item -ItemType Directory -Force -Path "$baseDir/wav_library_ScratchJnr"
           Copy-Item "./wav_library_ScratchJnr/*" "$baseDir/wav_library_ScratchJnr" 
-          Get-ChildItem -Path "./Translate-Folder/" -Filter *.zip -Recurse | ForEach-Object {
-          $destination = Join-Path $_.DirectoryName $_.BaseName
-          Expand-Archive -Path $_.FullName -DestinationPath $destination -Force
-          Remove-Item -Path $_.FullName
+
+          $GZfiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.gz" -ErrorAction Stop
+          foreach ($GZfile in $GZfiles) {
+          $GZDirectoryName = (Get-Item $GZfile).Directory.Name
+          tar -xf $GZfile -C "$baseDir/Translate-Folder/$GZDirectoryName"
           }
+          
+          $JSONFiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.json" -ErrorAction Stop 
+          foreach ($JSONfile in $JSONFiles){
+          $JSONDirectoryName = (Get-Item $JSONfile).Directory.Name
+          Copy-Item -Path "$JSONfile" "$baseDir/Translate-Folder/$JSONDirectoryName"
+          }
+
+          $YMLFiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.yml" -ErrorAction Stop 
+          foreach ($YMLfile in $YMLFiles){
+          $YMLDirectoryName = (Get-Item $YMLfile).Directory.Name
+          Copy-Item -Path "$YMLfile" "$baseDir/Translate-Folder/$YMLDirectoryName"
+          }
+          
           Copy-Item "./README.md" "$baseDir/README.md"
           
       - name: Check Help
