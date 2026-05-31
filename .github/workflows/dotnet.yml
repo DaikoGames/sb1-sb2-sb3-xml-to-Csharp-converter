@@ -81,6 +81,11 @@ jobs:
           Copy-Item -Path "./svg_library_ScratchJnr/*" "$baseDir/svg_library_ScratchJnr"
           New-Item -ItemType Directory -Force -Path "$baseDir/wav_library_ScratchJnr"
           Copy-Item "./wav_library_ScratchJnr/*" "$baseDir/wav_library_ScratchJnr" 
+          Get-ChildItem -Path "./Translate-Folder/ -Filter *.zip -Recurse | ForEach-Object {
+          $destination = Join-Path $_.DirectoryName $_.BaseName
+          Expand-Archive -Path $_.FullName -DestinationPath $destination -Force
+          Remove-Item -Path $_.FullName
+          }
           Copy-Item "./README.md" "$baseDir/README.md"
           
       - name: Add Files (Linux, MacOS)
@@ -101,6 +106,11 @@ jobs:
           Copy-Item "./svg_library_ScratchJnr/*" "$baseDir/svg_library_ScratchJnr" 
           New-Item -ItemType Directory -Force -Path "$baseDir/wav_library_ScratchJnr"
           Copy-Item "./wav_library_ScratchJnr/*" "$baseDir/wav_library_ScratchJnr" 
+          Get-ChildItem -Path "./Translate-Folder/ -Filter *.zip -Recurse | ForEach-Object {
+          $destination = Join-Path $_.DirectoryName $_.BaseName
+          Expand-Archive -Path $_.FullName -DestinationPath $destination -Force
+          Remove-Item -Path $_.FullName
+          }
           Copy-Item "./README.md" "$baseDir/README.md"
           
       - name: Check Help
