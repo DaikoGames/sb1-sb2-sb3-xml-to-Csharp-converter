@@ -41,6 +41,12 @@ jobs:
           repository: 'DaikoGames/Scratch-Format-Converter'
           path: Scratch-Format-Converter
           
+      - name: Checkout External Dependency (Translator)
+        uses: actions/checkout@v4
+        with:
+          repository: 'DaikoGames/Translate-Folder'
+          path: Translate-Folder
+          
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
@@ -98,6 +104,7 @@ jobs:
           foreach ($YMLfile in $YMLFiles){
           $YMLDirectoryName = (Get-Item $YMLfile).Directory.Name
           Copy-Item -Path "$YMLfile" "$baseDir/Translate-Folder/$YMLDirectoryName"
+          
           }
           
           Copy-Item "./README.md" "$baseDir/README.md"
