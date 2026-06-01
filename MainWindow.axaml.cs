@@ -176,7 +176,7 @@ public partial class MainWindow : Window
             foreach(string translatedText in TranslateText)
             {
                 TextNmbr = TextNmbr + 1;
-                var configPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "TranslateFolder", "models", "en-" + Language, "config.yml");
+                var configPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder", "en-" + Language, "config.yml");
 
                 using var service = new BlockingService(configPath);
 
@@ -966,7 +966,7 @@ public partial class MainWindow : Window
         {
             if (OperatingSystem.IsWindows() | OperatingSystem.IsLinux() | OperatingSystem.IsMacOS())
             {
-                string ConverterFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ScratchConverter");
+                string ConverterFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Scratch-Format-converter");
                 string ConvertDestination = Path.Combine(ConverterFolder, "project.sb");
                 File.Copy(Filename, ConvertDestination, true);
                 string JSFile = Path.Combine(ConverterFolder, "Convert.js");
