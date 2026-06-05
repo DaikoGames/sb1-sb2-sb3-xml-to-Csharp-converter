@@ -30,8 +30,6 @@ jobs:
             runtime: osx-arm64
 
     runs-on: ${{ matrix.os }}
-    env:
-      baseDir: ./publish/${{ matrix.runtime }}
       
     steps:
       - name: Checkout Code
