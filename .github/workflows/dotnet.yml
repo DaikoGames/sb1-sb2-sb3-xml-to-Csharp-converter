@@ -133,10 +133,10 @@ jobs:
           Copy-Item "./Snapin8r2/style.css" "$baseDir/Snapin8r2/style.css"
           New-Item -ItemType Directory -Force -Path "$baseDir/sb3tosb2"
           if ("${{ matrix.runtime }}" -eq "win-x64") {
-              Copy-Item "./sb3tosb2/sb3tosb2-windows-x64" "$baseDir/sb3tosb2/sb3tosb2-windows-x64" -Force
+              Copy-Item "./sb3tosb2/sb3tosb2-windows-x64.exe" "$baseDir/sb3tosb2/sb3tosb2-windows-x64.exe" -Force
           }
           if ("${{ matrix.runtime }}" -eq "win-arm64") {
-              Copy-Item "./sb3tosb2/sb3tosb2-windows-arm64" "$baseDir/sb3tosb2/sb3tosb2-windows-arm64" -Force
+              Copy-Item "./sb3tosb2/sb3tosb2-windows-arm64.exe" "$baseDir/sb3tosb2/sb3tosb2-windows-arm64.exe" -Force
           }
           Copy-Item "./sb3tosb2/sb3tosb2.py" "$baseDir/sb3tosb2/sb3tosb2.py"
           Copy-Item "./sb3tosb2/LICENSE" "$baseDir/sb3tosb2/LICENSE"
