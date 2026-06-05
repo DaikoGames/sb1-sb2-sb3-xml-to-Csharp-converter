@@ -119,6 +119,18 @@ jobs:
           $YMLDirectoryName = (Get-Item $YMLfile).Directory.Name
           Copy-Item -Path $YMLfile.FullName "$baseDir/Translate-Folder/$YMLDirectoryName/$JYMLFileName" -Force
           }
+          Copy-Item "./Snapin8r2/LICENSE" "$baseDir/Snapin8r2/LICENSE"
+          Copy-Item "./Snapin8r2/Readme.md" "$baseDir/Snapin8r2/Readme.md"
+          Copy-Item "./Snapin8r2/gui.js" "$baseDir/Snapin8r2/gui.js"
+          Copy-Item "./Snapin8r2/index.html" "$baseDir/Snapin8r2/index.html"
+          Copy-Item "./Snapin8r2/liam4.css" "$baseDir/Snapin8r2/liam4.css"
+          Copy-Item "./Snapin8r2/package-lock.json" "$baseDir/Snapin8r2/package-lock.json"
+          Copy-Item "./Snapin8r2/package.json" "$baseDir/Snapin8r2/package.json"
+          Copy-Item "./Snapin8r2/scratch.svg" "$baseDir/Snapin8r2/scratch.svg"
+          Copy-Item "./Snapin8r2/snap.png" "$baseDir/Snapin8r2/snap.png"
+          Copy-Item "./Snapin8r2/snapin8r2.js" "$baseDir/Snapin8r2/snapin8r2.js"
+          Copy-Item "./Snapin8r2/style.css" "$baseDir/Snapin8r2/style.css"
+          
           Copy-Item "./README.md" "$baseDir/README.md"
           
       - name: Add Files (Linux, MacOS)
@@ -159,6 +171,17 @@ jobs:
           $YMLDirectoryName = (Get-Item $YMLfile).Directory.Name
           Copy-Item -Path $YMLfile.FullName "$baseDir/Translate-Folder/$YMLDirectoryName/$JYMLFileName" -Force
           }
+          Copy-Item "./Snapin8r2/LICENSE" "$baseDir/Snapin8r2/LICENSE"
+          Copy-Item "./Snapin8r2/Readme.md" "$baseDir/Snapin8r2/Readme.md"
+          Copy-Item "./Snapin8r2/gui.js" "$baseDir/Snapin8r2/gui.js"
+          Copy-Item "./Snapin8r2/index.html" "$baseDir/Snapin8r2/index.html"
+          Copy-Item "./Snapin8r2/liam4.css" "$baseDir/Snapin8r2/liam4.css"
+          Copy-Item "./Snapin8r2/package-lock.json" "$baseDir/Snapin8r2/package-lock.json"
+          Copy-Item "./Snapin8r2/package.json" "$baseDir/Snapin8r2/package.json"
+          Copy-Item "./Snapin8r2/scratch.svg" "$baseDir/Snapin8r2/scratch.svg"
+          Copy-Item "./Snapin8r2/snap.png" "$baseDir/Snapin8r2/snap.png"
+          Copy-Item "./Snapin8r2/snapin8r2.js" "$baseDir/Snapin8r2/snapin8r2.js"
+          Copy-Item "./Snapin8r2/style.css" "$baseDir/Snapin8r2/style.css"
           Copy-Item "./README.md" "$baseDir/README.md"
       - name: Check Help
         shell: bash
