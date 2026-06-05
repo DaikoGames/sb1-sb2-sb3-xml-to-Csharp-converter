@@ -4,3 +4,6 @@
 [submodule "Scratch-Format-Converter"]
 	path = Scratch-Format-Converter
 	url = https://github.com/DaikoGames/Scratch-Format-converter
+[submodule "sb3tosb2"]
+	path = sb3tosb2
+	url = https://github.com/DaikoGames/sb3tosb2
