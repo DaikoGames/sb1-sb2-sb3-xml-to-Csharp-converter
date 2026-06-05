@@ -121,7 +121,7 @@ jobs:
           }
           New-Item -ItemType Directory -Force -Path "$baseDir/Snapin8r2"
           Copy-Item "./Snapin8r2/LICENSE" "$baseDir/Snapin8r2/LICENSE"
-          Copy-Item "./Snapin8r2/Readme.md" "$baseDir/Snapin8r2/Readme.md"
+          Copy-Item "./Snapin8r2/Readme.md" "$baseDir/Snapin8r2/README.md"
           Copy-Item "./Snapin8r2/gui.js" "$baseDir/Snapin8r2/gui.js"
           Copy-Item "./Snapin8r2/index.html" "$baseDir/Snapin8r2/index.html"
           Copy-Item "./Snapin8r2/liam4.css" "$baseDir/Snapin8r2/liam4.css"
@@ -138,6 +138,9 @@ jobs:
           if ("${{ matrix.runtime }}" -eq "win-arm64") {
               Copy-Item "./sb3tosb2/sb3tosb2-windows-arm64" "$baseDir/sb3tosb2/sb3tosb2-windows-arm64" -Force
           }
+          Copy-Item "./sb3tosb2/sb3tosb2.py" "$baseDir/sb3tosb2/sb3tosb2.py"
+          Copy-Item "./sb3tosb2/LICENSE" "$baseDir/sb3tosb2/LICENSE"
+          Copy-Item "./sb3tosb2/README.md" "$baseDir/sb3tosb2/README.md"
           Copy-Item "./README.md" "$baseDir/README.md"
   
       - name: Add Files (Linux, MacOS)
@@ -180,7 +183,7 @@ jobs:
           }
           New-Item -ItemType Directory -Force -Path "$baseDir/Snapin8r2"
           Copy-Item "./Snapin8r2/LICENSE" "$baseDir/Snapin8r2/LICENSE"
-          Copy-Item "./Snapin8r2/Readme.md" "$baseDir/Snapin8r2/Readme.md"
+          Copy-Item "./Snapin8r2/Readme.md" "$baseDir/Snapin8r2/README.md"
           Copy-Item "./Snapin8r2/gui.js" "$baseDir/Snapin8r2/gui.js"
           Copy-Item "./Snapin8r2/index.html" "$baseDir/Snapin8r2/index.html"
           Copy-Item "./Snapin8r2/liam4.css" "$baseDir/Snapin8r2/liam4.css"
@@ -203,6 +206,9 @@ jobs:
           if ("${{ matrix.runtime }}" -eq "osx-arm64") {
               Copy-Item "./sb3tosb2/sb3tosb2-macos-arm64" "$baseDir/sb3tosb2/sb3tosb2-macos-arm64" -Force
           }
+          Copy-Item "./sb3tosb2/sb3tosb2.py" "$baseDir/sb3tosb2/sb3tosb2.py"
+          Copy-Item "./sb3tosb2/LICENSE" "$baseDir/sb3tosb2/LICENSE"
+          Copy-Item "./sb3tosb2/README.md" "$baseDir/sb3tosb2/README.md"
           Copy-Item "./README.md" "$baseDir/README.md"
           
     
