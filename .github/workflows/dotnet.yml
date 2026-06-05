@@ -132,6 +132,12 @@ jobs:
           Copy-Item "./Snapin8r2/snapin8r2.js" "$baseDir/Snapin8r2/snapin8r2.js"
           Copy-Item "./Snapin8r2/style.css" "$baseDir/Snapin8r2/style.css"
           New-Item -ItemType Directory -Force -Path "$baseDir/sb3tosb2"
+          if ("${{ matrix.runtime }}" -eq "win-x64") {
+              Copy-Item "./sb3tosb2/sb3tosb2-windows-x64" "$baseDir/sb3tosb2/sb3tosb2-windows-x64" -Force
+          }
+          if ("${{ matrix.runtime }}" -eq "win-arm64") {
+              Copy-Item "./sb3tosb2/sb3tosb2-windows-arm64" "$baseDir/sb3tosb2/sb3tosb2-windows-arm64" -Force
+          }
           Copy-Item "./README.md" "$baseDir/README.md"
   
       - name: Add Files (Linux, MacOS)
@@ -185,44 +191,21 @@ jobs:
           Copy-Item "./Snapin8r2/snapin8r2.js" "$baseDir/Snapin8r2/snapin8r2.js"
           Copy-Item "./Snapin8r2/style.css" "$baseDir/Snapin8r2/style.css"
           New-Item -ItemType Directory -Force -Path "$baseDir/sb3tosb2"
+          if ("${{ matrix.runtime }}" -eq "linux-x64") {
+              Copy-Item "./sb3tosb2/sb3tosb2-linux-x64" "$baseDir/sb3tosb2/sb3tosb2-linux-x64" -Force
+          }
+          if ("${{ matrix.runtime }}" -eq "linux-arm64") {
+              Copy-Item "./sb3tosb2/sb3tosb2-linux-arm64" "$baseDir/sb3tosb2/sb3tosb2-linux-arm64" -Force
+          }
+          if ("${{ matrix.runtime }}" -eq "osx-x64") {
+              Copy-Item "./sb3tosb2/sb3tosb2-macos-x64" "$baseDir/sb3tosb2/sb3tosb2-macos-x64" -Force
+          }
+          if ("${{ matrix.runtime }}" -eq "osx-arm64") {
+              Copy-Item "./sb3tosb2/sb3tosb2-macos-arm64" "$baseDir/sb3tosb2/sb3tosb2-macos-arm64" -Force
+          }
           Copy-Item "./README.md" "$baseDir/README.md"
           
-      - name: Add sb3tosb2 Binaries (win-x64)
-        if: matrix.runtime == 'win-x64'
-        shell: pwsh
-        run: | 
-          Copy-Item "./sb3tosb2/sb3tosb2-windows-x64.exe" "$baseDir/sb3tosb2/sb3tosb2-windows-x64.exe"
-          
-      - name: Add sb3tosb2 Binaries (win-arm64)
-        if: matrix.runtime == 'win-arm64'
-        shell: pwsh
-        run: | 
-          Copy-Item "./sb3tosb2/sb3tosb2-windows-arm64.exe" "$baseDir/sb3tosb2/sb3tosb2-windows-arm64.exe"
-     
-      - name: Add sb3tosb2 Binaries (linux-x64)
-        if: matrix.runtime == 'linux-x64'
-        shell: pwsh
-        run: | 
-          Copy-Item "./sb3tosb2/sb3tosb2-linux-x64" "$baseDir/sb3tosb2/sb3tosb2-linux-x64"   
-          
-      - name: Add sb3tosb2 Binaries (linux-arm64)
-        if: matrix.runtime == 'linux-arm64'
-        shell: pwsh
-        run: | 
-          Copy-Item "./sb3tosb2/sb3tosb2-linux-arm64" "$baseDir/sb3tosb2/sb3tosb2-linux-arm64" 
-
-      - name: Add sb3tosb2 Binaries (macos-x64)
-        if: matrix.runtime == 'osx-x64'
-        shell: pwsh
-        run: | 
-          Copy-Item "./sb3tosb2/sb3tosb2-macos-x64" "$baseDir/sb3tosb2/sb3tosb2-macos-x64" 
-
-      - name: Add sb3tosb2 Binaries (macos-arm64)
-        if: matrix.runtime == 'osx-arm64'
-        shell: pwsh
-        run: | 
-          Copy-Item "./sb3tosb2/sb3tosb2-macos-arm64" "$baseDir/sb3tosb2/sb3tosb2-macos-arm64" 
-          
+    
       - name: Check Help
         shell: bash
         run: |
