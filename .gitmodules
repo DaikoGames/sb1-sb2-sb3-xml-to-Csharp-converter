@@ -7,3 +7,6 @@
 [submodule "sb3tosb2"]
 	path = sb3tosb2
 	url = https://github.com/DaikoGames/sb3tosb2
+[submodule "Snapin8r2"]
+	path = Snapin8r2
+	url = https://github.com/DaikoGames/Snapin8r2
