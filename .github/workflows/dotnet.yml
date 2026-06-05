@@ -119,6 +119,7 @@ jobs:
           $YMLDirectoryName = (Get-Item $YMLfile).Directory.Name
           Copy-Item -Path $YMLfile.FullName "$baseDir/Translate-Folder/$YMLDirectoryName/$JYMLFileName" -Force
           }
+          New-Item -ItemType Directory -Force -Path "$baseDir/Snapin8r2"
           Copy-Item "./Snapin8r2/LICENSE" "$baseDir/Snapin8r2/LICENSE"
           Copy-Item "./Snapin8r2/Readme.md" "$baseDir/Snapin8r2/Readme.md"
           Copy-Item "./Snapin8r2/gui.js" "$baseDir/Snapin8r2/gui.js"
@@ -130,7 +131,7 @@ jobs:
           Copy-Item "./Snapin8r2/snap.png" "$baseDir/Snapin8r2/snap.png"
           Copy-Item "./Snapin8r2/snapin8r2.js" "$baseDir/Snapin8r2/snapin8r2.js"
           Copy-Item "./Snapin8r2/style.css" "$baseDir/Snapin8r2/style.css"
-          
+          New-Item -ItemType Directory -Force -Path "$baseDir/sb3tosb2"
           Copy-Item "./README.md" "$baseDir/README.md"
   
       - name: Add Files (Linux, MacOS)
@@ -171,6 +172,7 @@ jobs:
           $YMLDirectoryName = (Get-Item $YMLfile).Directory.Name
           Copy-Item -Path $YMLfile.FullName "$baseDir/Translate-Folder/$YMLDirectoryName/$JYMLFileName" -Force
           }
+          New-Item -ItemType Directory -Force -Path "$baseDir/Snapin8r2"
           Copy-Item "./Snapin8r2/LICENSE" "$baseDir/Snapin8r2/LICENSE"
           Copy-Item "./Snapin8r2/Readme.md" "$baseDir/Snapin8r2/Readme.md"
           Copy-Item "./Snapin8r2/gui.js" "$baseDir/Snapin8r2/gui.js"
@@ -182,6 +184,7 @@ jobs:
           Copy-Item "./Snapin8r2/snap.png" "$baseDir/Snapin8r2/snap.png"
           Copy-Item "./Snapin8r2/snapin8r2.js" "$baseDir/Snapin8r2/snapin8r2.js"
           Copy-Item "./Snapin8r2/style.css" "$baseDir/Snapin8r2/style.css"
+          New-Item -ItemType Directory -Force -Path "$baseDir/sb3tosb2"
           Copy-Item "./README.md" "$baseDir/README.md"
           
       - name: Add sb3tosb2 Binaries (win-x64)
