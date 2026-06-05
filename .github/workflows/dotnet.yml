@@ -47,6 +47,18 @@ jobs:
           repository: 'DaikoGames/Translate-Folder'
           path: Translate-Folder
           
+      - name: Checkout External Dependency (Snapin8r2)
+        uses: actions/checkout@v4
+        with:
+          repository: 'DaikoGames/Snapin8r2'
+          path: Snapin8r2
+
+      - name: Checkout External Dependency (sb3tosb2)
+        uses: actions/checkout@v4
+        with:
+          repository: 'DaikoGames/sb3tosb2'
+          path: sb3tosb2
+          
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
