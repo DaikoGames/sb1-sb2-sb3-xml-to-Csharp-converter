@@ -121,7 +121,7 @@ jobs:
           }
           New-Item -ItemType Directory -Force -Path "$baseDir/Snapin8r2"
           Copy-Item "./Snapin8r2/LICENSE" "$baseDir/Snapin8r2/LICENSE"
-          Copy-Item "./Snapin8r2/Readme.md" "$baseDir/Snapin8r2/README.md"
+          Copy-Item "./Snapin8r2/README.md" "$baseDir/Snapin8r2/README.md"
           Copy-Item "./Snapin8r2/gui.js" "$baseDir/Snapin8r2/gui.js"
           Copy-Item "./Snapin8r2/index.html" "$baseDir/Snapin8r2/index.html"
           Copy-Item "./Snapin8r2/liam4.css" "$baseDir/Snapin8r2/liam4.css"
@@ -183,7 +183,7 @@ jobs:
           }
           New-Item -ItemType Directory -Force -Path "$baseDir/Snapin8r2"
           Copy-Item "./Snapin8r2/LICENSE" "$baseDir/Snapin8r2/LICENSE"
-          Copy-Item "./Snapin8r2/Readme.md" "$baseDir/Snapin8r2/README.md"
+          Copy-Item "./Snapin8r2/README.md" "$baseDir/Snapin8r2/README.md"
           Copy-Item "./Snapin8r2/gui.js" "$baseDir/Snapin8r2/gui.js"
           Copy-Item "./Snapin8r2/index.html" "$baseDir/Snapin8r2/index.html"
           Copy-Item "./Snapin8r2/liam4.css" "$baseDir/Snapin8r2/liam4.css"
