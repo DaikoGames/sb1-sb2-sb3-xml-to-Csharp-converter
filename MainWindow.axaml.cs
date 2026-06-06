@@ -26,6 +26,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
 using BergamotTranslatorSharp;
+using System.Runtime.InteropServices;
 
 
 
@@ -34,7 +35,6 @@ namespace sb1_sb2_sb3_xml_to_Csharp_converter;
 //One of my biggest issues is that bools are written as , even though they need .
 public partial class MainWindow : Window
 {
-
     string DotnetVersion;
     public bool windows = false;
     public bool linux = false;
@@ -956,7 +956,7 @@ public partial class MainWindow : Window
 
     //The automation of converting .sb3 Files to .xml FIles isn�t working properly - so the conversion from .sb to .sb3 or .sb2 to .sb3 with Auto Hot Key - its probably because of the path - I will take a closer look to that.
     //Ok so i found out a thing, the thing is that the Neutralino app needs to be full screen and a click needs to be simulated. Gotta tell the user to relax lol XD
-
+    string newFile;
     public async Task sbfiles(string Extension) //This doesn�t work bc of Scratch i need to find me failure :/ lol XD
     {
         Trace.WriteLine("Converting .sb or .sb2 to .sb3 now");
@@ -973,27 +973,129 @@ public partial class MainWindow : Window
                 //Ok it works, now check if the modules are installed - if not install with npm again LOL
                 //My users have to have Powershell, i know it sounds bad, but it is the most efficient way there is
 
-                if (FileExtension == ".sb" | FileExtension == ".sb2")
+                string SB1SB2toXML = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Snapin8r2");
+                string ScratchConverter = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Scratch-Format-Converter");
+                string SB3toSB2 = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "sb3tosb2");
+                if (FileExtension == ".sb")
                 {
+                    string OriginalSBFile = Path.Combine(ScratchConverter, "project.sb");
+                    File.Copy(Filename, OriginalSBFile, true);
+                    string SB3File = Path.Combine(ScratchConverter, "project.sb3");
+                    await (Cli.Wrap("node").WithArguments(args => args.Add("convert.js"))).WithWorkingDirectory(ScratchConverter).ExecuteAsync();
+                    string NewSB3File = Path.Combine(SB3toSB2, "project.sb3");
+                    File.Copy(SB3File, NewSB3File, true);
+
+                    Architecture UserArchitecture = RuntimeInformation.ProcessArchitecture;
                     if (OperatingSystem.IsWindows())
                     {
-                        await Cli.Wrap("node").WithArguments(args => args.Add("Convert.js")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync();
-                        string OldSB3 = Path.Combine(ConverterFolder, "project.sb3");
-                        string NewSB3 = Path.Combine(Foldername, "project.sb3");
-                        File.Copy(OldSB3, NewSB3, true);
-                        File.Delete(ConvertDestination);
-                        File.Delete(OldSB3);
-                        FileExtension = ".sb3";
-                        Filename = NewSB3;
+                        if (UserArchitecture == Architecture.X86)
+                        {
+                            
+                        }
+                        if (UserArchitecture == Architecture.X64)
+                        {
+                            await (Cli.Wrap("sb3tosb2-windows-x64.exe").WithWorkingDirectory(SB3toSB2).ExecuteAsync());
+                        }
+                        if (UserArchitecture == Architecture.Arm64)
+                        {
+                            await (Cli.Wrap("sb3tosb2-windows-arm64.exe").WithWorkingDirectory(SB3toSB2).ExecuteAsync());
+                        }
                     }
+
+                    if (OperatingSystem.IsLinux())
+                    {
+                        if (UserArchitecture == Architecture.X64)
+                        {
+                            await (Cli.Wrap("sb3tosb2-linux-x64").WithWorkingDirectory(SB3toSB2).ExecuteAsync());
+                        }
+                        if (UserArchitecture == Architecture.Arm64)
+                        {
+                            await (Cli.Wrap("sb3tosb2-linux-arm64").WithWorkingDirectory(SB3toSB2).ExecuteAsync());
+                        }
+                    }
+
+                    if (OperatingSystem.IsMacOS())
+                    {
+                        if (UserArchitecture == Architecture.X64)
+                        {
+                            await (Cli.Wrap("sb3tosb2-macos-x64").WithWorkingDirectory(SB3toSB2).ExecuteAsync());
+                        }
+                        if (UserArchitecture == Architecture.Arm64)
+                        {
+                            await (Cli.Wrap("sb3tosb2-macos-arm64").WithWorkingDirectory(SB3toSB2).ExecuteAsync());
+                        }
+                    }
+                    string originalFile = Path.Combine(SB3toSB2, "project.sb2");
+                    newFile = Path.Combine(SB1SB2toXML, "project.sb2");
+                    File.Copy(originalFile, newFile, true);
+                    await (Cli.Wrap("node").WithArguments(args => args.Add("gui.js"))).WithWorkingDirectory(SB1SB2toXML).ExecuteAsync();
+                    Filename = Path.Combine(SB1SB2toXML, "project.xml");
+                    FileExtension = ".xml";
+                }
+
+                if(FileExtension == ".sb2")
+                {
+                    if (FileExtension == ".sb2")
+                    {
+                        newFile = Path.Combine(SB1SB2toXML, "project.sb2");
+                    }
+                    File.Copy(Filename, newFile, true);
+                    await (Cli.Wrap("node").WithArguments(args => args.Add("gui.js"))).WithWorkingDirectory(SB1SB2toXML).ExecuteAsync();
+                    Filename = Path.Combine(SB1SB2toXML, "project.xml");
+                    FileExtension = ".xml";
                 }
 
                 if (FileExtension == ".sb3")
                 {
-                    string ZipFILE = Path.Combine(Foldername, Path.GetFileNameWithoutExtension(Filename) + ".zip");
-                    File.Copy(Filename, ZipFILE);
-                    File.Delete(Filename);
-                    ZipFile.ExtractToDirectory(ZipFILE, Foldername, true);
+                    string SB3File = Path.Combine(SB3toSB2, "project.sb3");
+                    File.Copy(Filename, SB3File, true);
+                    
+                    Architecture UserArchitecture = RuntimeInformation.ProcessArchitecture;
+                    if (OperatingSystem.IsWindows())
+                    {
+                        if (UserArchitecture == Architecture.X86)
+                        {
+
+                        }
+                        if (UserArchitecture == Architecture.X64)
+                        {
+                            await (Cli.Wrap("sb3tosb2-windows-x64.exe").WithWorkingDirectory(SB3toSB2).ExecuteAsync());
+                        }
+                        if (UserArchitecture == Architecture.Arm64)
+                        {
+                            await (Cli.Wrap("sb3tosb2-windows-arm64.exe").WithWorkingDirectory(SB3toSB2).ExecuteAsync());
+                        }
+                    }
+
+                    if (OperatingSystem.IsLinux())
+                    {
+                        if (UserArchitecture == Architecture.X64)
+                        {
+                            await (Cli.Wrap("sb3tosb2-linux-x64").WithWorkingDirectory(SB3toSB2).ExecuteAsync());
+                        }
+                        if (UserArchitecture == Architecture.Arm64)
+                        {
+                            await (Cli.Wrap("sb3tosb2-linux-arm64").WithWorkingDirectory(SB3toSB2).ExecuteAsync());
+                        }
+                    }
+
+                    if (OperatingSystem.IsMacOS())
+                    {
+                        if (UserArchitecture == Architecture.X64)
+                        {
+                            await (Cli.Wrap("sb3tosb2-macos-x64").WithWorkingDirectory(SB3toSB2).ExecuteAsync());
+                        }
+                        if (UserArchitecture == Architecture.Arm64)
+                        {
+                            await (Cli.Wrap("sb3tosb2-macos-arm64").WithWorkingDirectory(SB3toSB2).ExecuteAsync());
+                        }
+                    }
+                    string originalFile = Path.Combine(SB3toSB2, "project.sb2");
+                    newFile = Path.Combine(SB1SB2toXML, "project.sb2");
+                    File.Copy(originalFile, newFile, true);
+                    await (Cli.Wrap("node").WithArguments(args => args.Add("gui.js"))).WithWorkingDirectory(SB1SB2toXML).ExecuteAsync();
+                    Filename = Path.Combine(SB1SB2toXML, "project.xml");
+                    FileExtension = ".xml";
                 }
                 //Convert to C# now directly
             }
