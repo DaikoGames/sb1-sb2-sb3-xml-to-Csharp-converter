@@ -197,10 +197,10 @@ jobs:
         shell: bash
         if: contains(matrix.runtime, 'win-x86')
         run: |
-            cd "./Converter-win-x86-Portable/"
+            cd "./Releases/Converter-win-x86-Portable/"
             wget "https://github.com/Kron4ek/Wine-Builds/releases/download/11.11/wine-11.11-x86.tar.xz"
-            New-Item -Path "./Converter-win-x86-Portable/Run-Linux.sh" -ItemType File
-            "./Converter-win-x86-Portable/wine-11.11-x86/bin/wine ./Converter-win-x86-Portable/Converter.exe" | Out-File -FilePath "./Run-Linux.sh"
+            New-Item -Path "./Releases/Converter-win-x86-Portable/Run-Linux.sh" -ItemType File
+            "./Releases/Converter-win-x86-Portable/wine-11.11-x86/bin/wine ./Converter-win-x86-Portable/Converter.exe" | Out-File -FilePath "./Run-Linux.sh"
                
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
