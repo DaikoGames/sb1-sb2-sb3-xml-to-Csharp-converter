@@ -47,17 +47,6 @@ jobs:
           repository: 'DaikoGames/Translate-Folder'
           path: Translate-Folder
           
-      - name: Checkout External Dependency (Snapin8r2)
-        uses: actions/checkout@v4
-        with:
-          repository: 'DaikoGames/Snapin8r2'
-          path: Snapin8r2
-
-      - name: Checkout External Dependency (sb3tosb2)
-        uses: actions/checkout@v4
-        with:
-          repository: 'DaikoGames/sb3tosb2'
-          path: sb3tosb2
           
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -119,28 +108,7 @@ jobs:
           $YMLDirectoryName = (Get-Item $YMLfile).Directory.Name
           Copy-Item -Path $YMLfile.FullName "$baseDir/Translate-Folder/$YMLDirectoryName/$JYMLFileName" -Force
           }
-          New-Item -ItemType Directory -Force -Path "$baseDir/Snapin8r2"
-          Copy-Item "./Snapin8r2/LICENSE" "$baseDir/Snapin8r2/LICENSE"
-          Copy-Item "./Snapin8r2/README.md" "$baseDir/Snapin8r2/README.md"
-          Copy-Item "./Snapin8r2/gui.js" "$baseDir/Snapin8r2/gui.js"
-          Copy-Item "./Snapin8r2/index.html" "$baseDir/Snapin8r2/index.html"
-          Copy-Item "./Snapin8r2/liam4.css" "$baseDir/Snapin8r2/liam4.css"
-          Copy-Item "./Snapin8r2/package-lock.json" "$baseDir/Snapin8r2/package-lock.json"
-          Copy-Item "./Snapin8r2/package.json" "$baseDir/Snapin8r2/package.json"
-          Copy-Item "./Snapin8r2/scratch.svg" "$baseDir/Snapin8r2/scratch.svg"
-          Copy-Item "./Snapin8r2/snap.png" "$baseDir/Snapin8r2/snap.png"
-          Copy-Item "./Snapin8r2/snapin8r2.js" "$baseDir/Snapin8r2/snapin8r2.js"
-          Copy-Item "./Snapin8r2/style.css" "$baseDir/Snapin8r2/style.css"
-          New-Item -ItemType Directory -Force -Path "$baseDir/sb3tosb2"
-          if ("${{ matrix.runtime }}" -eq "win-x64") {
-              Copy-Item "./sb3tosb2/sb3tosb2-windows-x64.exe" "$baseDir/sb3tosb2/sb3tosb2-windows-x64.exe" -Force
-          }
-          if ("${{ matrix.runtime }}" -eq "win-arm64") {
-              Copy-Item "./sb3tosb2/sb3tosb2-windows-arm64.exe" "$baseDir/sb3tosb2/sb3tosb2-windows-arm64.exe" -Force
-          }
-          Copy-Item "./sb3tosb2/sb3tosb2.py" "$baseDir/sb3tosb2/sb3tosb2.py"
-          Copy-Item "./sb3tosb2/LICENSE" "$baseDir/sb3tosb2/LICENSE"
-          Copy-Item "./sb3tosb2/README.md" "$baseDir/sb3tosb2/README.md"
+          
           Copy-Item "./README.md" "$baseDir/README.md"
   
       - name: Add Files (Linux, MacOS)
@@ -181,34 +149,6 @@ jobs:
           $YMLDirectoryName = (Get-Item $YMLfile).Directory.Name
           Copy-Item -Path $YMLfile.FullName "$baseDir/Translate-Folder/$YMLDirectoryName/$JYMLFileName" -Force
           }
-          New-Item -ItemType Directory -Force -Path "$baseDir/Snapin8r2"
-          Copy-Item "./Snapin8r2/LICENSE" "$baseDir/Snapin8r2/LICENSE"
-          Copy-Item "./Snapin8r2/README.md" "$baseDir/Snapin8r2/README.md"
-          Copy-Item "./Snapin8r2/gui.js" "$baseDir/Snapin8r2/gui.js"
-          Copy-Item "./Snapin8r2/index.html" "$baseDir/Snapin8r2/index.html"
-          Copy-Item "./Snapin8r2/liam4.css" "$baseDir/Snapin8r2/liam4.css"
-          Copy-Item "./Snapin8r2/package-lock.json" "$baseDir/Snapin8r2/package-lock.json"
-          Copy-Item "./Snapin8r2/package.json" "$baseDir/Snapin8r2/package.json"
-          Copy-Item "./Snapin8r2/scratch.svg" "$baseDir/Snapin8r2/scratch.svg"
-          Copy-Item "./Snapin8r2/snap.png" "$baseDir/Snapin8r2/snap.png"
-          Copy-Item "./Snapin8r2/snapin8r2.js" "$baseDir/Snapin8r2/snapin8r2.js"
-          Copy-Item "./Snapin8r2/style.css" "$baseDir/Snapin8r2/style.css"
-          New-Item -ItemType Directory -Force -Path "$baseDir/sb3tosb2"
-          if ("${{ matrix.runtime }}" -eq "linux-x64") {
-              Copy-Item "./sb3tosb2/sb3tosb2-linux-x64" "$baseDir/sb3tosb2/sb3tosb2-linux-x64" -Force
-          }
-          if ("${{ matrix.runtime }}" -eq "linux-arm64") {
-              Copy-Item "./sb3tosb2/sb3tosb2-linux-arm64" "$baseDir/sb3tosb2/sb3tosb2-linux-arm64" -Force
-          }
-          if ("${{ matrix.runtime }}" -eq "osx-x64") {
-              Copy-Item "./sb3tosb2/sb3tosb2-macos-x64" "$baseDir/sb3tosb2/sb3tosb2-macos-x64" -Force
-          }
-          if ("${{ matrix.runtime }}" -eq "osx-arm64") {
-              Copy-Item "./sb3tosb2/sb3tosb2-macos-arm64" "$baseDir/sb3tosb2/sb3tosb2-macos-arm64" -Force
-          }
-          Copy-Item "./sb3tosb2/sb3tosb2.py" "$baseDir/sb3tosb2/sb3tosb2.py"
-          Copy-Item "./sb3tosb2/LICENSE" "$baseDir/sb3tosb2/LICENSE"
-          Copy-Item "./sb3tosb2/README.md" "$baseDir/sb3tosb2/README.md"
           Copy-Item "./README.md" "$baseDir/README.md"
           
     
@@ -228,6 +168,7 @@ jobs:
             --outputDir "./Releases" \
             --icon "./ConverterIcon/Converter.ico" \
             --channel "${{ matrix.runtime }}"
+            
       - name: Pack with Velopack Linux
         shell: bash
         if: contains(matrix.runtime, 'linux')
@@ -251,8 +192,16 @@ jobs:
             --outputDir "./Releases" \
             --icon "./ConverterIcon/Converter.icns" \
             --channel "${{ matrix.runtime }}"
-    
-
+            
+      - name: Add Wine - (Linux x86)
+        shell: bash
+        if: contains(matrix.runtime, 'win-x86')
+        run: |
+            cd "./Converter-win-x86-Portable/"
+            wget "https://github.com/Kron4ek/Wine-Builds/releases/download/11.11/wine-11.11-x86.tar.xz"
+            New-Item -Path "./Converter-win-x86-Portable/Run-Linux.sh" -ItemType File
+            "./Converter-win-x86-Portable/wine-11.11-x86/bin/wine ./Converter-win-x86-Portable/Converter.exe" | Out-File -FilePath "./Run-Linux.sh"
+               
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
