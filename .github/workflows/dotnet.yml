@@ -155,18 +155,6 @@ jobs:
         run: |
           vpk pack --help
           
-      - name: Add Wine - (Linux x86)
-        shell: bash
-        if: contains(matrix.runtime, 'win-x86')
-        run: |
-          cd "./publish/win-x86"
-          curl -L -O "https://github.com/Kron4ek/Wine-Builds/releases/download/11.11/wine-11.11-x86.tar.xz"
-          tar -xf wine-11.11-x86.tar.xz --no-same-owner || true
-          rm wine-11.11-x86.tar.xz
-          echo '#!/bin/bash' > ./Run-Linux.sh
-          echo './wine-11.11-x86/bin/wine ./Converter.exe' >> ./Run-Linux.sh
-          chmod +x ./Run-Linux.sh
-          
       - name: Pack with Velopack Windows
         shell: bash
         if: contains(matrix.runtime, 'win')
@@ -202,16 +190,64 @@ jobs:
             --outputDir "./Releases" \
             --icon "./ConverterIcon/Converter.icns" \
             --channel "${{ matrix.runtime }}"
-
-     
-
-          
+            
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: vpk-artifacts-${{ matrix.runtime }}
           path: ./Releases/*
+          
+  publish_linux-x86:
+   needs: build
+   runs-on: ubuntu-latest
+   steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
+      - name: Checkout External Dependency (Scratch-Format-Converter)
+        uses: actions/checkout@v4
+        with:
+          repository: 'DaikoGames/Scratch-Format-Converter'
+          path: Scratch-Format-Converter
+          
+      - name: Checkout External Dependency (Translator)
+        uses: actions/checkout@v4
+        with:
+          repository: 'DaikoGames/Translate-Folder'
+          path: Translate-Folder
+          
+          
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Build and Publish App
+        shell: bash
+        run: |
+          dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" \
+            -c Release \
+            -r win-x86 \
+            -o "./publish/linux-x86" \
+            -p:SelfContained=true \
+            -p:PublishSingleFile=true
+            
+      - name: Add Wine - (Linux x86)
+        shell: bash
+        if: contains(matrix.runtime, 'win-x86')
+        run: |
+          cd "./publish/linux-x86"
+          curl -L -O "https://github.com/Kron4ek/Wine-Builds/releases/download/11.11/wine-11.11-x86.tar.xz"
+          tar -xf wine-11.11-x86.tar.xz --no-same-owner || true
+          rm wine-11.11-x86.tar.xz
+          echo '#!/bin/bash' > ./Run-Linux.sh
+          echo './wine-11.11-x86/bin/wine ./Converter.exe' >> ./Run-Linux.sh
+          chmod +x ./Run-Linux.sh   
+          touch "./App.desktop"
+          echo "Name=Converter" > App.desktop
+          echo "Exec=AppRun" >> App.desktop
+          echo "Type=Application" >> App.desktop
+          ARCH=i686 ./appimagetool-x86_64.AppImage MyAvaloniaApp.AppDir MyFinishedApp-i686.AppImage
   release:
     needs: build
     runs-on: ubuntu-latest
