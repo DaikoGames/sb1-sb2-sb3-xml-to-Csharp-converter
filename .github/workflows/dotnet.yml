@@ -155,6 +155,18 @@ jobs:
         run: |
           vpk pack --help
           
+      - name: Add Wine - (Linux x86)
+        shell: bash
+        if: contains(matrix.runtime, 'win-x86')
+        run: |
+          cd "./publish/win-x86"
+          curl -L -O "https://github.com/Kron4ek/Wine-Builds/releases/download/11.11/wine-11.11-x86.tar.xz"
+          tar -xf wine-11.11-x86.tar.xz --no-same-owner || true
+          rm wine-11.11-x86.tar.xz
+          echo '#!/bin/bash' > ./Run-Linux.sh
+          echo './wine-11.11-x86/bin/wine ./Converter.exe' >> ./Run-Linux.sh
+          chmod +x ./Run-Linux.sh
+          
       - name: Pack with Velopack Windows
         shell: bash
         if: contains(matrix.runtime, 'win')
@@ -191,17 +203,8 @@ jobs:
             --icon "./ConverterIcon/Converter.icns" \
             --channel "${{ matrix.runtime }}"
 
-      - name: Add Wine - (Linux x86)
-        shell: bash
-        if: contains(matrix.runtime, 'win-x86')
-        run: |
-          cd "./publish/win-x86"
-          curl -L -O "https://github.com/Kron4ek/Wine-Builds/releases/download/11.11/wine-11.11-x86.tar.xz"
-          tar -xf wine-11.11-x86.tar.xz --no-same-owner || true
-          rm wine-11.11-x86.tar.xz
-          echo '#!/bin/bash' > ./Run-Linux.sh
-          echo './wine-11.11-x86/bin/wine ./Converter.exe' >> ./Run-Linux.sh
-          chmod +x ./Run-Linux.sh
+     
+
           
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
