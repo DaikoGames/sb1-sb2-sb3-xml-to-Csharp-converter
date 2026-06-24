@@ -6,9 +6,7 @@ on:
      
 permissions:
   contents: write
-
-
-   
+  
 jobs:
   build:
     strategy:
@@ -197,10 +195,12 @@ jobs:
         shell: bash
         if: contains(matrix.runtime, 'win-x86')
         run: |
-            cd "./Releases/Converter-win-x86-Portable/"
-            wget "https://github.com/Kron4ek/Wine-Builds/releases/download/11.11/wine-11.11-x86.tar.xz"
-            New-Item -Path "./Releases/Converter-win-x86-Portable/Run-Linux.sh" -ItemType File
-            "./Releases/Converter-win-x86-Portable/wine-11.11-x86/bin/wine ./Converter-win-x86-Portable/Converter.exe" | Out-File -FilePath "./Run-Linux.sh"
+            cd "./publish/win-x86"
+            curl -L -O "https://github.com/Kron4ek/Wine-Builds/releases/download/11.11/wine-11.11-x86.tar.xz"
+            tar -xf wine-11.11-x86.tar.xz
+            Remove-Item wine-11.11-x86.tar.xz
+            New-Item -Path "./Run-Linux.sh" -ItemType File -Force
+            Set-Content -Path "./Run-Linux.sh" -Value "./wine-11.11-x86/bin/wine ./Converter.exe"
                
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
@@ -235,4 +235,3 @@ jobs:
                  ./all-assets/Converter-win-arm64-Portable.zip
                  ./all-assets/Converter-osx-x64-Portable.zip
                  ./all-assets/Converter-osx-arm64-Portable.zip
-
