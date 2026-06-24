@@ -247,7 +247,7 @@ jobs:
           echo "Name=Converter" >> Converter.desktop
           echo "Exec=AppRun" >> Converter.desktop
           echo "Type=Application" >> Converter.desktop
-          echo "Icon=Converter.png" >> Converter.desktop
+          echo "Icon=Converter" >> Converter.desktop
           echo "Categories=Utility;" >> Converter.desktop
           cp ./ConverterIcon/Converter.png ./Converter.png || cp ./ConverterIcon/*.png ./Converter.png || touch Converter.png
           curl -L -O "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage"
