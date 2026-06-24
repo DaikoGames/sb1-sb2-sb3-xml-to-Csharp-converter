@@ -231,7 +231,7 @@ jobs:
             -o "./publish/linux-x86" \
             -p:SelfContained=true \
             -p:PublishSingleFile=true
-            
+  
       - name: Add Wine and Build AppImage - (Linux x86)
         shell: bash
         run: |
@@ -247,19 +247,16 @@ jobs:
           echo "Name=Converter" >> Converter.desktop
           echo "Exec=AppRun" >> Converter.desktop
           echo "Type=Application" >> Converter.desktop
-          echo "Icon=converter" >> Converter.desktop
-          touch converter.png 
           curl -L -O "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage"
           chmod +x appimagetool-x86_64.AppImage
           cd ..
-          ARCH=i686 ./linux-x86/appimagetool-x86_64.AppImage --appimage-extract-and-run ./linux-x86/Converter-linux-x86.AppImage
-      
+          ARCH=i686 ./linux-x86/appimagetool-x86_64.AppImage --appimage-extract-and-run ./linux-x86 Converter-linux-x86.AppImage
       
       - name: Upload Artifact (linux x86)
         uses: actions/upload-artifact@v4
         with:
           name: vpk-artifact-linux_x86
-          path: ./linux-x86/Converter-linux-x86.AppImage
+          path: ./publish/Converter-linux-x86.AppImage
           
   release:
     needs: build
