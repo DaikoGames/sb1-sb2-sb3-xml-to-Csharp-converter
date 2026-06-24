@@ -281,6 +281,7 @@ jobs:
                  ./all-assets/Converter-win-arm64-Setup.exe
                  ./all-assets/Converter-osx-x64-Setup.pkg
                  ./all-assets/Converter-osx-arm64-Setup.pkg
+                 ./all-assets/Converter-linux-x86.AppImage
                  ./all-assets/Converter-linux-x64.AppImage
                  ./all-assets/Converter-linux-arm64.AppImage
                  ./all-assets/Converter-win-x86-Portable.zip
