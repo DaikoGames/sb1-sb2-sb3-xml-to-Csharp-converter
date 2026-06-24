@@ -197,7 +197,7 @@ jobs:
           name: vpk-artifacts-${{ matrix.runtime }}
           path: ./Releases/*
           
-  publish_linux-x86:
+  build_ubuntu-latest_linux-x86:
    needs: build
    runs-on: ubuntu-latest
    steps:
@@ -262,7 +262,7 @@ jobs:
           path: ./publish/Converter-linux-x86.AppImage
           
   release:
-    needs: build
+    needs: [build, build_ubuntu-latest_linux-x86]
     runs-on: ubuntu-latest
     steps:
       - name: Download
