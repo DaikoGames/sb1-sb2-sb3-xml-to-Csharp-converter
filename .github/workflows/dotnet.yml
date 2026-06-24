@@ -247,6 +247,8 @@ jobs:
           echo "Name=Converter" >> Converter.desktop
           echo "Exec=AppRun" >> Converter.desktop
           echo "Type=Application" >> Converter.desktop
+          echo "Categories=Utility;" >> Converter.desktop
+          
           curl -L -O "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage"
           chmod +x appimagetool-x86_64.AppImage
           cd ..
