@@ -232,22 +232,35 @@ jobs:
             -p:SelfContained=true \
             -p:PublishSingleFile=true
             
-      - name: Add Wine - (Linux x86)
+      - name: Add Wine and Build AppImage - (Linux x86)
         shell: bash
-        if: contains(matrix.runtime, 'win-x86')
         run: |
           cd "./publish/linux-x86"
           curl -L -O "https://github.com/Kron4ek/Wine-Builds/releases/download/11.11/wine-11.11-x86.tar.xz"
           tar -xf wine-11.11-x86.tar.xz --no-same-owner || true
           rm wine-11.11-x86.tar.xz
-          echo '#!/bin/bash' > ./Run-Linux.sh
-          echo './wine-11.11-x86/bin/wine ./Converter.exe' >> ./Run-Linux.sh
-          chmod +x ./Run-Linux.sh   
-          touch "./App.desktop"
-          echo "Name=Converter" > App.desktop
-          echo "Exec=AppRun" >> App.desktop
-          echo "Type=Application" >> App.desktop
-          ARCH=i686 ./appimagetool-x86_64.AppImage MyAvaloniaApp.AppDir MyFinishedApp-i686.AppImage
+          echo '#!/bin/bash' > ./AppRun
+          echo 'HERE="$(dirname "$(readlink -f "${0}")")"' >> ./AppRun
+          echo '"$HERE/wine-11.11-x86/bin/wine" "$HERE/Converter.exe"' >> ./AppRun
+          chmod +x ./AppRun   
+          echo "[Desktop Entry]" > Converter.desktop
+          echo "Name=Converter" >> Converter.desktop
+          echo "Exec=AppRun" >> Converter.desktop
+          echo "Type=Application" >> Converter.desktop
+          echo "Icon=converter" >> Converter.desktop
+          touch converter.png 
+          curl -L -O "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage"
+          chmod +x appimagetool-x86_64.AppImage
+          cd ..
+          ARCH=i686 ./linux-x86/appimagetool-x86_64.AppImage --appimage-extract-and-run ./linux-x86/Converter-linux-x86.AppImage
+      
+      
+      - name: Upload Artifact (linux x86)
+        uses: actions/upload-artifact@v4
+        with:
+          name: vpk-artifact-linux_x86
+          path: ./linux-x86/Converter-linux-x86.AppImage
+          
   release:
     needs: build
     runs-on: ubuntu-latest
