@@ -260,7 +260,41 @@ jobs:
         with:
           name: vpk-artifact-linux_x86
           path: ./publish/Converter-linux-x86.AppImage
+  build_macos-latest_macos-x86:
+   needs: build
+   runs-on: ubuntu-latest
+   steps: 
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Checkout External Dependency (Scratch-Format-Converter)
+        uses: actions/checkout@v4
+        with:
+          repository: 'DaikoGames/Scratch-Format-Converter'
+          path: Scratch-Format-Converter
           
+      - name: Checkout External Dependency (Translator)
+        uses: actions/checkout@v4
+        with:
+          repository: 'DaikoGames/Translate-Folder'
+          path: Translate-Folder
+          
+          
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Build and Publish App
+        shell: bash
+        run: |
+          dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" \
+            -c Release \
+            -r win-x86 \
+            -o "./publish/linux-x86" \
+            -p:SelfContained=true \
+            -p:PublishSingleFile=true
+      - name: 
   release:
     needs: [build, build_ubuntu-latest_linux-x86]
     runs-on: ubuntu-latest
