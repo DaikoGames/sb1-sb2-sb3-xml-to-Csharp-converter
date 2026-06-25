@@ -232,7 +232,7 @@ jobs:
         shell: bash
         run: |
           cd "./publish/linux-x86"
-          curl -L -O "https://github.com/Kron4ek/Wine-Builds/releases/download/11.11/wine-11.11-x86.tar.xz"
+          curl -sLf --retry 5 --retry-connrefused -O "https://github.com/Kron4ek/Wine-Builds/releases/download/11.11/wine-11.11-x86.tar.xz"
           tar -xf wine-11.11-x86.tar.xz --no-same-owner || true
           rm wine-11.11-x86.tar.xz
           echo '#!/bin/bash' > ./AppRun
@@ -300,10 +300,10 @@ jobs:
           
           cp -R ./publish/macos-x86-app/* "Converter.app/Contents/Resources/app/"
           
-          # Optimierter Download mit aggressiver Retry-Logik gegen GitHub-Netzwerk-Timeouts
+          # Optimierter Download mit robuster Retry-Logik gegen Verbindungsausfälle (behebt Error 56)
           curl -sLf --retry 5 --retry-connrefused -O "https://github.com/Gcenx/wine-on-mac/releases/download/9.0/wine-stable-x86_64.tar.xz"
           
-          # Direktes Entpacken über tar (erfordert kein manuelles xz mehr)
+          # Nativer macOS Entpackvorgang über tar
           tar -xf wine-stable-x86_64.tar.xz -C "Converter.app/Contents/Resources/wine/"
           rm wine-stable-x86_64.tar.xz
           
