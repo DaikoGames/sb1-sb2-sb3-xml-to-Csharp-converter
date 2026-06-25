@@ -45,7 +45,6 @@ jobs:
           repository: 'DaikoGames/Translate-Folder'
           path: Translate-Folder
           
-          
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
@@ -106,7 +105,6 @@ jobs:
           $YMLDirectoryName = (Get-Item $YMLfile).Directory.Name
           Copy-Item -Path $YMLfile.FullName "$baseDir/Translate-Folder/$YMLDirectoryName/$JYMLFileName" -Force
           }
-          
           Copy-Item "./README.md" "$baseDir/README.md"
   
       - name: Add Files (Linux, MacOS)
@@ -149,7 +147,6 @@ jobs:
           }
           Copy-Item "./README.md" "$baseDir/README.md"
           
-    
       - name: Check Help
         shell: bash
         run: |
@@ -216,7 +213,6 @@ jobs:
           repository: 'DaikoGames/Translate-Folder'
           path: Translate-Folder
           
-          
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
@@ -260,9 +256,10 @@ jobs:
         with:
           name: vpk-artifact-linux_x86
           path: ./publish/Converter-linux-x86.AppImage
+
   build_macos-latest_macos-x86:
    needs: build
-   runs-on: ubuntu-latest
+   runs-on: macos-latest
    steps: 
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -279,7 +276,6 @@ jobs:
           repository: 'DaikoGames/Translate-Folder'
           path: Translate-Folder
           
-          
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
@@ -291,12 +287,64 @@ jobs:
           dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" \
             -c Release \
             -r win-x86 \
-            -o "./publish/linux-x86" \
+            -o "./publish/macos-x86-app" \
             -p:SelfContained=true \
             -p:PublishSingleFile=true
-      - name: 
+
+      - name: Build macOS x86 App (wine)
+        shell: bash
+        run: |
+          # 1. Erstelle die .app Struktur für macOS
+          mkdir -p "Converter.app/Contents/MacOS"
+          mkdir -p "Converter.app/Contents/Resources/wine"
+          mkdir -p "Converter.app/Contents/Resources/app"
+          cp -R ./publish/macos-x86-app/* "Converter.app/Contents/Resources/app/"
+          
+          curl -sL -O "https://github.com/Gcenx/wine-on-mac/releases/download/9.0/wine-stable-x86_64.tar.xz"
+          tar -xf wine-stable-x86_64.tar.xz -C "Converter.app/Contents/Resources/wine/"
+          cat << 'EOF' > "Converter.app/Contents/MacOS/launcher"
+          #!/bin/bash
+          DIR="$(cd "$(dirname "$0")" && pwd)"
+          WINE_BIN="$DIR/../Resources/wine/bin/wine"
+          cd "$DIR/../Resources/app"
+          env WINEDEBUG=-all "$WINE_BIN" "Converter.exe"
+          EOF
+          
+          chmod +x "Converter.app/Contents/MacOS/launcher"
+          
+          cat << 'EOF' > "Converter.app/Contents/Info.plist"
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>CFBundleExecutable</key>
+              <string>launcher</string>
+              <key>CFBundleIdentifier</key>
+              <string>com.daikogames.converter.x86</string>
+              <key>CFBundleName</key>
+              <string>Converter</string>
+              <key>CFBundlePackageType</key>
+              <string>APPL</string>
+              <key>CFBundleShortVersionString</key>
+              <string>0.9</string>
+          </dict>
+          </plist>
+          EOF
+
+      - name: Package App Bundle into single DMG
+        shell: bash
+        run: |
+          mkdir ./dist
+          hdiutil create -volname "Converter-macOS-x86" -srcfolder "Converter.app" -ov -format UDZO "./dist/Converter-macos-x86.dmg"
+
+      - name: Upload Artifact (macos x86)
+        uses: actions/upload-artifact@v4
+        with:
+          name: vpk-artifact-macos_x86
+          path: ./dist/Converter-macos-x86.dmg
+
   release:
-    needs: [build, build_ubuntu-latest_linux-x86]
+    needs: [build, build_ubuntu-latest_linux-x86, build_macos-latest_macos-x86]
     runs-on: ubuntu-latest
     steps:
       - name: Download
@@ -318,6 +366,7 @@ jobs:
                  ./all-assets/Converter-linux-x86.AppImage
                  ./all-assets/Converter-linux-x64.AppImage
                  ./all-assets/Converter-linux-arm64.AppImage
+                 ./all-assets/Converter-macos-x86.dmg
                  ./all-assets/Converter-win-x86-Portable.zip
                  ./all-assets/Converter-win-x64-Portable.zip
                  ./all-assets/Converter-win-arm64-Portable.zip
