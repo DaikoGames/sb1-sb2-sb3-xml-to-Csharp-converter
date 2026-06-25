@@ -300,17 +300,22 @@ jobs:
           
           cp -R ./publish/macos-x86-app/* "Converter.app/Contents/Resources/app/"
           
-          # Optimierter Download mit robuster Retry-Logik gegen Verbindungsausfälle (behebt Error 56)
-          curl -sLf --retry 5 --retry-connrefused -O "https://github.com/Gcenx/wine-on-mac/releases/download/9.0/wine-stable-x86_64.tar.xz"
+          # Sicherer Download mit Fallback-Optionen
+          curl -sL --retry 5 --retry-delay 2 -O "https://github.com/Gcenx/wine-on-mac/releases/download/9.0/wine-stable-amd64.tar.xz"
           
-          # Nativer macOS Entpackvorgang über tar
-          tar -xf wine-stable-x86_64.tar.xz -C "Converter.app/Contents/Resources/wine/"
-          rm wine-stable-x86_64.tar.xz
+          # Fix: --strip-components=1 entfernt den umschließenden Ordner im Archiv beim Entpacken
+          tar -xf wine-stable-amd64.tar.xz --strip-components=1 -C "Converter.app/Contents/Resources/wine/"
+          rm wine-stable-amd64.tar.xz
           
           cat << 'EOF' > "Converter.app/Contents/MacOS/launcher"
           #!/bin/bash
           DIR="$(cd "$(dirname "$0")" && pwd)"
-          WINE_BIN="$DIR/../Resources/wine/bin/wine"
+          WINE_BIN="$DIR/../Resources/wine/Contents/Resources/wine/bin/wine"
+          
+          if [ ! -f "$WINE_BIN" ]; then
+              # Ausweichpfad falls die Struktur flach entpackt wurde
+              WINE_BIN="$DIR/../Resources/wine/bin/wine"
+          fi
           
           cd "$DIR/../Resources/app"
           env WINEDEBUG=-all "$WINE_BIN" "Converter.exe"
