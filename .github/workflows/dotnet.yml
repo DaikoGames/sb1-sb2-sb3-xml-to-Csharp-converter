@@ -294,17 +294,18 @@ jobs:
       - name: Build macOS x86 App Bundle with Wine
         shell: bash
         run: |
-          brew install xz
-          
           mkdir -p "Converter.app/Contents/MacOS"
           mkdir -p "Converter.app/Contents/Resources/wine"
           mkdir -p "Converter.app/Contents/Resources/app"
           
           cp -R ./publish/macos-x86-app/* "Converter.app/Contents/Resources/app/"
           
-          curl -sLfO "https://github.com/Gcenx/wine-on-mac/releases/download/9.0/wine-stable-x86_64.tar.xz"
-          xz -d wine-stable-x86_64.tar.xz
-          tar -xf wine-stable-x86_64.tar -C "Converter.app/Contents/Resources/wine/"
+          # Optimierter Download mit aggressiver Retry-Logik gegen GitHub-Netzwerk-Timeouts
+          curl -sLf --retry 5 --retry-connrefused -O "https://github.com/Gcenx/wine-on-mac/releases/download/9.0/wine-stable-x86_64.tar.xz"
+          
+          # Direktes Entpacken über tar (erfordert kein manuelles xz mehr)
+          tar -xf wine-stable-x86_64.tar.xz -C "Converter.app/Contents/Resources/wine/"
+          rm wine-stable-x86_64.tar.xz
           
           cat << 'EOF' > "Converter.app/Contents/MacOS/launcher"
           #!/bin/bash
