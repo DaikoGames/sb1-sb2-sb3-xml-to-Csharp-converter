@@ -291,21 +291,26 @@ jobs:
             -p:SelfContained=true \
             -p:PublishSingleFile=true
 
-      - name: Build macOS x86 App (wine)
+      - name: Build macOS x86 App Bundle with Wine
         shell: bash
         run: |
-          # 1. Erstelle die .app Struktur für macOS
+          brew install xz
+          
           mkdir -p "Converter.app/Contents/MacOS"
           mkdir -p "Converter.app/Contents/Resources/wine"
           mkdir -p "Converter.app/Contents/Resources/app"
+          
           cp -R ./publish/macos-x86-app/* "Converter.app/Contents/Resources/app/"
           
-          curl -sL -O "https://github.com/Gcenx/wine-on-mac/releases/download/9.0/wine-stable-x86_64.tar.xz"
-          tar -xf wine-stable-x86_64.tar.xz -C "Converter.app/Contents/Resources/wine/"
+          curl -sLfO "https://github.com/Gcenx/wine-on-mac/releases/download/9.0/wine-stable-x86_64.tar.xz"
+          xz -d wine-stable-x86_64.tar.xz
+          tar -xf wine-stable-x86_64.tar -C "Converter.app/Contents/Resources/wine/"
+          
           cat << 'EOF' > "Converter.app/Contents/MacOS/launcher"
           #!/bin/bash
           DIR="$(cd "$(dirname "$0")" && pwd)"
           WINE_BIN="$DIR/../Resources/wine/bin/wine"
+          
           cd "$DIR/../Resources/app"
           env WINEDEBUG=-all "$WINE_BIN" "Converter.exe"
           EOF
