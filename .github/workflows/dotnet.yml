@@ -379,7 +379,7 @@ jobs:
                  ./all-assets/Converter-linux-x86.AppImage
                  ./all-assets/Converter-linux-x64.AppImage
                  ./all-assets/Converter-linux-arm64.AppImage
-                 ./all-assets/Converter-macos-x86.dmg
+                 ./all-assets/Converter-osx-x86.dmg
                  ./all-assets/Converter-win-x86-Portable.zip
                  ./all-assets/Converter-win-x64-Portable.zip
                  ./all-assets/Converter-win-arm64-Portable.zip
