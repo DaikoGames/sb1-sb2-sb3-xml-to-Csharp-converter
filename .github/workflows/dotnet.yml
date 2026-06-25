@@ -257,7 +257,7 @@ jobs:
           name: vpk-artifact-linux_x86
           path: ./publish/Converter-linux-x86.AppImage
 
-  build_macos-latest_macos-x86:
+  build_macos-latest_osx-x86:
    needs: build
    runs-on: macos-latest
    steps: 
@@ -348,16 +348,16 @@ jobs:
         shell: bash
         run: |
           mkdir ./dist
-          hdiutil create -volname "Converter-macOS-x86" -srcfolder "Converter.app" -ov -format UDZO "./dist/Converter-macos-x86.dmg"
+          hdiutil create -volname "Converter-osx-x86" -srcfolder "Converter.app" -ov -format UDZO "./dist/Converter-osx-x86.dmg"
 
       - name: Upload Artifact (macos x86)
         uses: actions/upload-artifact@v4
         with:
-          name: vpk-artifact-macos_x86
-          path: ./dist/Converter-macos-x86.dmg
+          name: vpk-artifact-osx-x86
+          path: ./dist/Converter-osx-x86.dmg
 
   release:
-    needs: [build, build_ubuntu-latest_linux-x86, build_macos-latest_macos-x86]
+    needs: [build, build_ubuntu-latest_linux-x86, build_macos-latest_osx-x86]
     runs-on: ubuntu-latest
     steps:
       - name: Download
