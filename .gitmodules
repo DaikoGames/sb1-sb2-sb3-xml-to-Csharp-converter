@@ -1,12 +1,6 @@
 [submodule "Translate-Folder"]
 	path = Translate-Folder
 	url = https://github.com/DaikoGames/Translate-Folder
-[submodule "Scratch-Format-Converter"]
-	path = Scratch-Format-Converter
-	url = https://github.com/DaikoGames/Scratch-Format-converter
-[submodule "sb3tosb2"]
-	path = sb3tosb2
-	url = https://github.com/DaikoGames/sb3tosb2
-[submodule "Snapin8r2"]
-	path = Snapin8r2
-	url = https://github.com/DaikoGames/Snapin8r2
+[submodule "Scratch-To-Snap"]
+	path = Scratch-To-Snap
+	url = https://github.com/DaikoGames/Scratch-To-Snap-
