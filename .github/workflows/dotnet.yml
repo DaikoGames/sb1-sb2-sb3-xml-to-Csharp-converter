@@ -39,6 +39,12 @@ jobs:
           repository: 'DaikoGames/Scratch-Format-Converter'
           path: Scratch-Format-Converter
           
+      - name: Checkout External Dependency (Scratch-To-Snap)
+        uses: actions/checkout@v4
+        with:
+          repository: 'DaikoGames/Scratch-To-Snap-'
+          path: Scratch-To-Snap
+          
       - name: Checkout External Dependency (Translator)
         uses: actions/checkout@v4
         with:
@@ -79,6 +85,9 @@ jobs:
           Copy-Item "./Scratch-Format-Converter/Convert.js" "$baseDir/Scratch-Format-Converter/Convert.js"
           Copy-Item "./Scratch-Format-Converter/package.json" "$baseDir/Scratch-Format-Converter/package.json"
           Copy-Item "./Scratch-Format-Converter/package-lock.json" "$baseDir/Scratch-Format-Converter/package-lock.json"
+          Copy-Item "./Scratch-To-Snap/converter.js" "$baseDir/Scratch-To-Snap/converter.js"
+          Copy-Item "./Scratch-To-Snap/package.json" "$baseDir/Scratch-To-Snap/package.json"
+          Copy-Item "./Scratch-To-Snap/package-lock.json" "$baseDir/Scratch-To-Snap/package-lock.json"
           New-Item -ItemType Directory -Force -Path "$baseDir/Install"
           Copy-Item "./Install/dotnet-install.ps1" "$baseDir/Install/dotnet-install.ps1"
           New-Item -ItemType Directory -Force -Path "$baseDir/svg_library_ScratchJnr"
@@ -119,6 +128,9 @@ jobs:
           Copy-Item "./Scratch-Format-Converter/Convert.js" "$baseDir/Scratch-Format-Converter/Convert.js"
           Copy-Item "./Scratch-Format-Converter/package.json" "$baseDir/Scratch-Format-Converter/package.json"
           Copy-Item "./Scratch-Format-Converter/package-lock.json" "$baseDir/Scratch-Format-Converter/package-lock.json"
+          Copy-Item "./Scratch-To-Snap/converter.js" "$baseDir/Scratch-To-Snap/converter.js"
+          Copy-Item "./Scratch-To-Snap/package.json" "$baseDir/Scratch-To-Snap/package.json"
+          Copy-Item "./Scratch-To-Snap/package-lock.json" "$baseDir/Scratch-To-Snap/package-lock.json"
           New-Item -ItemType Directory -Force -Path "$baseDir/Install"
           Copy-Item "./Install/dotnet-install.sh" "$baseDir/Install/dotnet-install.sh"
           New-Item -ItemType Directory -Force -Path "$baseDir/svg_library_ScratchJnr"
