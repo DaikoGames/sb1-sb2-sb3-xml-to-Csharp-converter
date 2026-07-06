@@ -294,10 +294,10 @@ public partial class MainWindow : Window
                 {
                     await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
                     {
-                        Requirements.PopUpWindow(false, false, Avalonia.Media.Colors.White, Avalonia.Media.Colors.Black, true, 500, 250, Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ConverterIcon", "Converter.ico"), "Dependency Error", Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ConverterIcon", "Converter.png"),  "#They will be installed asap. If the Progress bar is at 100% and the button should flicker close the whole app and reopen it.#", true, true, false, false);
+                        /*Requirements.PopUpWindow(false, false, Avalonia.Media.Colors.White, Avalonia.Media.Colors.Black, true, 500, 250, Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ConverterIcon", "Converter.ico"), "Dependency Error", Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ConverterIcon", "Converter.png"),  "#They will be installed asap. If the Progress bar is at 100% and the button should flicker close the whole app and reopen it.#", true, true, false, false);
                         Requirements.YesButton.Click += YesButtonClick;
                         Requirements.OkButton.Click += OkButtonClick;
-                        Requirements.NoButton.Click += NoButtonClick;
+                        Requirements.NoButton.Click += NoButtonClick;*/
                         REQUIREMENTSmessage = true;
                     });
                 }
@@ -929,19 +929,19 @@ public partial class MainWindow : Window
                     }
                     if (extensionS.Contains(".xml"))
                     {
-                        await Task.Run(() => xmlfiles(extensionS));
+                        await Task.Run(() => xmlfiles());
                     }
                 }
                 catch (Exception ex)
                 {
-                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(async () =>
+                    /*await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(async () =>
                     {
                         PopUp Applicationlocation = new PopUp();
                         Applicationlocation.PopUpWindow(false, false, Avalonia.Media.Colors.White, Avalonia.Media.Colors.Black, true, 500, 350,Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ConverterIcon", "Converter.ico"), "Successful Build", Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "MessageBoxImages", "Info.png"), "Your Project was built for " + formatOfApplication + " and is located at " + Foldername, false, true, false, false);
 
                     }
 
-                    );
+                    );*/
 
                 }
             }
@@ -972,130 +972,45 @@ public partial class MainWindow : Window
                 string JSFile = Path.Combine(ConverterFolder, "Convert.js");
                 //Ok it works, now check if the modules are installed - if not install with npm again LOL
                 //My users have to have Powershell, i know it sounds bad, but it is the most efficient way there is
+                string SB3toXMLConverter = Path.Combine(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Scratch-To-Snap"));
+                string SB3FiletoXML = Path.Combine(SB3toXMLConverter, "project.sb3");
 
-                string SB1SB2toXML = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Snapin8r2");
+                string DownloadsFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
                 string ScratchConverter = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Scratch-Format-Converter");
-                string SB3toSB2 = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "sb3tosb2");
-                if (FileExtension == ".sb")
+
+                string FinalXMLfile = Path.Combine(DownloadsFolder, "project.xml");
+                if (FileExtension == ".sb" && (FileExtension != ".sb2") && (FileExtension !=".sb3")) 
                 {
                     string OriginalSBFile = Path.Combine(ScratchConverter, "project.sb");
                     File.Copy(Filename, OriginalSBFile, true);
                     string SB3File = Path.Combine(ScratchConverter, "project.sb3");
                     await (Cli.Wrap("node").WithArguments(args => args.Add("convert.js"))).WithWorkingDirectory(ScratchConverter).ExecuteAsync();
-                    string NewSB3File = Path.Combine(SB3toSB2, "project.sb3");
-                    File.Copy(SB3File, NewSB3File, true);
-
-                    Architecture UserArchitecture = RuntimeInformation.ProcessArchitecture;
-                    if (OperatingSystem.IsWindows())
-                    {
-                        if (UserArchitecture == Architecture.X86)
-                        {
-                            
-                        }
-                        if (UserArchitecture == Architecture.X64)
-                        {
-                            await (Cli.Wrap("sb3tosb2-windows-x64.exe").WithWorkingDirectory(SB3toSB2).ExecuteAsync());
-                        }
-                        if (UserArchitecture == Architecture.Arm64)
-                        {
-                            await (Cli.Wrap("sb3tosb2-windows-arm64.exe").WithWorkingDirectory(SB3toSB2).ExecuteAsync());
-                        }
-                    }
-
-                    if (OperatingSystem.IsLinux())
-                    {
-                        if (UserArchitecture == Architecture.X64)
-                        {
-                            await (Cli.Wrap("sb3tosb2-linux-x64").WithWorkingDirectory(SB3toSB2).ExecuteAsync());
-                        }
-                        if (UserArchitecture == Architecture.Arm64)
-                        {
-                            await (Cli.Wrap("sb3tosb2-linux-arm64").WithWorkingDirectory(SB3toSB2).ExecuteAsync());
-                        }
-                    }
-
-                    if (OperatingSystem.IsMacOS())
-                    {
-                        if (UserArchitecture == Architecture.X64)
-                        {
-                            await (Cli.Wrap("sb3tosb2-macos-x64").WithWorkingDirectory(SB3toSB2).ExecuteAsync());
-                        }
-                        if (UserArchitecture == Architecture.Arm64)
-                        {
-                            await (Cli.Wrap("sb3tosb2-macos-arm64").WithWorkingDirectory(SB3toSB2).ExecuteAsync());
-                        }
-                    }
-                    string originalFile = Path.Combine(SB3toSB2, "project.sb2");
-                    newFile = Path.Combine(SB1SB2toXML, "project.sb2");
-                    File.Copy(originalFile, newFile, true);
-                    await (Cli.Wrap("node").WithArguments(args => args.Add("gui.js"))).WithWorkingDirectory(SB1SB2toXML).ExecuteAsync();
-                    Filename = Path.Combine(SB1SB2toXML, "project.xml");
-                    FileExtension = ".xml";
+                    File.Copy(OriginalSBFile, SB3FiletoXML, true);
+                    File.Delete(OriginalSBFile);
+                    await (Cli.Wrap("node").WithArguments(args => args.Add("converter.js").Add("project.sb3"))).WithWorkingDirectory(SB3toXMLConverter).ExecuteAsync();
+                    Filename = FinalXMLfile;
+                    await Task.Run(() => xmlfiles());
                 }
 
                 if(FileExtension == ".sb2")
                 {
-                    if (FileExtension == ".sb2")
-                    {
-                        newFile = Path.Combine(SB1SB2toXML, "project.sb2");
-                    }
-                    File.Copy(Filename, newFile, true);
-                    await (Cli.Wrap("node").WithArguments(args => args.Add("gui.js"))).WithWorkingDirectory(SB1SB2toXML).ExecuteAsync();
-                    Filename = Path.Combine(SB1SB2toXML, "project.xml");
-                    FileExtension = ".xml";
+                    string OriginalSBFile = Path.Combine(ScratchConverter, "project.sb2");
+                    File.Copy(Filename, OriginalSBFile, true);
+                    string SB3File = Path.Combine(ScratchConverter, "project.sb3");
+                    await (Cli.Wrap("node").WithArguments(args => args.Add("convert.js"))).WithWorkingDirectory(ScratchConverter).ExecuteAsync();
+                    File.Copy(OriginalSBFile, SB3FiletoXML, true);
+                    File.Delete(OriginalSBFile);
+                    await (Cli.Wrap("node").WithArguments(args => args.Add("converter.js").Add("project.sb3"))).WithWorkingDirectory(SB3toXMLConverter).ExecuteAsync();
+                    Filename = FinalXMLfile;
+                    await Task.Run(() => xmlfiles());
                 }
 
                 if (FileExtension == ".sb3")
                 {
-                    string SB3File = Path.Combine(SB3toSB2, "project.sb3");
-                    File.Copy(Filename, SB3File, true);
-                    
-                    Architecture UserArchitecture = RuntimeInformation.ProcessArchitecture;
-                    if (OperatingSystem.IsWindows())
-                    {
-                        if (UserArchitecture == Architecture.X86)
-                        {
-
-                        }
-                        if (UserArchitecture == Architecture.X64)
-                        {
-                            await (Cli.Wrap("sb3tosb2-windows-x64.exe").WithWorkingDirectory(SB3toSB2).ExecuteAsync());
-                        }
-                        if (UserArchitecture == Architecture.Arm64)
-                        {
-                            await (Cli.Wrap("sb3tosb2-windows-arm64.exe").WithWorkingDirectory(SB3toSB2).ExecuteAsync());
-                        }
-                    }
-
-                    if (OperatingSystem.IsLinux())
-                    {
-                        if (UserArchitecture == Architecture.X64)
-                        {
-                            await (Cli.Wrap("sb3tosb2-linux-x64").WithWorkingDirectory(SB3toSB2).ExecuteAsync());
-                        }
-                        if (UserArchitecture == Architecture.Arm64)
-                        {
-                            await (Cli.Wrap("sb3tosb2-linux-arm64").WithWorkingDirectory(SB3toSB2).ExecuteAsync());
-                        }
-                    }
-
-                    if (OperatingSystem.IsMacOS())
-                    {
-                        if (UserArchitecture == Architecture.X64)
-                        {
-                            await (Cli.Wrap("sb3tosb2-macos-x64").WithWorkingDirectory(SB3toSB2).ExecuteAsync());
-                        }
-                        if (UserArchitecture == Architecture.Arm64)
-                        {
-                            await (Cli.Wrap("sb3tosb2-macos-arm64").WithWorkingDirectory(SB3toSB2).ExecuteAsync());
-                        }
-                    }
-                    string originalFile = Path.Combine(SB3toSB2, "project.sb2");
-                    newFile = Path.Combine(SB1SB2toXML, "project.sb2");
-                    File.Copy(originalFile, newFile, true);
-                    await (Cli.Wrap("node").WithArguments(args => args.Add("gui.js"))).WithWorkingDirectory(SB1SB2toXML).ExecuteAsync();
-                    Filename = Path.Combine(SB1SB2toXML, "project.xml");
-                    FileExtension = ".xml";
+                    File.Copy(Filename, SB3FiletoXML, true);
+                    await (Cli.Wrap("node").WithArguments(args => args.Add("converter.js").Add("project.sb3"))).WithWorkingDirectory(SB3toXMLConverter).ExecuteAsync();
+                    Filename = FinalXMLfile;
+                    await Task.Run(() => xmlfiles());
                 }
                 //Convert to C# now directly
             }
@@ -1463,7 +1378,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private async void xmlfiles(string extension)
+    private async void xmlfiles()
     {
         Line = 0;
         string jsonPath = Path.Combine(Foldername, "Project.json");
@@ -1484,12 +1399,7 @@ public partial class MainWindow : Window
         {
             try
             {
-                if (extension == ".sb2" | extension == ".sb3")
-                {
-                    ApplicationName = Path.GetFileNameWithoutExtension(Filename).Replace(" ", "-");
-                }
-                if (extension == ".xml")
-                {
+                
                     if (line.Contains("\"@name\":"))
                     {
                         string nearlyGameObjectName = line.Replace("\"@name\":", "").Trim();
@@ -1507,7 +1417,7 @@ public partial class MainWindow : Window
                     {
                         currentLine = currentLine + 1;
                     }
-                }
+                
             }
             catch (Exception ex)
             {
@@ -3845,15 +3755,7 @@ public partial class MainWindow : Window
 
                 if (Scratch == true && Snapinator == false)
                 {
-                    if (extension == ".sb2")
-                    {
-
-                    }
-
-                    if (extension == ".sb3")
-                    {
-
-                    }
+                    
                 }
             }
 
@@ -3928,24 +3830,24 @@ public partial class MainWindow : Window
                         await (Cli.Wrap("dotnet").WithArguments(args => args.Add("publish").Add("-c").Add("Release").Add("-r").Add("osx-arm64").Add("-p:PublishSingleFile=true").Add("--self-contained").Add("true")).WithWorkingDirectory(GameFolder).ExecuteAsync());
                     }
                 }
-                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(async () =>
+                /*await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(async () =>
                 {
                     PopUp SuccesfulBuild = new PopUp();
                     SuccesfulBuild.PopUpWindow(false, false, Avalonia.Media.Colors.White, Avalonia.Media.Colors.Black, true, 500, 350, Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ConverterIcon", "Converter.ico"), "Succesful Build", Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "MessageBoxImages", "Info.png"), "Your Project was built for " + formatOfApplication + " and is located at " + Foldername, false, true, false, false);
                 }
-                );
+                );*/
                 //ProgressBarConverter.Value = 100; //Need to make the whole script in order so it works way better -rn the code is pure spaghetti code, but later it will be a flat Pizza i promise XD
             }
         }
 
         catch (Exception ex)
         {
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(async () =>
+            /*await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(async () =>
             {
                 PopUp SuccesfulBuild = new PopUp();
                 SuccesfulBuild.PopUpWindow(false, false, Avalonia.Media.Colors.White, Avalonia.Media.Colors.Black, true, 500, 350, Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ConverterIcon", "Converter.ico"), "Unsuccesful Build", Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "MessageBoxImages", "Error.png"), "Your Project was sadly not built, \n but it is located at " + Foldername + ", \n either it has some bugs that need to be fixed, or it is just a internal error of this program", false, true, false, false);
             }
-            );
+            );*/
         }
     }
 }
