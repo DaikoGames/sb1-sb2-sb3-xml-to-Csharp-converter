@@ -77,6 +77,11 @@ public partial class MainWindow : Window
     public List<string> ScratchJnrSoundFiles = new List<string>() { Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wav_library_ScratchJnr", "copy.wav"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wav_library_ScratchJnr", "cut.wav"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wav_library_ScratchJnr", "entertap.wav"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wav_library_ScratchJnr", "exittap.wav"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wav_library_ScratchJnr", "grab.wav"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wav_library_ScratchJnr", "keydown.wav"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wav_library_ScratchJnr", "pop.mp3"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wav_library_ScratchJnr", "snap.wav"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wav_library_ScratchJnr", "splash.wav"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wav_library_ScratchJnr", "tap.wav"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wav_library_ScratchJnr", "boing.wav") };
     public MainWindow()
     {
+        System.Threading.Tasks.TaskScheduler.UnobservedTaskException += (sender, e) =>
+        {
+            System.Diagnostics.Trace.WriteLine($"\n\n!!! FOUND IT !!!\n{e.Exception.ToString()}\n\n");
+        };
+
         InitializeComponent();
         Core.Initialize();
         //Task.Run(() => CheckRequirements());
@@ -145,7 +150,7 @@ public partial class MainWindow : Window
         Theme();
 
         Task.Run(() => ThemeChange());
-        //CheckRequirements();
+        CheckRequirements();
     }
 
     protected override void OnClosing(WindowClosingEventArgs e)
@@ -289,26 +294,20 @@ public partial class MainWindow : Window
         {
             if (SomethingNotInstalled == true)
             {
-                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => convertButton.IsEnabled = false);
+                
                 if (REQUIREMENTSmessage == false)
                 {
-                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
-                    {
+                    /*await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+                    {*/
                         /*Requirements.PopUpWindow(false, false, Avalonia.Media.Colors.White, Avalonia.Media.Colors.Black, true, 500, 250, Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ConverterIcon", "Converter.ico"), "Dependency Error", Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ConverterIcon", "Converter.png"),  "#They will be installed asap. If the Progress bar is at 100% and the button should flicker close the whole app and reopen it.#", true, true, false, false);
                         Requirements.YesButton.Click += YesButtonClick;
                         Requirements.OkButton.Click += OkButtonClick;
                         Requirements.NoButton.Click += NoButtonClick;*/
                         REQUIREMENTSmessage = true;
-                    });
+                    /*});*/
                 }
             }
-
-            if (SomethingNotInstalled == false)
-            {
-                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => convertButton.IsEnabled = true);
-            }
-
-            await Task.Delay(1000);
+            await Task.Delay(200);
         }
     }
 
@@ -316,13 +315,13 @@ public partial class MainWindow : Window
     {
         CultureInfo LanguageOfUser = CultureInfo.CurrentUICulture;
         string Language = LanguageOfUser.TwoLetterISOLanguageName;
-        while (true)
+        try
         {
             StillDoing = true;
             var DownloadOption = new DownloadConfiguration
             {
                 ParallelDownload = true,
-                ChunkCount = 8
+                ChunkCount = 1
             };
 
             string IconFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ConverterIcon");
@@ -428,7 +427,7 @@ public partial class MainWindow : Window
                 await NPMpackageLockJSONDownloader.DownloadFileTaskAsync("https://github.com/DaikoGames/Scratch-Format-converter/blob/main/package-lock.json", new DirectoryInfo(ConverterFolder));
             }
 
-            if(Language != "de" && Language != "en")
+            if (Language != "de" && Language != "en")
             {
                 string UpperTranslateFolder = Path.Combine(ConverterFolder, "TranslateFolder");
                 string TranslateFolder = Path.Combine(UpperTranslateFolder, "models");
@@ -440,7 +439,7 @@ public partial class MainWindow : Window
                     ZipFile.ExtractToDirectory(ZipFILE, TranslateFolder, true);
                 }
             }
-            
+
 
             foreach (string ScratchJnrFile in ScratchJnrFiles)
             {
@@ -520,14 +519,12 @@ public partial class MainWindow : Window
                     await Cli.Wrap("choco").WithArguments(args => args.Add("install").Add("nodejs")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync();
                 }
 
-
-
                 Trace.WriteLine("Nothing Fails anymore");
                 SomethingNotInstalled = false;
                 StillDoing = false;
             }
 
-            if (OperatingSystem.IsLinux())
+            if (OperatingSystem.IsLinux() && !OperatingSystem.IsWindows())
             {
                 var OSName = await (Cli.Wrap("hostnamectl").ExecuteBufferedAsync());
                 string OSNameText = OSName.ToString();
@@ -619,8 +616,12 @@ public partial class MainWindow : Window
             //Check if npm is installed at the location of ScratchConverter
             await (Cli.Wrap("npm").WithArguments(args => args.Add("install")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync());
             await Task.Delay(6000);
-
         }
+        catch (Exception ex)
+        {
+            Trace.WriteLine(ex);
+        }
+
 
     }
 
@@ -953,7 +954,6 @@ public partial class MainWindow : Window
         }
 
     }
-
     //The automation of converting .sb3 Files to .xml FIles isn�t working properly - so the conversion from .sb to .sb3 or .sb2 to .sb3 with Auto Hot Key - its probably because of the path - I will take a closer look to that.
     //Ok so i found out a thing, the thing is that the Neutralino app needs to be full screen and a click needs to be simulated. Gotta tell the user to relax lol XD
     string newFile;
@@ -1377,7 +1377,6 @@ public partial class MainWindow : Window
             File.AppendAllText(WindowCsFile, "}");
         }
     }
-
     private async void xmlfiles()
     {
         Line = 0;
@@ -1458,146 +1457,115 @@ public partial class MainWindow : Window
                 bool PNG = false;
                 bool JPG = false;
                 bool SVG = false;
-
-                if (Snapinator == true)
+                foreach (string line in LInes)
                 {
-                    foreach (string line in LInes)
+                    try
                     {
-                        try
+                        Line = Line + 1;
+
+                        if (line.Contains(" \"@image\":") && NextisImageName == true)
                         {
-                            Line = Line + 1;
+                            string pngORjpgORsvg = line;
 
-                            if (line.Contains(" \"@image\":") && NextisImageName == true)
+                            if (pngORjpgORsvg.Contains("/png") && NextisImageName == true)
                             {
-                                string pngORjpgORsvg = line;
-
-                                if (pngORjpgORsvg.Contains("/png") && NextisImageName == true)
-                                {
-                                    PNG = true;
-                                    JPG = false;
-                                    SVG = false;
-                                }
-
-                                if (pngORjpgORsvg.Contains("/jpg") && NextisImageName == true)
-                                {
-                                    PNG = false;
-                                    JPG = true;
-                                    SVG = false;
-                                }
-
-                                if (pngORjpgORsvg.Contains("/svg") && NextisImageName == true)
-                                {
-                                    PNG = false;
-                                    JPG = false;
-                                    SVG = true;
-                                }
-
-                                if (PNG == true && NextisImageName == true)
-                                {
-                                    string ImageLine = line;
-                                    string ImageName = File.ReadAllLines(jsonPath).Skip(Line - 4).Take(1).First().Replace("\"@name\"", "").Replace(":", "").Replace("\"", "").Replace(",", "").Trim();
-                                    string beginning = ImageLine.Replace("\"@image\": \"data:image/png;base64,", "");
-                                    string middle = beginning.Replace("\"", "");
-                                    string end = middle.Trim();
-                                    byte[] PNGBytes = Convert.FromBase64String(end);
-                                    //Now write the whole thing into the File
-                                    File.WriteAllBytes(Path.Combine(GameFolder, ImageName + ".png"), PNGBytes);
-                                }
-
-                                if (JPG == true && NextisImageName == true)
-                                {
-                                    string ImageLine = line;
-                                    string ImageName = File.ReadAllLines(jsonPath).Skip(Line - 4).Take(1).First().Replace("\"@name\"", "").Replace(":", "").Replace("\"", "").Replace(",", "").Trim();
-                                    string beginning = ImageLine.Replace("\"@image\": \"data:image/jpg;base64,", "");
-                                    string middle = beginning.Replace("\"", "");
-                                    string end = middle.Trim();
-                                    byte[] PNGBytes = Convert.FromBase64String(end);
-                                    //Now write the whole thing into the File
-                                    File.WriteAllBytes(Path.Combine(GameFolder, ImageName + ".png"), PNGBytes);
-                                }
-
-                                //This doesn�t work LOL XD 
-                                //Get the ratio - maybe its bc the �File doesn�t have a true size declared
-
-                                if (SVG == true && NextisImageName == true)
-                                {
-                                    string ImageLine = line;
-                                    string ImageName = Path.Combine(GameFolder, File.ReadAllLines(jsonPath).Skip(Line - 4).Take(1).First().Replace("\"@name\"", "").Replace(":", "").Replace("\"", "").Replace(",", "").Trim());
-                                    //This is the svg to png converter XD
-                                    try
-                                    {
-                                        string pngfolder = ImageName.Replace(".svg", ".png");
-                                        using (var PNGImage = new MagickImage(ImageName))
-                                        {
-                                            PNGImage.BackgroundColor = MagickColors.Transparent;
-                                            PNGImage.Format = MagickFormat.Png;
-                                            PNGImage.Write(pngfolder);
-                                        }
-                                        File.Delete(ImageName);
-                                    }
-                                    catch (Exception ex)
-                                    {
-                                        Console.WriteLine($"{ex.Message}");
-                                    }
-                                }
-
-                                NextisImageName = false;
+                                PNG = true;
+                                JPG = false;
+                                SVG = false;
                             }
-                            if (line.Contains("\"@name\":") && NextisImageName == false)
-                            {
-                                ThisImageName = line.Replace("\"@name\":", "").Replace("\"", "").Replace(",", "").Trim();
-                                //most probably it will check the first name
-                                string XCoordinateRough = File.ReadAllLines(jsonPath).Skip(Line + 1).Take(1).First();
-                                string YCoordinateRough = File.ReadAllLines(jsonPath).Skip(Line + 2).Take(1).First();
-                                if (XCoordinateRough.Contains("\"@x\":") && YCoordinateRough.Contains("\"@y\":"))
-                                {
-                                    string XCoordinate = XCoordinateRough.Replace("\"@x\":", "").Replace("\"", "").Replace(",", "").Trim();
-                                    string YCoordinate = YCoordinateRough.Replace("\"@y\":", "").Replace("\"", "").Replace(",", "").Trim();
 
-                                    string ScaleRough = File.ReadAllLines(jsonPath).Skip(Line + 4).Take(1).First();
-                                    if (ScaleRough.Contains("\"@scale\":"))
+                            if (pngORjpgORsvg.Contains("/jpg") && NextisImageName == true)
+                            {
+                                PNG = false;
+                                JPG = true;
+                                SVG = false;
+                            }
+
+                            if (pngORjpgORsvg.Contains("/svg") && NextisImageName == true)
+                            {
+                                PNG = false;
+                                JPG = false;
+                                SVG = true;
+                            }
+
+                            if (PNG == true && NextisImageName == true)
+                            {
+                                string ImageLine = line;
+                                string ImageName = File.ReadAllLines(jsonPath).Skip(Line - 4).Take(1).First().Replace("\"@name\"", "").Replace(":", "").Replace("\"", "").Replace(",", "").Trim();
+                                string beginning = ImageLine.Replace("\"@image\": \"data:image/png;base64,", "");
+                                string middle = beginning.Replace("\"", "");
+                                string end = middle.Trim();
+                                byte[] PNGBytes = Convert.FromBase64String(end);
+                                //Now write the whole thing into the File
+                                File.WriteAllBytes(Path.Combine(GameFolder, ImageName + ".png"), PNGBytes);
+                            }
+
+                            if (JPG == true && NextisImageName == true)
+                            {
+                                string ImageLine = line;
+                                string ImageName = File.ReadAllLines(jsonPath).Skip(Line - 4).Take(1).First().Replace("\"@name\"", "").Replace(":", "").Replace("\"", "").Replace(",", "").Trim();
+                                string beginning = ImageLine.Replace("\"@image\": \"data:image/jpg;base64,", "");
+                                string middle = beginning.Replace("\"", "");
+                                string end = middle.Trim();
+                                byte[] PNGBytes = Convert.FromBase64String(end);
+                                //Now write the whole thing into the File
+                                File.WriteAllBytes(Path.Combine(GameFolder, ImageName + ".png"), PNGBytes);
+                            }
+
+                            //This doesn�t work LOL XD 
+                            //Get the ratio - maybe its bc the �File doesn�t have a true size declared
+
+                            if (SVG == true && NextisImageName == true)
+                            {
+                                string ImageLine = line;
+                                string ImageName = Path.Combine(GameFolder, File.ReadAllLines(jsonPath).Skip(Line - 4).Take(1).First().Replace("\"@name\"", "").Replace(":", "").Replace("\"", "").Replace(",", "").Trim());
+                                //This is the svg to png converter XD
+                                try
+                                {
+                                    string pngfolder = ImageName.Replace(".svg", ".png");
+                                    using (var PNGImage = new MagickImage(ImageName))
                                     {
-                                        NextisImageName = true;
+                                        PNGImage.BackgroundColor = MagickColors.Transparent;
+                                        PNGImage.Format = MagickFormat.Png;
+                                        PNGImage.Write(pngfolder);
                                     }
+                                    File.Delete(ImageName);
+                                }
+                                catch (Exception ex)
+                                {
+                                    Console.WriteLine($"{ex.Message}");
+                                }
+                            }
+
+                            NextisImageName = false;
+                        }
+                        if (line.Contains("\"@name\":") && NextisImageName == false)
+                        {
+                            ThisImageName = line.Replace("\"@name\":", "").Replace("\"", "").Replace(",", "").Trim();
+                            //most probably it will check the first name
+                            string XCoordinateRough = File.ReadAllLines(jsonPath).Skip(Line + 1).Take(1).First();
+                            string YCoordinateRough = File.ReadAllLines(jsonPath).Skip(Line + 2).Take(1).First();
+                            if (XCoordinateRough.Contains("\"@x\":") && YCoordinateRough.Contains("\"@y\":"))
+                            {
+                                string XCoordinate = XCoordinateRough.Replace("\"@x\":", "").Replace("\"", "").Replace(",", "").Trim();
+                                string YCoordinate = YCoordinateRough.Replace("\"@y\":", "").Replace("\"", "").Replace(",", "").Trim();
+
+                                string ScaleRough = File.ReadAllLines(jsonPath).Skip(Line + 4).Take(1).First();
+                                if (ScaleRough.Contains("\"@scale\":"))
+                                {
+                                    NextisImageName = true;
                                 }
                             }
                         }
-                        catch (Exception ex)
-                        {
-                            Console.Write(ex);
-                            continue;
-                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.Write(ex);
+                        continue;
                     }
                 }
 
-                if (Scratch == true)
-                {
-                    //Transparent pixels are converted to white ones somehow - BUG
-                    string[] PICTUREfiles = Directory.GetFiles(Foldername, "*.svg", SearchOption.TopDirectoryOnly);
-                    foreach (string pictureFILEsvg in PICTUREfiles)
-                    {
-                        using (var SVGimage = new MagickImage(pictureFILEsvg))
-                        {
-                            SVGimage.BackgroundColor = MagickColors.Transparent;
-                            SVGimage.Format = MagickFormat.Png;
-                            SVGimage.Write(Path.Combine(GameFolder, Path.GetFileNameWithoutExtension(pictureFILEsvg) + ".png"));
-                        }
-                    }
-
-                    string[] PICTUREfiles2 = Directory.GetFiles(Foldername, "*.jpg", SearchOption.TopDirectoryOnly);
-                    foreach (string pictureFILEsvg in PICTUREfiles)
-                    {
-                        using (var SVGimage = new MagickImage(pictureFILEsvg))
-                        {
-                            SVGimage.BackgroundColor = MagickColors.Transparent;
-                            SVGimage.Format = MagickFormat.Png;
-                            SVGimage.Write(Path.Combine(GameFolder, Path.GetFileNameWithoutExtension(pictureFILEsvg) + ".png"));
-                        }
-                    }
-                }
             }
-
-            //await Task.Run(() => SoundExtractor());
 
             if (OperatingSystem.IsWindows())
             {
@@ -2254,7 +2222,7 @@ public partial class MainWindow : Window
                     {
                         Line = Line + 1;
 
-                        await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => ProgressBarConverter.Value = Line / DocumentLine * 100);
+                        //await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => ProgressBarConverter.Value = Line / DocumentLine * 100);
                         /*if (AsyncTask == false)
                         {*/
 
@@ -3764,8 +3732,6 @@ public partial class MainWindow : Window
         }
 
     }
-
-
     public async Task ExeBuilder() //This has to be edited :(
     {
         //Somehow a thread is beeing opened that shouldn�t idk why lol
