@@ -1,0 +1,16 @@
+{
+  "name": "scratch-format-converter",
+  "version": "1.0.0",
+  "description": "Welcome to this project This project converts Scratch Projects to Snap! easily.  This project was made using (Lovable.dev)[https://lovable.dev/dashboard] It is already 90% finished.",
+  "main": "converter.js",
+  "scripts": {
+    
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "type": "commonjs",
+  "dependencies": {
+    "jszip": "^3.10.1"
+  }
+}
