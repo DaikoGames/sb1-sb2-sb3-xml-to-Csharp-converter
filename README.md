@@ -24,6 +24,8 @@ Well it is pretty simple, i as a Developer saw Projects like [Turbowarp](https:/
 | [Scratch-To-Snap](https://github.com/DaikoGames/Scratch-To-Snap-) | [MIT-License](https://github.com/DaikoGames/Scratch-To-Snap-?tab=MIT-1-ov-file) |
 | [Downloader](https://www.nuget.org/packages/Downloader/5.5.0?_src=template) | [MIT-License](https://licenses.nuget.org/MIT) |
 | [BergamotTranslatorSharp](https://www.nuget.org/packages/BergamotTranslatorSharp/0.3.4?_src=template) | [MPL 2.0](https://licenses.nuget.org/MPL-2.0) |
+| [AppImageTool](https://github.com/AppImage/appimagetool) | [MIT-License](https://github.com/AppImage/appimagetool?tab=License-1-ov-file) |
+| [Wine](https://gitlab.winehq.org/wine/wine) | [GNU LGPLv2.1](https://gitlab.winehq.org/wine/wine/-/blob/master/COPYING.LIB) |
 
 I used [ImageMagick](https://imagemagick.org/#gsc.tab=0) for converting the png File to the .icns File. It is a great tool :)
 
