@@ -28,7 +28,8 @@ using System.Xml;
 using BergamotTranslatorSharp;
 using System.Runtime.InteropServices;
 
-
+//HUGE ERROR, i need to install .Net10 to run the conversion, everybody should be able to run this so i am going to make it this way, it doesn´t matter what dotnet version you have, you will be able to convert. 
+//Another thing, i realized translation is having 2 Folders somehow
 
 namespace sb1_sb2_sb3_xml_to_Csharp_converter;
 
@@ -370,7 +371,7 @@ public partial class MainWindow : Window
                 Directory.CreateDirectory(SOUNDfolder);
             }
 
-            string TranslationFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translation");
+            string TranslationFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder");
             if (!Directory.Exists(TranslationFolder))
             {
                 SomethingNotInstalled = true;
@@ -429,7 +430,7 @@ public partial class MainWindow : Window
 
             if (Language != "de" && Language != "en")
             {
-                string UpperTranslateFolder = Path.Combine(ConverterFolder, "TranslateFolder");
+                string UpperTranslateFolder = Path.Combine(ConverterFolder, "Translate-Folder");
                 string TranslateFolder = Path.Combine(UpperTranslateFolder, "models");
                 if (!Directory.Exists(TranslateFolder))
                 {
@@ -507,7 +508,7 @@ public partial class MainWindow : Window
                     SomethingNotInstalled = true;
                     Trace.WriteLine("Dependency Fails dotnet");
                     //install Dotnet, and Avalonia Template too
-                    await Cli.Wrap("pwsh").WithArguments(args => args.Add("./dotnet-install.ps1").Add("-Runtime").Add("dotnet").Add("-Version").Add("9.0.0")).ExecuteBufferedAsync(); ;
+                    await Cli.Wrap("pwsh").WithArguments(args => args.Add("./dotnet-install.ps1").Add("-Runtime").Add("dotnet").Add("-Version").Add("10.0.0")).ExecuteBufferedAsync(); ;
                     await Cli.Wrap("dotnet").WithArguments(args => args.Add("new").Add("install").Add("Avalonia.Templates")).ExecuteBufferedAsync();
                 }
 
