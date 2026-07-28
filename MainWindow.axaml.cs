@@ -4,6 +4,7 @@ using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Styling;
+using BergamotTranslatorSharp;
 using CliWrap;
 using CliWrap.Buffered;
 using Downloader;
@@ -21,12 +22,12 @@ using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Text;
 //using Microsoft.Win32.SafeHandles;
 using System.Threading.Tasks;
 using System.Xml;
-using BergamotTranslatorSharp;
-using System.Runtime.InteropServices;
 
 //HUGE ERROR, i need to install .Net10 to run the conversion, everybody should be able to run this so i am going to make it this way, it doesn´t matter what dotnet version you have, you will be able to convert. 
 //Another thing, i realized translation is having 2 Folders somehow
@@ -78,6 +79,7 @@ public partial class MainWindow : Window
     public List<string> ScratchJnrSoundFiles = new List<string>() { Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wav_library_ScratchJnr", "copy.wav"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wav_library_ScratchJnr", "cut.wav"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wav_library_ScratchJnr", "entertap.wav"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wav_library_ScratchJnr", "exittap.wav"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wav_library_ScratchJnr", "grab.wav"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wav_library_ScratchJnr", "keydown.wav"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wav_library_ScratchJnr", "pop.mp3"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wav_library_ScratchJnr", "snap.wav"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wav_library_ScratchJnr", "splash.wav"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wav_library_ScratchJnr", "tap.wav"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wav_library_ScratchJnr", "boing.wav") };
     public MainWindow()
     {
+        CheckRequirements();
         System.Threading.Tasks.TaskScheduler.UnobservedTaskException += (sender, e) =>
         {
             System.Diagnostics.Trace.WriteLine($"\n\n!!! FOUND IT !!!\n{e.Exception.ToString()}\n\n");
@@ -151,7 +153,6 @@ public partial class MainWindow : Window
         Theme();
 
         Task.Run(() => ThemeChange());
-        CheckRequirements();
     }
 
     protected override void OnClosing(WindowClosingEventArgs e)
@@ -166,111 +167,98 @@ public partial class MainWindow : Window
         }
     }
 
+
     public async Task ChangeLanguage()
     {
-        Trace.Write("Changing Language now");
-        //https://github.com/Freeesia/BergamotTranslatorSharp
-        CultureInfo LanguageOfUser = CultureInfo.CurrentUICulture;
-        string Language = LanguageOfUser.TwoLetterISOLanguageName;
-        List<string> TranslateText = new List<string> { "Please Select the File you want to convert or write it down here:", "Your File, it should be a .sb, .sb2, .sb3, .xml File", "Please select the Folder where your converted Project should be stored:", "Your Folder", "Please select the Icon File if necessary:", "the Icon of the Application(Not necessary)", "Should the converter use Snap! or the Scratch Way?:", "Snap", "Scratch", "Please select the OS you want to build it for and what architecture:", "Windows", "Linux", "Mac OS", "Convert!", "This Project was made by: Daiko Games", };
-        Trace.WriteLine("Initializiere den Translator");
-        //https://docs.libretranslate.com
+        // one big issue is that when you delete the language you have on your PC before using the app, it fails 
+        Trace.WriteLine("Changing Language now");
 
-        int TextNmbr = 0;
+        var language = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
+        if (language == "en") return; // nothing to do
+
+        string[] texts =
+        {
+            "Please Select the File you want to convert or write it down here:",
+            "Your File, it should be a .sb, .sb2, .sb3, .xml File",
+            "Please select the Folder where your converted Project should be stored:",
+        "Your Folder",
+        "Please select the Icon File if necessary:",
+        "the Icon of the Application(Not necessary)",
+        "Should the converter use Snap! or the Scratch Way?:",
+        "Snap",
+        "Scratch",
+        "Please select the OS you want to build it for and what architecture:",
+        "Windows",
+        "Linux",
+        "Mac OS",
+        "Convert!",
+        "This Project was made by: Daiko Games"
+    };
+
+        var configPath = Path.Combine(
+            AppDomain.CurrentDomain.BaseDirectory,
+            "Translate-Folder",
+            $"en-{language}",
+            "config.yml");
+
+        if (!File.Exists(configPath))
+        {
+            Trace.WriteLine($"Model not found → {configPath}");
+            return;
+        }
+
+        string[] translated = new string[texts.Length];
+
         try
         {
-            foreach(string translatedText in TranslateText)
+            // Run safely off the UI thread
+            await Task.Run(() =>
             {
-                TextNmbr = TextNmbr + 1;
-                var configPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder", "en-" + Language, "config.yml");
-
+                // Create the service once
                 using var service = new BlockingService(configPath);
 
-                var translated = service.Translate(translatedText);
-
-                Trace.WriteLine(translated);
-
-                
-                if(TextNmbr == 1)
+                // Translate strings individually to avoid memory spikes and crashes
+                for (int i = 0; i < texts.Length; i++)
                 {
-                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => Text1.Content = translated);
+                    try
+                    {
+                        // Fallback to original text if a specific line fails
+                        translated[i] = service.Translate(texts[i]) ?? texts[i];
+                    }
+                    catch (Exception lineEx)
+                    {
+                        Trace.WriteLine($"Failed to translate line {i}: {lineEx.Message}");
+                        translated[i] = texts[i]; // Safe fallback
+                    }
                 }
-
-                if (TextNmbr == 2)
-                {
-                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => FileFolderNameTextBox.Watermark = translated);
-                }
-
-                if (TextNmbr == 3)
-                {
-                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => Text2.Content = translated);
-                }
-
-                if (TextNmbr == 4)
-                {
-                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => FolderNameTextBox.Watermark = translated);
-                }
-
-                if (TextNmbr == 5)
-                {
-                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => IconText.Content = translated);
-                }
-
-                if(TextNmbr == 6)
-                {
-                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => IconTextBox.Watermark = translated);
-                }
-
-                if (TextNmbr == 7)
-                {
-                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => SnapinatorOrNot.Content = translated);
-                }
-
-                if (TextNmbr == 8)
-                {
-                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => SnapinatorCheckBox.Content = translated);
-                }
-
-                if (TextNmbr == 9)
-                {
-                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => ScratchCheckBox.Content = translated);
-                }
-
-                if (TextNmbr == 10)
-                {
-                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => OSTextAndCPU.Content = translated);
-                }
-
-                if (TextNmbr == 11)
-                {
-                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => WindowsCheckBox.Content = translated);
-                }
-
-                if (TextNmbr == 12)
-                {
-                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => LinuxCheckBox.Content = translated);
-                }
-
-                if (TextNmbr == 13)
-                {
-                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => MacOSCheckBox.Content = translated);
-                }
-
-                if(TextNmbr == 14)
-                {
-                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => convertButton.Content = translated);
-                }
-
-                if(TextNmbr == 15)
-                {
-                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => GithubRepo.Content = translated);
-                }
-            }
+            });
         }
         catch (Exception ex)
         {
-            Trace.Write("I am sorry but the language you have is currently not available for the converter :(");
+            Trace.WriteLine("Managed exception during translation service initialization:");
+            Trace.WriteLine(ex.ToString());
+            return;
         }
+
+        // Safely update the UI back on the main thread
+        await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            Text1.Content = translated[0];
+            FileFolderNameTextBox.Watermark = translated[1];
+            Text2.Content = translated[2];
+            FolderNameTextBox.Watermark = translated[3];
+            IconText.Content = translated[4];
+            IconTextBox.Watermark = translated[5];
+            SnapinatorOrNot.Content = translated[6];
+            SnapinatorCheckBox.Content = translated[7];
+            ScratchCheckBox.Content = translated[8];
+            OSTextAndCPU.Content = translated[9];
+            WindowsCheckBox.Content = translated[10];
+            LinuxCheckBox.Content = translated[11];
+            MacOSCheckBox.Content = translated[12];
+            convertButton.Content = translated[13];
+            GithubRepo.Content = translated[14];
+        });
     }
 
     PopUp Requirements = new PopUp();
@@ -284,7 +272,7 @@ public partial class MainWindow : Window
         Requirements.ActualPopUp.Close();
     }
 
-    public void NoButtonClick(object ?sender, RoutedEventArgs e)
+    public void NoButtonClick(object? sender, RoutedEventArgs e)
     {
         Requirements.ActualPopUp.Close();
     }
@@ -295,16 +283,16 @@ public partial class MainWindow : Window
         {
             if (SomethingNotInstalled == true)
             {
-                
+
                 if (REQUIREMENTSmessage == false)
                 {
                     /*await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
                     {*/
-                        /*Requirements.PopUpWindow(false, false, Avalonia.Media.Colors.White, Avalonia.Media.Colors.Black, true, 500, 250, Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ConverterIcon", "Converter.ico"), "Dependency Error", Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ConverterIcon", "Converter.png"),  "#They will be installed asap. If the Progress bar is at 100% and the button should flicker close the whole app and reopen it.#", true, true, false, false);
-                        Requirements.YesButton.Click += YesButtonClick;
-                        Requirements.OkButton.Click += OkButtonClick;
-                        Requirements.NoButton.Click += NoButtonClick;*/
-                        REQUIREMENTSmessage = true;
+                    /*Requirements.PopUpWindow(false, false, Avalonia.Media.Colors.White, Avalonia.Media.Colors.Black, true, 500, 250, Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ConverterIcon", "Converter.ico"), "Dependency Error", Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ConverterIcon", "Converter.png"),  "#They will be installed asap. If the Progress bar is at 100% and the button should flicker close the whole app and reopen it.#", true, true, false, false);
+                    Requirements.YesButton.Click += YesButtonClick;
+                    Requirements.OkButton.Click += OkButtonClick;
+                    Requirements.NoButton.Click += NoButtonClick;*/
+                    REQUIREMENTSmessage = true;
                     /*});*/
                 }
             }
@@ -430,14 +418,82 @@ public partial class MainWindow : Window
 
             if (Language != "de" && Language != "en")
             {
-                string UpperTranslateFolder = Path.Combine(ConverterFolder, "Translate-Folder");
-                string TranslateFolder = Path.Combine(UpperTranslateFolder, "models");
-                if (!Directory.Exists(TranslateFolder))
+                //All of these files exist inside the translation folder, so i have to make a script that downloads the  ones that dont exist somehow. 
+
+                string[] TranslatorFileList =
+{
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-ar\\config.yml"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-ar\\lex.50.50.enar.s2t.bin"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-ar\\metadata.json"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-ar\\model.enar.intgemm.alphas.bin"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-ar\\vocab.enar.spm"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-bn\\config.yml"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-bn\\lex.50.50.enbn.s2t.bin"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-bn\\metadata.json"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-bn\\model.enbn.intgemm.alphas.bin"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-bn\\vocab.enbn.spm"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-es\\config.yml"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-es\\lex.50.50.enes.s2t.bin"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-es\\metadata.json"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-es\\model.enes.intgemm.alphas.bin"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-es\\vocab.enes.spm"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-fr\\config.yml"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-fr\\lex.50.50.enfr.s2t.bin"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-fr\\metadata.json"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-fr\\model.enfr.intgemm.alphas.bin"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-fr\\vocab.enfr.spm"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-hi\\config.yml"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-hi\\lex.50.50.enhi.s2t.bin"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-hi\\metadata.json"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-hi\\model.enhi.intgemm.alphas.bin"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-hi\\vocab.enhi.spm"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-in\\config.yml"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-in\\lex.50.50.enid.s2t.bin"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-in\\metadata.json"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-in\\model.enid.intgemm.alphas.bin"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-in\\vocab.enid.spm"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-ja\\config.yml"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-ja\\lex.50.50.enja.s2t.bin"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-ja\\metadata.json"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-ja\\srcvocab.enja.spm"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-ja\\trgvocab.enja.spm"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-pt\\config.yml"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-pt\\lex.50.50.enpt.s2t.bin"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-pt\\metadata.json"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-pt\\model.enpt.intgemm.alphas.bin"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-pt\\vocab.enpt.spm"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-uk\\config.yml"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-uk\\lex.50.50.enuk.s2t.bin"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-uk\\metadata.json"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-uk\\model.enuk.intgemm.alphas.bin"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-uk\\vocab.enuk.spm"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-zh\\config.yml"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-zh\\lex.50.50.enzh.s2t.bin"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-zh\\metadata.json"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-zh\\model.enzh.intgemm.alphas.bin"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-zh\\srcvocab.enzh.spm"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-zh\\trgvocab.enzh.spm"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-zh_hant\\config.yml"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-zh_hant\\lex.50.50.enzh_hant.s2t.bin"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-zh_hant\\metadata.json"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-zh_hant\\model.enzh_hant.intgemm.alphas.bin"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-zh_hant\\srcvocab.enzh_hant.spm"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-zh_hant\\trgvocab.enzh_hant.spm"),
+                };
+
+                foreach (string TranslatorFile in TranslatorFileList)
                 {
-                    var TranslateFolderDownloader = new DownloadService(DownloadOption);
-                    await TranslateFolderDownloader.DownloadFileTaskAsync("https://github.com/DaikoGames/sb1-sb2-sb3-xml-to-Csharp-converter/releases/download/v0.9.140/models.zip", new DirectoryInfo(UpperTranslateFolder));
-                    string ZipFILE = Path.Combine(UpperTranslateFolder, "models.zip");
-                    ZipFile.ExtractToDirectory(ZipFILE, TranslateFolder, true);
+                    if (!Directory.Exists(Path.GetDirectoryName(TranslatorFile)))
+                    {
+                        Directory.CreateDirectory(Path.GetDirectoryName(TranslatorFile));
+                    }
+                    
+                    if (!File.Exists(TranslatorFile))
+                    {
+                        var TranslateFileDownloader = new DownloadService(DownloadOption);
+                        string LinkToDownload = Path.Combine("https://github.com/DaikoGames/Translate-Folder/blob/main/" + (Directory.GetParent(TranslatorFile)?.Name).Replace("\\", "/") + "/" + Path.GetFileName(TranslatorFile));
+                        await TranslateFileDownloader.DownloadFileTaskAsync(LinkToDownload, new DirectoryInfo(Path.GetDirectoryName(TranslatorFile)));
+                    }
                 }
             }
 
@@ -980,7 +1036,7 @@ public partial class MainWindow : Window
                 string ScratchConverter = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Scratch-Format-Converter");
 
                 string FinalXMLfile = Path.Combine(DownloadsFolder, "project.xml");
-                if (FileExtension == ".sb" && (FileExtension != ".sb2") && (FileExtension !=".sb3")) 
+                if (FileExtension == ".sb" && (FileExtension != ".sb2") && (FileExtension != ".sb3"))
                 {
                     string OriginalSBFile = Path.Combine(ScratchConverter, "project.sb");
                     File.Copy(Filename, OriginalSBFile, true);
@@ -993,7 +1049,7 @@ public partial class MainWindow : Window
                     await Task.Run(() => xmlfiles());
                 }
 
-                if(FileExtension == ".sb2")
+                if (FileExtension == ".sb2")
                 {
                     string OriginalSBFile = Path.Combine(ScratchConverter, "project.sb2");
                     File.Copy(Filename, OriginalSBFile, true);
@@ -1162,7 +1218,7 @@ public partial class MainWindow : Window
                            _mediaPlayer.Play();
                        }
                    }*/
-                string SOUNDname = File.ReadAllLines(MainJSON).Skip(Line).Take(1).First().Replace("\"", "").Replace(",", "").Trim();
+                    string SOUNDname = File.ReadAllLines(MainJSON).Skip(Line).Take(1).First().Replace("\"", "").Replace(",", "").Trim();
                     File.AppendAllText(WindowCsFile, "\n private LibVLC libVLC" + SOUNDname + ";");
                     File.AppendAllText(WindowCsFile, "\n private LibVLC MediaPlayer MediaPlayer" + SOUNDname + ";");
                 }
@@ -1399,25 +1455,25 @@ public partial class MainWindow : Window
         {
             try
             {
-                
-                    if (line.Contains("\"@name\":"))
-                    {
-                        string nearlyGameObjectName = line.Replace("\"@name\":", "").Trim();
-                        string AlmostGameObjectName = nearlyGameObjectName.Replace("\"", "").Trim();
-                        GameObjectName = AlmostGameObjectName.Replace(",", "").Trim();
-                        currentLine = currentLine + 1;
-                        if (currentLine == 3)
-                        {
-                            ApplicationName = GameObjectName;
-                            ApplicationName = ApplicationName.Replace(" ", "_");
-                        }
-                    }
 
-                    else
+                if (line.Contains("\"@name\":"))
+                {
+                    string nearlyGameObjectName = line.Replace("\"@name\":", "").Trim();
+                    string AlmostGameObjectName = nearlyGameObjectName.Replace("\"", "").Trim();
+                    GameObjectName = AlmostGameObjectName.Replace(",", "").Trim();
+                    currentLine = currentLine + 1;
+                    if (currentLine == 3)
                     {
-                        currentLine = currentLine + 1;
+                        ApplicationName = GameObjectName;
+                        ApplicationName = ApplicationName.Replace(" ", "_");
                     }
-                
+                }
+
+                else
+                {
+                    currentLine = currentLine + 1;
+                }
+
             }
             catch (Exception ex)
             {
@@ -2334,7 +2390,7 @@ public partial class MainWindow : Window
                             //Get the Object to face towards, get the position of the mouse if it is the mouse
                             //that is actually pretty hard but doable if i have enough brain cells XD
                             string ObjectToFaceTowards = File.ReadAllLines(jsonPath).Skip(Line).Take(1).First();
-                            if(ObjectToFaceTowards.Contains("\"random position\""))
+                            if (ObjectToFaceTowards.Contains("\"random position\""))
                             {
 
                             }
@@ -3724,7 +3780,7 @@ public partial class MainWindow : Window
 
                 if (Scratch == true && Snapinator == false)
                 {
-                    
+
                 }
             }
 
