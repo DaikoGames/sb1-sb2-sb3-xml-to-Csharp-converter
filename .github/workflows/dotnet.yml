@@ -1,4 +1,5 @@
 name: Deploy to GitHub Releases
+
 on: 
   schedule:
      - cron: '30 14 * * 6' 
@@ -209,9 +210,9 @@ jobs:
           path: ./Releases/*
           
   build_ubuntu-latest_linux-x86:
-   needs: build
-   runs-on: ubuntu-latest
-   steps:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
@@ -272,9 +273,9 @@ jobs:
           path: ./publish/Converter-linux-x86.AppImage
 
   build_macos-latest_osx-x86:
-   needs: build
-   runs-on: macos-latest
-   steps: 
+    needs: build
+    runs-on: macos-latest
+    steps: 
       - name: Checkout Code
         uses: actions/checkout@v4
 
@@ -314,10 +315,8 @@ jobs:
           
           cp -R ./publish/macos-x86-app/* "Converter.app/Contents/Resources/app/"
           
-          # Wine stabil und nativ über Homebrew Cask auf dem Runner installieren
           brew install --cask wine-stable
           
-          # Ermittle dynamisch den installierten Pfad von Wine auf dem Runner
           WINE_PATH=$(which wine)
           if [ -z "$WINE_PATH" ]; then
             WINE_PATH="/Applications/Wine Stable.app/Contents/Resources/wine/bin/wine"
@@ -343,7 +342,7 @@ jobs:
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
-          <dict>
+          dict>
               <key>CFBundleExecutable</key>
               <string>launcher</string>
               <key>CFBundleIdentifier</key>
@@ -385,17 +384,4 @@ jobs:
         with:
           tag_name: v0.9.${{ github.run_number }}
           files: |
-                 ./all-assets/Converter-win-x86-Setup.exe
-                 ./all-assets/Converter-win-x64-Setup.exe
-                 ./all-assets/Converter-win-arm64-Setup.exe
-                 ./all-assets/Converter-osx-x64-Setup.pkg
-                 ./all-assets/Converter-osx-arm64-Setup.pkg
-                 ./all-assets/Converter-linux-x86.AppImage
-                 ./all-assets/Converter-linux-x64.AppImage
-                 ./all-assets/Converter-linux-arm64.AppImage
-                 ./all-assets/Converter-osx-x86.dmg
-                 ./all-assets/Converter-win-x86-Portable.zip
-                 ./all-assets/Converter-win-x64-Portable.zip
-                 ./all-assets/Converter-win-arm64-Portable.zip
-                 ./all-assets/Converter-osx-x64-Portable.zip
-                 ./all-assets/Converter-osx-arm64-Portable.zip
+            ./all-assets/*
