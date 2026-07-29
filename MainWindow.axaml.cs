@@ -32,6 +32,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
 using Velopack;
+using Velopack.Sources;
 
 //HUGE ERROR, i need to install .Net10 to run the conversion, everybody should be able to run this so i am going to make it this way, it doesn´t matter what dotnet version you have, you will be able to convert. 
 //Another thing, i realized translation is having 2 Folders somehow
@@ -957,27 +958,41 @@ public partial class MainWindow : Window
     {
         try
         {
-            // Replace with the URL where you host your update files (like GitHub releases)
-            var UpdateMngr = new UpdateManager("https://github.com/DaikoGames/sb1-sb2-sb3-xml-to-Csharp-converter/releasess/latest");
+            // CORRECT way for GitHub Releases
+            var mgr = new UpdateManager(
+                new GithubSource(
+                    "https://github.com/DaikoGames/sb1-sb2-sb3-xml-to-Csharp-converter",
+                    accessToken: null,   // public repo → null is fine
+                    prerelease: false
+                )
+            );
 
-            // 1. Check if there's a new version
-            var VersionOnGithub = await UpdateMngr.CheckForUpdatesAsync();
-            if (VersionOnGithub == null)
+            // Optional but recommended: check if the app was actually installed by Velopack
+            if (!mgr.IsInstalled)
             {
-                Trace.WriteLine("Searching for Updates, but can´t find a new Version");
+                Trace.WriteLine("App is not installed via Velopack installer. Updates only work on properly installed versions.");
                 return;
             }
 
-            await UpdateMngr.DownloadUpdatesAsync(VersionOnGithub);
+            var updateInfo = await mgr.CheckForUpdatesAsync();
+            if (updateInfo == null)
+            {
+                Trace.WriteLine("No new version found.");
+                return;
+            }
 
-            UpdateMngr.ApplyUpdatesAndRestart(VersionOnGithub);
+            Trace.WriteLine($"Update available: {updateInfo.TargetFullRelease.Version}");
 
+            await mgr.DownloadUpdatesAsync(updateInfo);
+            mgr.ApplyUpdatesAndRestart(updateInfo);
         }
-        catch(Exception ex)
+        catch (Exception ex)
         {
-            Trace.WriteLine(ex);
-            Trace.WriteLine("Can´t perform Update, because the app is currently running in a debug or Release environment, not on a released executable");
-            return;
+            Trace.WriteLine(ex.ToString());
+            Trace.WriteLine("Update failed. Most common reasons:");
+            Trace.WriteLine("1. You are running from Visual Studio / debug / plain publish folder");
+            Trace.WriteLine("2. The app was never installed with the Velopack Setup.exe");
+            Trace.WriteLine("3. Network / GitHub rate limit");
         }
     }
     public async void ConvertButton(object sender, RoutedEventArgs args)
