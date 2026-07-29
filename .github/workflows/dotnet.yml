@@ -278,7 +278,20 @@ jobs:
     steps: 
       - name: Checkout Code
         uses: actions/checkout@v4
+      - name: Free up macOS disk space
+        run: |
+          echo "=== Disk Space Before Cleanup ==="
+          df -h
+          
+          # Remove heavy pre-installed caches or toolsets not needed for Wine/DMG building
+          sudo rm -rf /Applications/Xcode_*.app || true
+          sudo rm -rf /usr/local/share/boost || true
+          sudo rm -rf $AGENT_TOOLSDIRECTORY/* || true
+          
+          echo "=== Disk Space After Cleanup ==="
+          df -h
 
+  
       - name: Checkout External Dependency (Scratch-Format-Converter)
         uses: actions/checkout@v4
         with:
@@ -342,7 +355,7 @@ jobs:
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
-          dict>
+          <dict>
               <key>CFBundleExecutable</key>
               <string>launcher</string>
               <key>CFBundleIdentifier</key>
