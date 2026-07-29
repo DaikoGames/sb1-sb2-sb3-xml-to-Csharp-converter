@@ -64,16 +64,12 @@ public partial class MainWindow : Window
     public string extensionS;
     public string ICON;
     public string LastObject;
-
     public string LastSprite;
     public string LastAXAMLname;
     public int SoundNumber = 0;
-
     public int Line = 0;
     public string GameObjectName;
-
     bool LastLight = false;
-
     public bool SomethingNotInstalled = false;
     public bool StillDoing = false;
     public string ModelPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "AImodel");
@@ -143,13 +139,10 @@ public partial class MainWindow : Window
                     Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-zh_hant\\srcvocab.enzh_hant.spm"),
                     Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-zh_hant\\trgvocab.enzh_hant.spm"),
                 };
+
     public MainWindow()
     {
         CheckRequirements();
-        System.Threading.Tasks.TaskScheduler.UnobservedTaskException += (sender, e) =>
-        {
-            System.Diagnostics.Trace.WriteLine($"\n\n!!! FOUND IT !!!\n{e.Exception.ToString()}\n\n");
-        };
 
         InitializeComponent();
         Core.Initialize();
@@ -207,17 +200,21 @@ public partial class MainWindow : Window
         {
             Task.Run(() => ChangeLanguage());
         }
+
         ProgressBarConverter.Minimum = 0;
         ProgressBarConverter.Maximum = 100;
         ProgressBarConverter.Value = 0;
+
         //In the future people can add their languages here: 
         //Velopack Build and run stuff is not working
         IconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory + "ConverterIcon", "Converter.ico");
+
         if (File.Exists(IconPath))
         {
             IconWindow = new Avalonia.Controls.WindowIcon(IconPath);
             this.Icon = new WindowIcon(IconPath);
         }
+
         Theme();
 
         Task.Run(() => ThemeChange());
@@ -234,7 +231,6 @@ public partial class MainWindow : Window
             e.Cancel = false;
         }
     }
-
 
     public async Task ChangeLanguage()
     {
@@ -336,6 +332,7 @@ public partial class MainWindow : Window
     }
 
     PopUp Requirements = new PopUp();
+
     public void YesButtonClick(object? sender, RoutedEventArgs e)
     {
         Requirements.ActualPopUp.Close();
@@ -350,6 +347,7 @@ public partial class MainWindow : Window
     {
         Requirements.ActualPopUp.Close();
     }
+
     public async Task ShowOrNot()
     {
 
@@ -823,6 +821,7 @@ public partial class MainWindow : Window
         //on Windows there are filters for Colorblind people, but on linux its not on every OS, i gotta think if i add that feature or not 
         //Ok so i checked the colours, the grayscale and inverted grayscale or generally inverted colours are looking bad for me I need help from colourblind ppl :) 
     }
+
     public async void FileSearcherVoid(object sender, RoutedEventArgs args)
     {
         Trace.WriteLine("Searching for a File");
@@ -954,6 +953,7 @@ public partial class MainWindow : Window
         Process.Start(new ProcessStartInfo(Link) { UseShellExecute = true });
         //System.Diagnostics.Process.Start("explorer", Link);
     }
+
     public async void UpdateButtonVoid(object sender, RoutedEventArgs args)
     {
         try
@@ -995,6 +995,7 @@ public partial class MainWindow : Window
             Trace.WriteLine("3. Network / GitHub rate limit");
         }
     }
+
     public async void ConvertButton(object sender, RoutedEventArgs args)
     {
         if (SomethingNotInstalled == true)
@@ -1089,9 +1090,11 @@ public partial class MainWindow : Window
         }
 
     }
+
     //The automation of converting .sb3 Files to .xml FIles isn�t working properly - so the conversion from .sb to .sb3 or .sb2 to .sb3 with Auto Hot Key - its probably because of the path - I will take a closer look to that.
     //Ok so i found out a thing, the thing is that the Neutralino app needs to be full screen and a click needs to be simulated. Gotta tell the user to relax lol XD
     string newFile;
+
     public async Task sbfiles(string Extension) //This doesn�t work bc of Scratch i need to find me failure :/ lol XD
     {
         Trace.WriteLine("Converting .sb or .sb2 to .sb3 now");
@@ -1514,6 +1517,7 @@ public partial class MainWindow : Window
             File.AppendAllText(WindowCsFile, "}");
         }
     }
+
     private async void xmlfiles()
     {
         Line = 0;
@@ -3869,6 +3873,7 @@ public partial class MainWindow : Window
         }
 
     }
+
     public async Task ExeBuilder() //This has to be edited :(
     {
         //Somehow a thread is beeing opened that shouldn�t idk why lol
@@ -3953,4 +3958,5 @@ public partial class MainWindow : Window
             );*/
         }
     }
+
 }
