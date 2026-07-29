@@ -28,6 +28,9 @@ using System.Text;
 //using Microsoft.Win32.SafeHandles;
 using System.Threading.Tasks;
 using System.Xml;
+using SharpCompress;
+using SharpCompress.Archives;
+using SharpCompress.Common;
 
 //HUGE ERROR, i need to install .Net10 to run the conversion, everybody should be able to run this so i am going to make it this way, it doesn´t matter what dotnet version you have, you will be able to convert. 
 //Another thing, i realized translation is having 2 Folders somehow
@@ -508,11 +511,9 @@ public partial class MainWindow : Window
                             var TranslateFileDownloader = new DownloadService(DownloadOption);
                             string LinkToDownload = Path.Combine("https://github.com/DaikoGames/Translate-Folder/blob/main/" + (Directory.GetParent(TranslatorFile)?.Name).Replace("\\", "/") + "/" + Path.GetFileName(TranslatorFile) + ".gz");
                             await TranslateFileDownloader.DownloadFileTaskAsync(LinkToDownload, new DirectoryInfo(Path.GetDirectoryName(TranslatorFile)));
-                            //Extract the .gz File and delete it
-                            using FileStream GZFileStream = new FileStream(TranslatorFile, FileMode.Open, FileAccess.Read);
-                            using FileStream DecompressedFile = File.Create(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, (Directory.GetParent(TranslatorFile)?.Name), Path.GetFileName(TranslatorFile)));
-                            using GZipStream decompressionStream = new GZipStream(GZFileStream, CompressionMode.Decompress);
-                            decompressionStream.CopyTo(DecompressedFile);
+                            string DownloadedFile = TranslatorFile + ".gz";
+                            ArchiveFactory.WriteToDirectory(DownloadedFile, TranslatorFile);
+                            File.Delete(DownloadedFile);
                         }
                     }
                 }
