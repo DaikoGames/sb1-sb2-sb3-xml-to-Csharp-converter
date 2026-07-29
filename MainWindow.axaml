@@ -76,6 +76,7 @@
       Canvas.Top="195"
       Width="500"
       Height="20" />
+
     <Button
       Name="IconButton"
       Canvas.Top="195"
@@ -187,7 +188,16 @@
       Height="30"
       Click="GithubLinkPressed"
       ClickMode="Press" />
-
+    
+      <Button
+        Name="UpdateButton"
+        Canvas.Right="50"
+        Canvas.Top="500"
+        Width="50"
+        Height="30"
+        Click="UpdateButtonVoid"
+        ClickMode="Press"
+        />
   </Canvas>
 
 </Window>

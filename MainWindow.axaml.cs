@@ -15,6 +15,9 @@ using LibVLCSharp.Shared;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using PopUpWindowNamespace;
+using SharpCompress;
+using SharpCompress.Archives;
+using SharpCompress.Common;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -28,9 +31,7 @@ using System.Text;
 //using Microsoft.Win32.SafeHandles;
 using System.Threading.Tasks;
 using System.Xml;
-using SharpCompress;
-using SharpCompress.Archives;
-using SharpCompress.Common;
+using Velopack;
 
 //HUGE ERROR, i need to install .Net10 to run the conversion, everybody should be able to run this so i am going to make it this way, it doesn´t matter what dotnet version you have, you will be able to convert. 
 //Another thing, i realized translation is having 2 Folders somehow
@@ -948,7 +949,33 @@ public partial class MainWindow : Window
         Process.Start(new ProcessStartInfo(Link) { UseShellExecute = true });
         //System.Diagnostics.Process.Start("explorer", Link);
     }
+    public async void UpdateButtonVoid(object sender, RoutedEventArgs args)
+    {
+        try
+        {
+            // Replace with the URL where you host your update files (like GitHub releases)
+            var UpdateMngr = new UpdateManager("https://github.com/DaikoGames/sb1-sb2-sb3-xml-to-Csharp-converter/release/latest");
 
+            // 1. Check if there's a new version
+            var VersionOnGithub = await UpdateMngr.CheckForUpdatesAsync();
+            if (VersionOnGithub == null)
+            {
+                Trace.WriteLine("Searching for Updates, but can´t find a new Version");
+                return;
+            }
+
+            await UpdateMngr.DownloadUpdatesAsync(VersionOnGithub);
+
+            UpdateMngr.ApplyUpdatesAndRestart(VersionOnGithub);
+
+        }
+        catch(Exception ex)
+        {
+            Trace.WriteLine(ex);
+            Trace.WriteLine("Can´t perform Update, because the app is currently running in a debug or Release environment, not on a released executable");
+            return;
+        }
+    }
     public async void ConvertButton(object sender, RoutedEventArgs args)
     {
         if (SomethingNotInstalled == true)
