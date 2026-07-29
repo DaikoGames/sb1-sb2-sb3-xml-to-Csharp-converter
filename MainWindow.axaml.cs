@@ -261,12 +261,12 @@ public partial class MainWindow : Window
 
         var configPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"Translate-Folder",$"en-{language}","config.yml");
 
-        foreach(string MissingFileProbably in TranslatorFileList)
+        foreach (string MissingFileProbably in TranslatorFileList)
         {
             if (!File.Exists(configPath))
             {
                 await CheckRequirements();
-                break;
+                ChangeLanguage();
             }
         }
 
@@ -464,7 +464,7 @@ public partial class MainWindow : Window
             {
                 SomethingNotInstalled = true;
                 var ConverterFileDownloader = new DownloadService(DownloadOption);
-                await ConverterFileDownloader.DownloadFileTaskAsync("https://raw.githubusercontent.com/DaikoGames/Scratch-Format-converter/refs/heads/main/Convert.js", new DirectoryInfo(ConverterFolder));
+                await ConverterFileDownloader.DownloadFileTaskAsync("https://raw.githubusercontent.com/DaikoGames/Scratch-Format-converter/raw/refs/heads/main/Convert.js", new DirectoryInfo(ConverterFolder));
             }
 
             string NPMpackageJSON = Path.Combine(ConverterFolder, "package.json");
@@ -472,7 +472,7 @@ public partial class MainWindow : Window
             {
                 SomethingNotInstalled = true;
                 var NPMpackageJSONDownloader = new DownloadService(DownloadOption);
-                await NPMpackageJSONDownloader.DownloadFileTaskAsync("https://raw.githubusercontent.com/DaikoGames/Scratch-Format-converter/refs/heads/main/package.json", new DirectoryInfo(ConverterFolder));
+                await NPMpackageJSONDownloader.DownloadFileTaskAsync("https://raw.githubusercontent.com/DaikoGames/Scratch-Format-converter/raw/refs/heads/main/package.json", new DirectoryInfo(ConverterFolder));
 
             }
 
@@ -481,14 +481,12 @@ public partial class MainWindow : Window
             {
                 SomethingNotInstalled = true;
                 var NPMpackageLockJSONDownloader = new DownloadService(DownloadOption);
-                await NPMpackageLockJSONDownloader.DownloadFileTaskAsync("https://github.com/DaikoGames/Scratch-Format-converter/blob/main/package-lock.json", new DirectoryInfo(ConverterFolder));
+                await NPMpackageLockJSONDownloader.DownloadFileTaskAsync("https://github.com/DaikoGames/Scratch-Format-converter/raw/refs/heads/main/package-lock.json", new DirectoryInfo(ConverterFolder));
             }
 
             if (Language != "de" && Language != "en")
             {
                 //All of these files exist inside the translation folder, so i have to make a script that downloads the  ones that dont exist somehow. 
-
-               
 
                 foreach (string TranslatorFile in TranslatorFileList)
                 {
@@ -502,17 +500,29 @@ public partial class MainWindow : Window
                         if (TranslatorFile.Contains(".yml") |TranslatorFile.Contains(".json"))
                         {
                             var TranslateFileDownloader = new DownloadService(DownloadOption);
-                            string LinkToDownload = Path.Combine("https://github.com/DaikoGames/Translate-Folder/blob/main/" + (Directory.GetParent(TranslatorFile)?.Name).Replace("\\", "/") + "/" + Path.GetFileName(TranslatorFile));
+                            string LinkToDownload = Path.Combine("https://github.com/DaikoGames/Translate-Folder/raw/refs/heads/main/" + (Directory.GetParent(TranslatorFile)?.Name).Replace("\\", "/") + "/" + Path.GetFileName(TranslatorFile));
                             await TranslateFileDownloader.DownloadFileTaskAsync(LinkToDownload, new DirectoryInfo(Path.GetDirectoryName(TranslatorFile)));
                         }
 
                         if (TranslatorFile.Contains(".bin") | TranslatorFile.Contains(".spm"))
                         {
                             var TranslateFileDownloader = new DownloadService(DownloadOption);
-                            string LinkToDownload = Path.Combine("https://github.com/DaikoGames/Translate-Folder/blob/main/" + (Directory.GetParent(TranslatorFile)?.Name).Replace("\\", "/") + "/" + Path.GetFileName(TranslatorFile) + ".gz");
+                            https://github.com/DaikoGames/Translate-Folder/raw/refs/heads/main/en-ar/vocab.enar.spm.gz
+                            string LinkToDownload = Path.Combine("https://github.com/DaikoGames/Translate-Folder/raw/refs/heads/main/" + (Directory.GetParent(TranslatorFile)?.Name).Replace("\\", "/") + "/" + Path.GetFileName(TranslatorFile) + ".gz");
                             await TranslateFileDownloader.DownloadFileTaskAsync(LinkToDownload, new DirectoryInfo(Path.GetDirectoryName(TranslatorFile)));
                             string DownloadedFile = TranslatorFile + ".gz";
-                            ArchiveFactory.WriteToDirectory(DownloadedFile, TranslatorFile);
+
+                            using (var originalFileStream = new FileStream(DownloadedFile, FileMode.Open, FileAccess.Read, FileShare.Read))
+                            using (var decompressedFileStream = new FileStream(TranslatorFile, FileMode.Create, FileAccess.Write, FileShare.None))
+                            {
+                                // Using standard GZipStream with an explicit buffer size helps prevent unsupported compression method errors on raw binary streams
+                                using (var decompressionStream = new System.IO.Compression.GZipStream(originalFileStream, System.IO.Compression.CompressionMode.Decompress))
+                                {
+                                    decompressionStream.CopyTo(decompressedFileStream);
+                                }
+                            }
+
+                            // Clean up the .gz file afterwards
                             File.Delete(DownloadedFile);
                         }
                     }
@@ -1098,6 +1108,8 @@ public partial class MainWindow : Window
         {
 
             //Now convert the Scratch Junior project to normal Scratch
+
+            //Change this 
             string Zipfile = Path.Combine(Foldername, Path.GetFileNameWithoutExtension(Filename) + ".zip");
             File.Copy(Filename, Zipfile, true);
             ZipFile.ExtractToDirectory(Zipfile, Foldername, true);
