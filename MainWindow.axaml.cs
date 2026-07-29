@@ -178,6 +178,7 @@ public partial class MainWindow : Window
             MacOSCheckBox.Content = "Mac OS";
             convertButton.Content = "konvertieren!";
             GithubRepo.Content = "Dieses Projekt wurde von Daiko Games erstellt";
+            UpdateButton.Content = "update!";
         }
 
         if (Language == "en")
@@ -198,6 +199,7 @@ public partial class MainWindow : Window
             MacOSCheckBox.Content = "Mac OS";
             convertButton.Content = "Convert!";
             GithubRepo.Content = "This Project was made by: Daiko Games";
+            UpdateButton.Content = "update!";
         }
 
         if (!Language.Contains("de") && !Language.Contains("en"))
@@ -257,7 +259,8 @@ public partial class MainWindow : Window
             "Linux",
             "Mac OS",
             "Convert!",
-            "This Project was made by: Daiko Games"
+            "This Project was made by: Daiko Games",
+            "update!"
         };
 
         var configPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"Translate-Folder",$"en-{language}","config.yml");
@@ -323,6 +326,7 @@ public partial class MainWindow : Window
                 MacOSCheckBox.Content = translated[12];
                 convertButton.Content = translated[13];
                 GithubRepo.Content = translated[14];
+                UpdateButton.Content = translated[15];
             });
         }
 

@@ -193,7 +193,7 @@
         Name="UpdateButton"
         Canvas.Right="50"
         Canvas.Top="500"
-        Width="50"
+        Width="70"
         Height="30"
         Click="UpdateButtonVoid"
         ClickMode="Press"
