@@ -958,7 +958,7 @@ public partial class MainWindow : Window
         try
         {
             // Replace with the URL where you host your update files (like GitHub releases)
-            var UpdateMngr = new UpdateManager("https://github.com/DaikoGames/sb1-sb2-sb3-xml-to-Csharp-converter/release/latest");
+            var UpdateMngr = new UpdateManager("https://github.com/DaikoGames/sb1-sb2-sb3-xml-to-Csharp-converter/releasess/latest");
 
             // 1. Check if there's a new version
             var VersionOnGithub = await UpdateMngr.CheckForUpdatesAsync();
