@@ -9,7 +9,15 @@ updates:
     directory: "/" # Location of package manifests
     schedule:
       interval: "daily"
+    groups:
+      nuget-all:
+        patterns:
+          - "*"
   - package-ecosystem: "npm" # See documentation for possible values
     directory: "/ScratchConverter" # Location of package manifests
     schedule:
       interval: "daily"
+    groups:
+      npm-all:
+        patterns:
+          - "*"
