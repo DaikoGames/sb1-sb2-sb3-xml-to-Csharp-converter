@@ -1,13 +1,12 @@
 name: Deploy to GitHub Releases
-
-on:  
+on:
   schedule:
-      - cron: '30 14 * * 6' 
+      - cron: '30 14 * * 6'
   workflow_dispatch:
-     
+    
 permissions:
   contents: write
-  
+ 
 jobs:
   build:
     strategy:
@@ -27,36 +26,33 @@ jobs:
             runtime: osx-x64
           - os: macos-latest
             runtime: osx-arm64
-
     runs-on: ${{ matrix.os }}
-      
+     
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-
       - name: Checkout External Dependency (Scratch-Format-Converter)
         uses: actions/checkout@v4
         with:
           repository: 'DaikoGames/Scratch-Format-Converter'
           path: Scratch-Format-Converter
-          
+         
       - name: Checkout External Dependency (Scratch-To-Snap)
         uses: actions/checkout@v4
         with:
           repository: 'DaikoGames/Scratch-To-Snap-'
           path: Scratch-To-Snap
-          
+         
       - name: Checkout External Dependency (Translator)
         uses: actions/checkout@v4
         with:
           repository: 'DaikoGames/Translate-Folder'
           path: Translate-Folder
-          
+         
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 9.0.x
-
       - name: Build and Publish App
         shell: bash
         run: |
@@ -66,17 +62,14 @@ jobs:
             -o "./publish/${{ matrix.runtime }}" \
             -p:SelfContained=true \
             -p:PublishSingleFile=true
-
       - name: Install Velopack CLI
         run: dotnet tool install -g vpk
-
       - name: Add dotnet tools to PATH
         shell: bash
         run: echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
-
       - name: Add files (Windows)
         shell: pwsh
-        if: contains(matrix.runtime, 'win')  
+        if: contains(matrix.runtime, 'win')
         run: |
           $baseDir = "./publish/${{ matrix.runtime }}"
           New-Item -ItemType Directory -Force -Path "$baseDir/ConverterIcon"
@@ -95,7 +88,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path "$baseDir/svg_library_ScratchJnr"
           Copy-Item -Path "./svg_library_ScratchJnr/*" "$baseDir/svg_library_ScratchJnr"
           New-Item -ItemType Directory -Force -Path "$baseDir/wav_library_ScratchJnr"
-          Copy-Item "./wav_library_ScratchJnr/*" "$baseDir/wav_library_ScratchJnr" 
+          Copy-Item "./wav_library_ScratchJnr/*" "$baseDir/wav_library_ScratchJnr"
           $GZfiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.gz" -ErrorAction Stop
           foreach ($GZfile in $GZfiles) {
           $GZDirectoryName = $GZfile.Directory.Name
@@ -104,20 +97,20 @@ jobs:
           gzip -d -c $GZfile.FullName > "$baseDir/Translate-Folder/$GZDirectoryName/$OutFileName"
           Remove-Item $GZfile.FullName -Force
           }
-          $JSONFiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.json" -ErrorAction Stop 
+          $JSONFiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.json" -ErrorAction Stop
           foreach ($JSONfile in $JSONFiles){
           $JSONFileName = $JSONfile.Name
           $JSONDirectoryName = (Get-Item $JSONfile).Directory.Name
           Copy-Item -Path $JSONfile.FullName "$baseDir/Translate-Folder/$JSONDirectoryName/$JSONFileName" -Force
           }
-          $YMLFiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.yml" -ErrorAction Stop 
+          $YMLFiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.yml" -ErrorAction Stop
           foreach ($YMLfile in $YMLFiles){
           $JYMLFileName = $YMLfile.Name
           $YMLDirectoryName = (Get-Item $YMLfile).Directory.Name
           Copy-Item -Path $YMLfile.FullName "$baseDir/Translate-Folder/$YMLDirectoryName/$JYMLFileName" -Force
           }
           Copy-Item "./README.md" "$baseDir/README.md"
-  
+ 
       - name: Add Files (Linux, MacOS)
         shell: pwsh
         if: contains(matrix.runtime, 'linux') || contains(matrix.runtime, 'osx')
@@ -137,9 +130,9 @@ jobs:
           New-Item -ItemType Directory -Force -Path "$baseDir/Install"
           Copy-Item "./Install/dotnet-install.sh" "$baseDir/Install/dotnet-install.sh"
           New-Item -ItemType Directory -Force -Path "$baseDir/svg_library_ScratchJnr"
-          Copy-Item "./svg_library_ScratchJnr/*" "$baseDir/svg_library_ScratchJnr" 
+          Copy-Item "./svg_library_ScratchJnr/*" "$baseDir/svg_library_ScratchJnr"
           New-Item -ItemType Directory -Force -Path "$baseDir/wav_library_ScratchJnr"
-          Copy-Item "./wav_library_ScratchJnr/*" "$baseDir/wav_library_ScratchJnr" 
+          Copy-Item "./wav_library_ScratchJnr/*" "$baseDir/wav_library_ScratchJnr"
           $GZfiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.gz" -ErrorAction Stop
           foreach ($GZfile in $GZfiles) {
           $GZDirectoryName = $GZfile.Directory.Name
@@ -148,25 +141,25 @@ jobs:
           gzip -d -c $GZfile.FullName > "$baseDir/Translate-Folder/$GZDirectoryName/$OutFileName"
           Remove-Item $GZfile.FullName -Force
           }
-          $JSONFiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.json" -ErrorAction Stop 
+          $JSONFiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.json" -ErrorAction Stop
           foreach ($JSONfile in $JSONFiles){
           $JSONFileName = $JSONfile.Name
           $JSONDirectoryName = (Get-Item $JSONfile).Directory.Name
           Copy-Item -Path $JSONfile.FullName "$baseDir/Translate-Folder/$JSONDirectoryName/$JSONFileName" -Force
           }
-          $YMLFiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.yml" -ErrorAction Stop 
+          $YMLFiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.yml" -ErrorAction Stop
           foreach ($YMLfile in $YMLFiles){
           $JYMLFileName = $YMLfile.Name
           $YMLDirectoryName = (Get-Item $YMLfile).Directory.Name
           Copy-Item -Path $YMLfile.FullName "$baseDir/Translate-Folder/$YMLDirectoryName/$JYMLFileName" -Force
           }
           Copy-Item "./README.md" "$baseDir/README.md"
-          
+         
       - name: Check Help
         shell: bash
         run: |
           vpk pack --help
-          
+         
       - name: Pack with Velopack Windows
         shell: bash
         if: contains(matrix.runtime, 'win')
@@ -178,7 +171,7 @@ jobs:
             --outputDir "./Releases" \
             --icon "./ConverterIcon/Converter.ico" \
             --channel "${{ matrix.runtime }}"
-            
+           
       - name: Pack with Velopack Linux
         shell: bash
         if: contains(matrix.runtime, 'linux')
@@ -190,7 +183,7 @@ jobs:
             --outputDir "./Releases" \
             --icon "./ConverterIcon/Converter.png" \
             --channel "${{ matrix.runtime }}"
-            
+           
       - name: Pack with Velopack MacOS
         shell: bash
         if: contains(matrix.runtime, 'osx')
@@ -202,13 +195,13 @@ jobs:
             --outputDir "./Releases" \
             --icon "./ConverterIcon/Converter.icns" \
             --channel "${{ matrix.runtime }}"
-            
+           
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: vpk-artifacts-${{ matrix.runtime }}
           path: ./Releases/*
-          
+         
   build_ubuntu-latest_linux-x86:
     needs: build
     runs-on: ubuntu-latest
@@ -221,87 +214,217 @@ jobs:
         with:
           repository: 'DaikoGames/Scratch-Format-Converter'
           path: Scratch-Format-Converter
-          
+
+      - name: Checkout External Dependency (Scratch-To-Snap)
+        uses: actions/checkout@v4
+        with:
+          repository: 'DaikoGames/Scratch-To-Snap-'
+          path: Scratch-To-Snap
+
       - name: Checkout External Dependency (Translator)
         uses: actions/checkout@v4
         with:
           repository: 'DaikoGames/Translate-Folder'
           path: Translate-Folder
-          
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 9.0.x
 
-      - name: Build and Publish App
+      - name: Build and Publish App (win-x86)
         shell: bash
         run: |
           dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" \
             -c Release \
             -r win-x86 \
-            -o "./publish/linux-x86" \
+            -o "./publish/win-x86" \
             -p:SelfContained=true \
             -p:PublishSingleFile=true
-  
-      - name: Add Wine and Build AppImage - (Linux x86)
+
+      - name: Add Files (win-x86 for Linux)
+        shell: pwsh
+        run: |
+          $baseDir = "./publish/win-x86"
+          New-Item -ItemType Directory -Force -Path "$baseDir/ConverterIcon"
+          Copy-Item "./ConverterIcon/Converter.ico" "$baseDir/ConverterIcon/Converter.ico"
+          Copy-Item "./ConverterIcon/Converter.png" "$baseDir/ConverterIcon/Converter.png"
+
+          New-Item -ItemType Directory -Force -Path "$baseDir/Scratch-Format-Converter"
+          Copy-Item "./Scratch-Format-Converter/Convert.js" "$baseDir/Scratch-Format-Converter/Convert.js"
+          Copy-Item "./Scratch-Format-Converter/package.json" "$baseDir/Scratch-Format-Converter/package.json"
+          Copy-Item "./Scratch-Format-Converter/package-lock.json" "$baseDir/Scratch-Format-Converter/package-lock.json"
+
+          New-Item -ItemType Directory -Force -Path "$baseDir/Scratch-To-Snap"
+          Copy-Item "./Scratch-To-Snap/converter.js" "$baseDir/Scratch-To-Snap/converter.js"
+          Copy-Item "./Scratch-To-Snap/package.json" "$baseDir/Scratch-To-Snap/package.json"
+          Copy-Item "./Scratch-To-Snap/package-lock.json" "$baseDir/Scratch-To-Snap/package-lock.json"
+
+          New-Item -ItemType Directory -Force -Path "$baseDir/Install"
+          Copy-Item "./Install/dotnet-install.ps1" "$baseDir/Install/dotnet-install.ps1"
+
+          New-Item -ItemType Directory -Force -Path "$baseDir/svg_library_ScratchJnr"
+          Copy-Item -Path "./svg_library_ScratchJnr/*" "$baseDir/svg_library_ScratchJnr"
+
+          New-Item -ItemType Directory -Force -Path "$baseDir/wav_library_ScratchJnr"
+          Copy-Item "./wav_library_ScratchJnr/*" "$baseDir/wav_library_ScratchJnr"
+
+          $GZfiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.gz" -ErrorAction Stop
+          foreach ($GZfile in $GZfiles) {
+            $GZDirectoryName = $GZfile.Directory.Name
+            New-Item -ItemType Directory -Force -Path "$baseDir/Translate-Folder/$GZDirectoryName" | Out-Null
+            $OutFileName = $GZfile.Name -replace '\.gz$', ''
+            gzip -d -c $GZfile.FullName > "$baseDir/Translate-Folder/$GZDirectoryName/$OutFileName"
+            Remove-Item $GZfile.FullName -Force
+          }
+
+          $JSONFiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.json" -ErrorAction Stop
+          foreach ($JSONfile in $JSONFiles){
+            $JSONFileName = $JSONfile.Name
+            $JSONDirectoryName = (Get-Item $JSONfile).Directory.Name
+            Copy-Item -Path $JSONfile.FullName "$baseDir/Translate-Folder/$JSONDirectoryName/$JSONFileName" -Force
+          }
+
+          $YMLFiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.yml" -ErrorAction Stop
+          foreach ($YMLfile in $YMLFiles){
+            $JYMLFileName = $YMLfile.Name
+            $YMLDirectoryName = (Get-Item $YMLfile).Directory.Name
+            Copy-Item -Path $YMLfile.FullName "$baseDir/Translate-Folder/$YMLDirectoryName/$JYMLFileName" -Force
+          }
+
+          Copy-Item "./README.md" "$baseDir/README.md"
+
+      - name: Create install package
         shell: bash
         run: |
-          cd "./publish/linux-x86"
-          curl -sLf --retry 5 --retry-connrefused -O "https://github.com/Kron4ek/Wine-Builds/releases/download/11.11/wine-11.11-x86.tar.xz"
-          tar -xf wine-11.11-x86.tar.xz --no-same-owner || true
-          rm wine-11.11-x86.tar.xz
+          mkdir -p ./linux-x86-package
+          cp -r ./publish/win-x86 ./linux-x86-package/app
 
-          # Download official Microsoft .NET install script fallback
-          curl -sSL https://dot.net/v1/dotnet-install.sh -o dotnet-install.sh
-          chmod +x dotnet-install.sh
+          # ==================== install.sh ====================
+          cat > ./linux-x86-package/install.sh << 'INSTALL_EOF'
+          #!/bin/bash
+          set -e
 
-          # Custom AppRun script to ensure .NET availability, and expose host filesystem cleanly via Wine's Z: drive
-          echo '#!/bin/bash' > ./AppRun
-          echo 'HERE="$(dirname "$(readlink -f "${0}")")"' >> ./AppRun
-          echo 'export DOTNET_ROOT="$HOME/.dotnet"' >> ./AppRun
-          echo 'export PATH="$DOTNET_ROOT:$PATH"' >> ./AppRun
-          echo 'if [ ! -f "$DOTNET_ROOT/dotnet" ] && ! command -v dotnet &> /dev/null; then' >> ./AppRun
-          echo '    echo "No .NET runtime found. Installing .NET 9 locally..."' >> ./AppRun
-          echo '    "$HERE/dotnet-install.sh" --channel 9.0 --runtime dotnet --install-dir "$DOTNET_ROOT"' >> ./AppRun
-          echo 'fi' >> ./AppRun
-          echo 'export WINEDEBUG=-all' >> ./AppRun
-          
-          # Initialize prefix/dosdevices symlinks automatically so Z: maps to host root '/' securely
-          echo 'WINEPREFIX="$HOME/.wine-converter"' >> ./AppRun
-          echo 'export WINEPREFIX' >> ./AppRun
-          echo 'mkdir -p "$WINEPREFIX/dosdevices"' >> ./AppRun
-          echo 'if [ ! -e "$WINEPREFIX/dosdevices/z:" ]; then' >> ./AppRun
-          echo '    ln -s / "$WINEPREFIX/dosdevices/z:"' >> ./AppRun
-          echo 'fi' >> ./AppRun
-          echo 'if [ ! -e "$WINEPREFIX/dosdevices/c:" ]; then' >> ./AppRun
-          echo '    wineboot -i' >> ./AppRun
-          echo 'fi' >> ./AppRun
+          echo "=== Converter Linux x86 Installer (Wine + Windows x86) ==="
+          echo ""
 
-          echo '"$HERE/wine-11.11-x86/bin/wine" "$HERE/Converter.exe" "$@"' >> ./AppRun
-          chmod +x ./AppRun    
+          if [ "$EUID" -ne 0 ]; then
+            echo "Bitte mit sudo ausführen:"
+            echo "  sudo ./install.sh"
+            exit 1
+          fi
 
-          echo "[Desktop Entry]" > Converter.desktop
-          echo "Name=Converter" >> Converter.desktop
-          echo "Exec=AppRun" >> Converter.desktop
-          echo "Type=Application" >> Converter.desktop
-          echo "Icon=Converter" >> Converter.desktop
-          echo "Categories=Utility;" >> Converter.desktop
-          cp ./ConverterIcon/Converter.png ./Converter.png || cp ./ConverterIcon/*.png ./Converter.png || touch Converter.png
-          curl -L -O "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage"
-          chmod +x appimagetool-x86_64.AppImage
-          cd ..
-          ARCH=i686 ./linux-x86/appimagetool-x86_64.AppImage --appimage-extract-and-run ./linux-x86 Converter-linux-x86.AppImage
-      
+          # 1. Wine installieren (inkl. 32-bit Multiarch)
+          if ! command -v wine &> /dev/null; then
+            echo "→ Installiere Wine..."
+            if command -v apt-get &> /dev/null; then
+              dpkg --add-architecture i386 || true
+              apt-get update -y
+              apt-get install -y wine wine32 wine64 libwine libwine:i386 || \
+              apt-get install -y wine-stable wine32 || true
+            elif command -v dnf &> /dev/null; then
+              dnf install -y wine
+            elif command -v yum &> /dev/null; then
+              yum install -y wine
+            elif command -v pacman &> /dev/null; then
+              pacman -S --noconfirm wine
+            else
+              echo "Konnte Wine nicht automatisch installieren. Bitte manuell installieren und erneut versuchen."
+              exit 1
+            fi
+          else
+            echo "→ Wine ist bereits installiert."
+          fi
+
+          # 2. Eigenen Wine-Prefix anlegen (Z: → /)
+          export WINEPREFIX="/opt/converter-wine"
+          export WINEARCH=win32
+          mkdir -p "$WINEPREFIX"
+          wineboot -i -u 2>/dev/null || true
+
+          mkdir -p "$WINEPREFIX/dosdevices"
+          ln -sf / "$WINEPREFIX/dosdevices/z:" 2>/dev/null || true
+
+          # 3. App nach /opt/converter kopieren
+          echo "→ Installiere Converter nach /opt/converter ..."
+          rm -rf /opt/converter
+          mkdir -p /opt/converter
+          cp -a ./app/* /opt/converter/
+
+          # 4. Wrapper "converter"
+          cat > /usr/local/bin/converter << 'EOF'
+          #!/bin/bash
+          export WINEPREFIX="/opt/converter-wine"
+          export WINEARCH=win32
+          export WINEDEBUG=-all
+          cd /opt/converter
+          exec wine Converter.exe "$@"
+          EOF
+          chmod +x /usr/local/bin/converter
+
+          # 5. Optionaler "dotnet"-Wrapper (zeigt auf die App, da self-contained)
+          cat > /usr/local/bin/dotnet << 'EOF'
+          #!/bin/bash
+          export WINEPREFIX="/opt/converter-wine"
+          export WINEARCH=win32
+          export WINEDEBUG=-all
+          echo "Hinweis: Dies ist der Converter-Wrapper unter Wine."
+          echo "Für die normale Nutzung bitte 'converter' verwenden."
+          cd /opt/converter
+          exec wine Converter.exe "$@"
+          EOF
+          chmod +x /usr/local/bin/dotnet
+
+          echo ""
+          echo "=== Installation erfolgreich ==="
+          echo ""
+          echo "Starte die App mit:"
+          echo "  converter"
+          echo ""
+          echo "Oder mit Datei:"
+          echo "  converter /home/deinuser/projekt.sb3"
+          echo ""
+          echo "Alle Linux-Pfade funktionieren normal"
+          echo "(Wine mappt Z: auf /)."
+          echo ""
+          INSTALL_EOF
+
+          chmod +x ./linux-x86-package/install.sh
+
+          # ==================== uninstall.sh ====================
+          cat > ./linux-x86-package/uninstall.sh << 'UNINSTALL_EOF'
+          #!/bin/bash
+          set -e
+
+          if [ "$EUID" -ne 0 ]; then
+            echo "Bitte mit sudo ausführen:"
+            echo "  sudo ./uninstall.sh"
+            exit 1
+          fi
+
+          rm -rf /opt/converter
+          rm -rf /opt/converter-wine
+          rm -f /usr/local/bin/converter
+          rm -f /usr/local/bin/dotnet
+
+          echo "Converter und Wine-Prefix wurden entfernt."
+          UNINSTALL_EOF
+
+          chmod +x ./linux-x86-package/uninstall.sh
+
+          # Alles packen
+          tar -cJf Converter-linux-x86.tar.xz -C ./linux-x86-package .
+
       - name: Upload Artifact (linux x86)
         uses: actions/upload-artifact@v4
         with:
           name: vpk-artifact-linux_x86
-          path: ./publish/Converter-linux-x86.AppImage
+          path: ./Converter-linux-x86.tar.xz
 
   build_macos-latest_osx-x86:
     needs: build
     runs-on: macos-latest
-    steps: 
+    steps:
       - name: Checkout Code
         uses: actions/checkout@v4
       - name: Free up macOS disk space
@@ -313,24 +436,22 @@ jobs:
           sudo rm -rf $AGENT_TOOLSDIRECTORY/* || true
           echo "=== Disk Space After Cleanup ==="
           df -h
-
       - name: Checkout External Dependency (Scratch-Format-Converter)
         uses: actions/checkout@v4
         with:
           repository: 'DaikoGames/Scratch-Format-Converter'
           path: Scratch-Format-Converter
-          
+         
       - name: Checkout External Dependency (Translator)
         uses: actions/checkout@v4
         with:
           repository: 'DaikoGames/Translate-Folder'
           path: Translate-Folder
-          
+         
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 9.0.x
-
       - name: Build and Publish App
         shell: bash
         run: |
@@ -340,39 +461,38 @@ jobs:
             -o "./publish/macos-x86-app" \
             -p:SelfContained=true \
             -p:PublishSingleFile=true
-
       - name: Build macOS x86 App Bundle with Wine
         shell: bash
         run: |
           mkdir -p "Converter.app/Contents/MacOS"
           mkdir -p "Converter.app/Contents/Resources/wine"
           mkdir -p "Converter.app/Contents/Resources/app"
-          
+         
           cp -R ./publish/macos-x86-app/* "Converter.app/Contents/Resources/app/"
-          
+         
           brew install --cask wine-stable
-          
+         
           WINE_PATH=$(which wine)
           if [ -z "$WINE_PATH" ]; then
             WINE_PATH="/Applications/Wine Stable.app/Contents/Resources/wine/bin/wine"
           fi
-          
+         
           cat << EOF > "Converter.app/Contents/MacOS/launcher"
           #!/bin/bash
           DIR="\$(cd "\$(dirname "\$0")" && pwd)"
-          
+         
           if [ -f "\$DIR/../Resources/wine/bin/wine" ]; then
               WINE_BIN="\$DIR/../Resources/wine/bin/wine"
           else
               WINE_BIN="$WINE_PATH"
           fi
-          
+         
           cd "\$DIR/../Resources/app"
           env WINEDEBUG=-all "\$WINE_BIN" "Converter.exe"
           EOF
-          
+         
           chmod +x "Converter.app/Contents/MacOS/launcher"
-          
+         
           cat << 'EOF' > "Converter.app/Contents/Info.plist"
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -391,13 +511,11 @@ jobs:
           </dict>
           </plist>
           EOF
-
       - name: Package App Bundle into single DMG
         shell: bash
         run: |
           mkdir ./dist
           hdiutil create -volname "Converter-osx-x86" -srcfolder "Converter.app" -ov -format UDZO "./dist/Converter-osx-x86.dmg"
-
       - name: Upload Artifact (macos x86)
         uses: actions/upload-artifact@v4
         with:
@@ -413,7 +531,6 @@ jobs:
         with:
           path: ./all-assets
           merge-multiple: true
-
       - name: Push to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
