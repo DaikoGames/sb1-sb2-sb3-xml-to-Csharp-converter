@@ -14,7 +14,7 @@ updates:
         patterns:
           - "*"
   - package-ecosystem: "npm" # See documentation for possible values
-    directory: "/ScratchConverter" # Location of package manifests
+    directory: "/Scratch-Format-Converter" # Location of package manifests
     schedule:
       interval: "daily"
     groups:
