@@ -1,8 +1,8 @@
 name: Deploy to GitHub Releases
 
-on: 
+on:  
   schedule:
-     - cron: '30 14 * * 6' 
+      - cron: '30 14 * * 6' 
   workflow_dispatch:
      
 permissions:
@@ -250,10 +250,36 @@ jobs:
           curl -sLf --retry 5 --retry-connrefused -O "https://github.com/Kron4ek/Wine-Builds/releases/download/11.11/wine-11.11-x86.tar.xz"
           tar -xf wine-11.11-x86.tar.xz --no-same-owner || true
           rm wine-11.11-x86.tar.xz
+
+          # Download official Microsoft .NET install script fallback
+          curl -sSL https://dot.net/v1/dotnet-install.sh -o dotnet-install.sh
+          chmod +x dotnet-install.sh
+
+          # Custom AppRun script to ensure .NET availability, and expose host filesystem cleanly via Wine's Z: drive
           echo '#!/bin/bash' > ./AppRun
           echo 'HERE="$(dirname "$(readlink -f "${0}")")"' >> ./AppRun
-          echo '"$HERE/wine-11.11-x86/bin/wine" "$HERE/Converter.exe"' >> ./AppRun
-          chmod +x ./AppRun   
+          echo 'export DOTNET_ROOT="$HOME/.dotnet"' >> ./AppRun
+          echo 'export PATH="$DOTNET_ROOT:$PATH"' >> ./AppRun
+          echo 'if [ ! -f "$DOTNET_ROOT/dotnet" ] && ! command -v dotnet &> /dev/null; then' >> ./AppRun
+          echo '    echo "No .NET runtime found. Installing .NET 9 locally..."' >> ./AppRun
+          echo '    "$HERE/dotnet-install.sh" --channel 9.0 --runtime dotnet --install-dir "$DOTNET_ROOT"' >> ./AppRun
+          echo 'fi' >> ./AppRun
+          echo 'export WINEDEBUG=-all' >> ./AppRun
+          
+          # Initialize prefix/dosdevices symlinks automatically so Z: maps to host root '/' securely
+          echo 'WINEPREFIX="$HOME/.wine-converter"' >> ./AppRun
+          echo 'export WINEPREFIX' >> ./AppRun
+          echo 'mkdir -p "$WINEPREFIX/dosdevices"' >> ./AppRun
+          echo 'if [ ! -e "$WINEPREFIX/dosdevices/z:" ]; then' >> ./AppRun
+          echo '    ln -s / "$WINEPREFIX/dosdevices/z:"' >> ./AppRun
+          echo 'fi' >> ./AppRun
+          echo 'if [ ! -e "$WINEPREFIX/dosdevices/c:" ]; then' >> ./AppRun
+          echo '    wineboot -i' >> ./AppRun
+          echo 'fi' >> ./AppRun
+
+          echo '"$HERE/wine-11.11-x86/bin/wine" "$HERE/Converter.exe" "$@"' >> ./AppRun
+          chmod +x ./AppRun    
+
           echo "[Desktop Entry]" > Converter.desktop
           echo "Name=Converter" >> Converter.desktop
           echo "Exec=AppRun" >> Converter.desktop
@@ -282,16 +308,12 @@ jobs:
         run: |
           echo "=== Disk Space Before Cleanup ==="
           df -h
-          
-          # Remove heavy pre-installed caches or toolsets not needed for Wine/DMG building
           sudo rm -rf /Applications/Xcode_*.app || true
           sudo rm -rf /usr/local/share/boost || true
           sudo rm -rf $AGENT_TOOLSDIRECTORY/* || true
-          
           echo "=== Disk Space After Cleanup ==="
           df -h
 
-  
       - name: Checkout External Dependency (Scratch-Format-Converter)
         uses: actions/checkout@v4
         with:
