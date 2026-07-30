@@ -88,14 +88,14 @@
       Content="..." />
 
     <Label
-      Name="SnapinatorOrNot"
+      Name="SnapOrNot"
       Canvas.Left="15"
       Canvas.Top="235"
       Width="500"
       Height="30" />
 
     <CheckBox
-      Name="SnapinatorCheckBox"
+      Name="SnapCheckBox"
       Canvas.Left="30"
       Canvas.Top="260"
       Width="110"
@@ -175,7 +175,7 @@
       Name="convertButton"
       Canvas.Left="200"
       Canvas.Top="440"
-      Width="75"
+      Width="100"
       Height="30"
       Click="ConvertButton"
       ClickMode="Press" />

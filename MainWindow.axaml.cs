@@ -46,7 +46,7 @@ public partial class MainWindow : Window
     public bool windows = false;
     public bool linux = false;
     public bool MacOs = false;
-    public bool Snapinator = false;
+    public bool Snap = false;
     public bool Scratch = false;
     public string Filename;
     public string fileName;
@@ -78,67 +78,7 @@ public partial class MainWindow : Window
     public bool REQUIREMENTSmessage = false;
     public List<string> ScratchJnrFiles = new List<string>() { Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Tulip2.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Tree4.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Tree2.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Tree3.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Tree1.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Tornado.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Thundercloud.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Theatre.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "TeenGirl3.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "TeenGirl2.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "TeenGirl1.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "TeenBoy3.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "TeenBoy2.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "TeenBoy1.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Teen3.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Teen2.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Table.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Summer.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Sun.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Suburbs.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Stool.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Starfish.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Star3.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Star2.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Spring.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Star.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Space.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "SoccerNet.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Soccerball.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Snake.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Shop.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "ShootingStar.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Seahorse.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Scubadiver.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "School.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Savannah.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "SailBoat.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Rowboat.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Rocket.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Red.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Rancher.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Rabbit.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Purple.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "PolarBear.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Planet.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Penguin.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Pig.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Peach.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Pasture.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Park.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "NightTable.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Mushroom.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Mother.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "MoonBkg.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Monkey.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Moon.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Lizard.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Mailbox.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Library.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Lake.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Jungle.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Inuit.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Igloo.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "House4.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "House1.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "House3.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "House.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Horse.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Gym2.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Gym.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Grandmother.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Grandfather.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Girl3.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Girl2.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Girl1.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Girl.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Giraffe.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Frog.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Fort.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Fly.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Fish2.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Flowers.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Fence.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Fish1.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Father.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Farmer1.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Farmer.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Farm.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Fall.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Fairy.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Evergreen.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "EmptyRoom.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Elephant.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Earth.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Duck.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Dragon.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Dog.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Desert.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Daisy3.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Daisy2.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Daisy1.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Daffodil.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "CrescentMoon.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Creek.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Crab.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Cloud1.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Classroom.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "City.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Child1.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Chicken.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Castle.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Car2.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Car1.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Car.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Camel.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Cake.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Butterfly.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Cactus.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Bus.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Boy3.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Boy2.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Boy1.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Boy.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Boat2.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Blue.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Bird.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Bike2.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Bike.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Bedroom.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Bed.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "BeachSunrise.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "BeachDay.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "BeachNight.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Bat.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Barn.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Basketball.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Bank.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Baby.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Ball.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Astronaut.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Arctic.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Apple.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Aeroplane.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Apartment.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Zebra.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Woods.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Wizard.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Winter.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Whale.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Weed.svg"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr", "Underwater.svg") };
     public List<string> ScratchJnrSoundFiles = new List<string>() { Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wav_library_ScratchJnr", "copy.wav"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wav_library_ScratchJnr", "cut.wav"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wav_library_ScratchJnr", "entertap.wav"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wav_library_ScratchJnr", "exittap.wav"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wav_library_ScratchJnr", "grab.wav"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wav_library_ScratchJnr", "keydown.wav"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wav_library_ScratchJnr", "pop.mp3"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wav_library_ScratchJnr", "snap.wav"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wav_library_ScratchJnr", "splash.wav"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wav_library_ScratchJnr", "tap.wav"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wav_library_ScratchJnr", "boing.wav") };
-    public string[] TranslatorFileList =
-{
-        //ON my Github project there are only .gz files and the .yml Files, because else i wouldn´t be able to use that, i have to fix the error with downloading
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-ar\\config.yml"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-ar\\lex.50.50.enar.s2t.bin"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-ar\\metadata.json"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-ar\\model.enar.intgemm.alphas.bin"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-ar\\vocab.enar.spm"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-bn\\config.yml"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-bn\\lex.50.50.enbn.s2t.bin"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-bn\\metadata.json"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-bn\\model.enbn.intgemm.alphas.bin"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-bn\\vocab.enbn.spm"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-es\\config.yml"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-es\\lex.50.50.enes.s2t.bin"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-es\\metadata.json"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-es\\model.enes.intgemm.alphas.bin"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-es\\vocab.enes.spm"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-fr\\config.yml"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-fr\\lex.50.50.enfr.s2t.bin"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-fr\\metadata.json"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-fr\\model.enfr.intgemm.alphas.bin"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-fr\\vocab.enfr.spm"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-hi\\config.yml"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-hi\\lex.50.50.enhi.s2t.bin"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-hi\\metadata.json"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-hi\\model.enhi.intgemm.alphas.bin"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-hi\\vocab.enhi.spm"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-in\\config.yml"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-in\\lex.50.50.enid.s2t.bin"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-in\\metadata.json"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-in\\model.enid.intgemm.alphas.bin"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-in\\vocab.enid.spm"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-ja\\config.yml"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-ja\\lex.50.50.enja.s2t.bin"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-ja\\metadata.json"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-ja\\srcvocab.enja.spm"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-ja\\trgvocab.enja.spm"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-pt\\config.yml"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-pt\\lex.50.50.enpt.s2t.bin"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-pt\\metadata.json"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-pt\\model.enpt.intgemm.alphas.bin"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-pt\\vocab.enpt.spm"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-uk\\config.yml"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-uk\\lex.50.50.enuk.s2t.bin"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-uk\\metadata.json"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-uk\\model.enuk.intgemm.alphas.bin"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-uk\\vocab.enuk.spm"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-zh\\config.yml"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-zh\\lex.50.50.enzh.s2t.bin"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-zh\\metadata.json"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-zh\\model.enzh.intgemm.alphas.bin"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-zh\\srcvocab.enzh.spm"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-zh\\trgvocab.enzh.spm"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-zh_hant\\config.yml"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-zh_hant\\lex.50.50.enzh_hant.s2t.bin"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-zh_hant\\metadata.json"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-zh_hant\\model.enzh_hant.intgemm.alphas.bin"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-zh_hant\\srcvocab.enzh_hant.spm"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-zh_hant\\trgvocab.enzh_hant.spm"),
-                };
+    public string[] TranslatorFileList = { Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-ar\\config.yml"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-ar\\lex.50.50.enar.s2t.bin"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-ar\\metadata.json"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-ar\\model.enar.intgemm.alphas.bin"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-ar\\vocab.enar.spm"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-bn\\config.yml"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-bn\\lex.50.50.enbn.s2t.bin"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-bn\\metadata.json"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-bn\\model.enbn.intgemm.alphas.bin"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-bn\\vocab.enbn.spm"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-es\\config.yml"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-es\\lex.50.50.enes.s2t.bin"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-es\\metadata.json"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-es\\model.enes.intgemm.alphas.bin"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-es\\vocab.enes.spm"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-fr\\config.yml"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-fr\\lex.50.50.enfr.s2t.bin"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-fr\\metadata.json"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-fr\\model.enfr.intgemm.alphas.bin"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-fr\\vocab.enfr.spm"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-hi\\config.yml"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-hi\\lex.50.50.enhi.s2t.bin"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-hi\\metadata.json"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-hi\\model.enhi.intgemm.alphas.bin"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-hi\\vocab.enhi.spm"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-in\\config.yml"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-in\\lex.50.50.enid.s2t.bin"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-in\\metadata.json"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-in\\model.enid.intgemm.alphas.bin"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-in\\vocab.enid.spm"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-ja\\config.yml"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-ja\\lex.50.50.enja.s2t.bin"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-ja\\metadata.json"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-ja\\srcvocab.enja.spm"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-ja\\trgvocab.enja.spm"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-pt\\config.yml"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-pt\\lex.50.50.enpt.s2t.bin"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-pt\\metadata.json"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-pt\\model.enpt.intgemm.alphas.bin"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-pt\\vocab.enpt.spm"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-uk\\config.yml"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-uk\\lex.50.50.enuk.s2t.bin"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-uk\\metadata.json"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-uk\\model.enuk.intgemm.alphas.bin"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-uk\\vocab.enuk.spm"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-zh\\config.yml"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-zh\\lex.50.50.enzh.s2t.bin"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-zh\\metadata.json"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-zh\\model.enzh.intgemm.alphas.bin"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-zh\\srcvocab.enzh.spm"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-zh\\trgvocab.enzh.spm"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-zh_hant\\config.yml"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-zh_hant\\lex.50.50.enzh_hant.s2t.bin"), Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-zh_hant\\metadata.json"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-zh_hant\\model.enzh_hant.intgemm.alphas.bin"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-zh_hant\\srcvocab.enzh_hant.spm"),Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder\\en-zh_hant\\trgvocab.enzh_hant.spm") };
 
     public MainWindow()
     {
@@ -163,8 +103,8 @@ public partial class MainWindow : Window
             FolderNameTextBox.Watermark = "Ihr Ordner";
             IconText.Content = "Bitte Wählen Sie die Icon Datei aus wenn es für Sie nötig ist";
             IconTextBox.Watermark = "Die Icon Datei vom Projekt (nicht notwendig)";
-            SnapinatorOrNot.Content = "Soll der Converter den Snap Weg oder den Scratch Weg nehmen?";
-            SnapinatorCheckBox.Content = "Snapinator";
+            SnapOrNot.Content = "Soll der Converter den Snap Weg oder den Scratch Weg nehmen?";
+            SnapCheckBox.Content = "Snap!";
             ScratchCheckBox.Content = "Scratch";
             OSTextAndCPU.Content = "Bitte suchen Sie das OS, und die Architektur aus ";
             WindowsCheckBox.Content = "Windows";
@@ -184,8 +124,8 @@ public partial class MainWindow : Window
             FolderNameTextBox.Watermark = "Your Folder";
             IconText.Content = "Please select the Icon File if necessary:";
             IconTextBox.Watermark = "the Icon of the Application(Not necessary)";
-            SnapinatorOrNot.Content = "Should the converter use Snap! or the Scratch Way?:";
-            SnapinatorCheckBox.Content = "Snap";
+            SnapOrNot.Content = "Should the converter use Snap! or the Scratch Way?:";
+            SnapCheckBox.Content = "Snap!";
             ScratchCheckBox.Content = "Scratch";
             OSTextAndCPU.Content = "Please select the OS you want to build it for and what architecture:";
             WindowsCheckBox.Content = "Windows";
@@ -314,8 +254,8 @@ public partial class MainWindow : Window
                 FolderNameTextBox.Watermark = translated[3];
                 IconText.Content = translated[4];
                 IconTextBox.Watermark = translated[5];
-                SnapinatorOrNot.Content = translated[6];
-                SnapinatorCheckBox.Content = translated[7];
+                SnapOrNot.Content = translated[6];
+                SnapCheckBox.Content = translated[7];
                 ScratchCheckBox.Content = translated[8];
                 OSTextAndCPU.Content = translated[9];
                 WindowsCheckBox.Content = translated[10];
@@ -439,11 +379,13 @@ public partial class MainWindow : Window
                 Directory.CreateDirectory(TranslationFolder);
             }
 
+            Trace.Write("Checking Images");
             string PNGFile = Path.Combine(IconFolder, "Convert.png");
             if (!File.Exists(PNGFile))
             {
                 SomethingNotInstalled = true;
                 var PNGFileDownloader = new DownloadService(DownloadOption);
+                Trace.WriteLine("Convert.png");
                 await PNGFileDownloader.DownloadFileTaskAsync("https://github.com/DaikoGames/sb1-sb2-sb3-xml-to-Csharp-converter/raw/refs/heads/main/ConverterIcon/Converter.png", new DirectoryInfo(IconFolder));
             }
 
@@ -452,6 +394,7 @@ public partial class MainWindow : Window
             {
                 SomethingNotInstalled = true;
                 var ICOFileDownloader = new DownloadService(DownloadOption);
+                Trace.WriteLine("Convert.ico");
                 await ICOFileDownloader.DownloadFileTaskAsync("https://github.com/DaikoGames/sb1-sb2-sb3-xml-to-Csharp-converter/raw/refs/heads/main/ConverterIcon/Converter.ico", new DirectoryInfo(IconFolder));
             }
 
@@ -460,14 +403,16 @@ public partial class MainWindow : Window
             {
                 SomethingNotInstalled = true;
                 var ICNSFileDownloader = new DownloadService(DownloadOption);
+                Trace.WriteLine("Convert.icns");
                 await ICNSFileDownloader.DownloadFileTaskAsync("https://github.com/DaikoGames/sb1-sb2-sb3-xml-to-Csharp-converter/raw/refs/heads/main/ConverterIcon/Converter.icns", new DirectoryInfo(IconFolder));
             }
-
+            Trace.Write("Checking Scratch Converter now");
             string ConverterFile = Path.Combine(ConverterFolder, "Convert.js");
             if (!File.Exists(ConverterFile))
             {
                 SomethingNotInstalled = true;
                 var ConverterFileDownloader = new DownloadService(DownloadOption);
+                Trace.WriteLine("Convert.js");
                 await ConverterFileDownloader.DownloadFileTaskAsync("https://raw.githubusercontent.com/DaikoGames/Scratch-Format-converter/raw/refs/heads/main/Convert.js", new DirectoryInfo(ConverterFolder));
             }
 
@@ -476,6 +421,7 @@ public partial class MainWindow : Window
             {
                 SomethingNotInstalled = true;
                 var NPMpackageJSONDownloader = new DownloadService(DownloadOption);
+                Trace.WriteLine("Convert -> package.json");
                 await NPMpackageJSONDownloader.DownloadFileTaskAsync("https://raw.githubusercontent.com/DaikoGames/Scratch-Format-converter/raw/refs/heads/main/package.json", new DirectoryInfo(ConverterFolder));
 
             }
@@ -485,6 +431,7 @@ public partial class MainWindow : Window
             {
                 SomethingNotInstalled = true;
                 var NPMpackageLockJSONDownloader = new DownloadService(DownloadOption);
+                Trace.WriteLine("Convert -> package-lock.json");
                 await NPMpackageLockJSONDownloader.DownloadFileTaskAsync("https://github.com/DaikoGames/Scratch-Format-converter/raw/refs/heads/main/package-lock.json", new DirectoryInfo(ConverterFolder));
             }
 
@@ -505,13 +452,14 @@ public partial class MainWindow : Window
                         {
                             var TranslateFileDownloader = new DownloadService(DownloadOption);
                             string LinkToDownload = Path.Combine("https://github.com/DaikoGames/Translate-Folder/raw/refs/heads/main/" + (Directory.GetParent(TranslatorFile)?.Name).Replace("\\", "/") + "/" + Path.GetFileName(TranslatorFile));
+                            Trace.WriteLine("yml or json");
                             await TranslateFileDownloader.DownloadFileTaskAsync(LinkToDownload, new DirectoryInfo(Path.GetDirectoryName(TranslatorFile)));
                         }
 
                         if (TranslatorFile.Contains(".bin") | TranslatorFile.Contains(".spm"))
                         {
                             var TranslateFileDownloader = new DownloadService(DownloadOption);
-                            https://github.com/DaikoGames/Translate-Folder/raw/refs/heads/main/en-ar/vocab.enar.spm.gz
+                            Trace.WriteLine("bin or spm");
                             string LinkToDownload = Path.Combine("https://github.com/DaikoGames/Translate-Folder/raw/refs/heads/main/" + (Directory.GetParent(TranslatorFile)?.Name).Replace("\\", "/") + "/" + Path.GetFileName(TranslatorFile) + ".gz");
                             await TranslateFileDownloader.DownloadFileTaskAsync(LinkToDownload, new DirectoryInfo(Path.GetDirectoryName(TranslatorFile)));
                             string DownloadedFile = TranslatorFile + ".gz";
@@ -551,6 +499,7 @@ public partial class MainWindow : Window
                 {
                     SomethingNotInstalled = true;
                     var WAVDownloader = new DownloadService(DownloadOption);
+                    Trace.WriteLine("File Fails - WAVLibrary");
                     await WAVDownloader.DownloadFileTaskAsync("https://github.com/DaikoGames/sb1-sb2-sb3-xml-to-Csharp-converter/raw/refs/heads/main/wav_library_ScratchJnr/" + Path.GetFileName(ScratchJnrFile), new DirectoryInfo(AppDomain.CurrentDomain.BaseDirectory));
                 }
             }
@@ -708,6 +657,7 @@ public partial class MainWindow : Window
 
             //Check if npm is installed at the location of ScratchConverter
             await (Cli.Wrap("npm").WithArguments(args => args.Add("install")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync());
+            //
             await Task.Delay(6000);
         }
         catch (Exception ex)
@@ -1043,9 +993,9 @@ public partial class MainWindow : Window
                 formatOfApplication = "Arm-64";
             }
 
-            if (SnapinatorCheckBox.IsChecked == true)
+            if (SnapCheckBox.IsChecked == true)
             {
-                Snapinator = true;
+                Snap = true;
             }
 
             if (ScratchCheckBox.IsChecked == true)
@@ -1059,7 +1009,7 @@ public partial class MainWindow : Window
                 {
                     if (extensionS.Contains(".sb") | extensionS.Contains(".sb2") | extensionS.Contains(".sb3") | extensionS.Contains(".sjr"))
                     {
-                        if (Scratch == true | Snapinator == true)
+                        if (Scratch == true | Snap == true)
                         {
                             await Task.Run(() => sbfiles(extensionS));
                         }
@@ -1580,7 +1530,7 @@ public partial class MainWindow : Window
             await (Cli.Wrap("dotnet").WithArguments(args => args.Add("build").Add(ApplicationName + ".slnx")).WithWorkingDirectory(GameFolder).ExecuteAsync());
 
             //Need multiple Cli.Wraps
-            if (Snapinator == true && Scratch == false)
+            if (Snap == true && Scratch == false)
             {
                 if (OperatingSystem.IsWindows())
                 {
@@ -1851,7 +1801,7 @@ public partial class MainWindow : Window
                 }
             }
 
-            if (Scratch == false && Snapinator == true)
+            if (Scratch == false && Snap == true)
             {
                 foreach (string jsonline in JsonLines)
                 {
@@ -2537,7 +2487,7 @@ public partial class MainWindow : Window
                                     File.AppendAllText(WindowCsFile, "\n int randomX" + RandomNumberInt + " = Random" + RandomNumberInt + ".Next(" + 0 + "," + 480 + ");");
                                     File.AppendAllText(WindowCsFile, "\n Random RandomY" + RandomNumberInt + " = new Random();");
                                     File.AppendAllText(WindowCsFile, "\n int randomY" + RandomNumberInt + " = Random" + RandomNumberInt + ".Next(" + 0 + "," + 360 + ");");
-                                    File.AppendAllText(WindowCsFile, "\n await Task.Delay(" + (SecondsToWait * 1000) + ");");
+                                    File.AppendAllText(WindowCsFile, "\n await f" + (SecondsToWait * 1000) + ");");
                                     File.AppendAllText(WindowCsFile, "\n Canvas.SetLeft(Image" + LastObject + ", randomX" + RandomNumberInt + ");");
                                     File.AppendAllText(WindowCsFile, "\n Canvas.SetTop(Image" + LastObject + ", randomY" + RandomNumberInt + ");");
                                 }
@@ -3862,7 +3812,7 @@ public partial class MainWindow : Window
                 //Check the MainW�ndow for not finished things like the random integer if it has a range that is a variable or something else
                 //if there is something it gets edited, and after that the { and } should be set, also this will be a challange
 
-                if (Scratch == true && Snapinator == false)
+                if (Scratch == true && Snap == false)
                 {
 
                 }
