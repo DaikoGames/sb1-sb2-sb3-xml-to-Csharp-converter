@@ -380,14 +380,17 @@ jobs:
       - name: Restore and Publish App (Framework-Dependent)
         shell: bash
         run: |
-          dotnet restore "./sb1 sb2 sb3 xml to Csharp converter.csproj" -r linux-x86
+          # Tell restore to ignore the missing apphost pack
+          dotnet restore "./sb1 sb2 sb3 xml to Csharp converter.csproj" -r linux-x86 -p:UseAppHost=false
+          
+          # Tell publish to just output the DLLs, no apphost
           dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" \
             -c Release \
             -r linux-x86 \
             -o "./publish/linux-x86" \
             -p:SelfContained=false \
-            -p:UseAppHost=true
-
+            -p:UseAppHost=false
+            
       - name: Assemble Self-Contained App & Inject Debian i386 Native Libs
         shell: bash
         run: |
