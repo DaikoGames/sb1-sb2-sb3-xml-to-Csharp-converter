@@ -115,19 +115,39 @@ jobs:
           rm -rf ~/custom-sdk/shared/Microsoft.NETCore.App
           rm -rf ~/custom-sdk/host/fxr
           rm -f ~/custom-sdk/dotnet
+          rm -f ~/custom-sdk/dotnet-real
           
           DOTNET_HOST=$(find ~/runtime/artifacts/bin -type f -name "dotnet" | grep -iE "x86.*release" | head -n 1)
           HOSTFXR_BIN=$(find ~/runtime/artifacts/bin -type f -name "libhostfxr.so" | grep -iE "x86.*release" | head -n 1)
           TESTHOST_DIR=$(find ~/runtime/artifacts/bin/testhost -maxdepth 1 -type d | grep -iE "linux.*x86" | grep -i "release" | head -n 1)
-          SHARED_DIR="$TESTHOST_DIR/shared/Microsoft.NETCore.App"
           
-          cp "$DOTNET_HOST" ~/custom-sdk/dotnet && chmod +x ~/custom-sdk/dotnet
-          FXR_VERSION=$(basename "$(dirname "$HOSTFXR_BIN")")
-          mkdir -p ~/custom-sdk/host/fxr/$FXR_VERSION
-          cp "$HOSTFXR_BIN" ~/custom-sdk/host/fxr/$FXR_VERSION/
-          cp -r "$SHARED_DIR" ~/custom-sdk/shared/
+          SHARED_VER_DIR=$(find "$TESTHOST_DIR/shared/Microsoft.NETCore.App" -maxdepth 1 -mindepth 1 -type d | head -n 1)
+          SHARED_VER=$(basename "$SHARED_VER_DIR")
+          echo "Detected Framework Version: $SHARED_VER"
           
-          SHARED_VER=$(basename "$SHARED_DIR")
+          cp "$DOTNET_HOST" ~/custom-sdk/dotnet-real
+          chmod +x ~/custom-sdk/dotnet-real
+          
+          cat > ~/custom-sdk/dotnet << 'EOF'
+          #!/bin/bash
+          export DOTNET_gcServer=0
+          export DOTNET_GCHeapCount=1
+          export DOTNET_EnableDiagnostics=0
+          export DOTNET_TieredPGO=0
+          export DOTNET_ReadyToRun=0
+          export DOTNET_DefaultStackSize=262144
+          ulimit -s 256 2>/dev/null
+          DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
+          exec "$DIR/dotnet-real" "$@"
+          EOF
+          chmod +x ~/custom-sdk/dotnet
+          
+          mkdir -p ~/custom-sdk/host/fxr/$SHARED_VER
+          cp "$HOSTFXR_BIN" ~/custom-sdk/host/fxr/$SHARED_VER/libhostfxr.so
+          
+          mkdir -p ~/custom-sdk/shared/Microsoft.NETCore.App/$SHARED_VER
+          cp -r "$SHARED_VER_DIR"/* ~/custom-sdk/shared/Microsoft.NETCore.App/$SHARED_VER/
+          
           PACKS_DIR=~/custom-sdk/packs/Microsoft.NETCore.App.Host.linux-x86/$SHARED_VER/runtimes/linux-x86/native
           mkdir -p "$PACKS_DIR"
           
@@ -143,10 +163,10 @@ jobs:
           path: ~/dotnet-linux-x86-sdk.tar.gz
 
   # ========================================================================
-  # JOB 1: BUILD NATIVE APPS (Windows, Mac, Linux x64/arm64)
+  # JOB 1: BUILD NATIVE APPS (Windows, Linux x64/arm64)
   # ========================================================================
   build:
-    needs: build-runtime-x86 # Ensures runtime is ready if we ever need it
+    needs: build-runtime-x86
     strategy:
       matrix:
         include:
@@ -160,10 +180,6 @@ jobs:
             runtime: linux-x64
           - os: ubuntu-latest
             runtime: linux-arm64
-          - os: macos-latest
-            runtime: osx-x64
-          - os: macos-latest
-            runtime: osx-arm64
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout Code
@@ -244,9 +260,9 @@ jobs:
           Copy-Item -Path $YMLfile.FullName "$baseDir/Translate-Folder/$YMLDirectoryName/$JYMLFileName" -Force
           }
           Copy-Item "./README.md" "$baseDir/README.md"
-      - name: Add Files (Linux, MacOS)
+      - name: Add Files (Linux)
         shell: pwsh
-        if: contains(matrix.runtime, 'linux') || contains(matrix.runtime, 'osx')
+        if: contains(matrix.runtime, 'linux')
         run: |
           $baseDir = "./publish/${{ matrix.runtime }}"
           New-Item -ItemType Directory -Force -Path "$baseDir/ConverterIcon"
@@ -312,17 +328,6 @@ jobs:
             --outputDir "./Releases" \
             --icon "./ConverterIcon/Converter.png" \
             --channel "${{ matrix.runtime }}"
-      - name: Pack with Velopack MacOS
-        shell: bash
-        if: contains(matrix.runtime, 'osx')
-        run: |
-          vpk pack \
-            -u "Converter" \
-            -v "0.9.${{ github.run_number }}" \
-            --packDir "./publish/${{ matrix.runtime }}" \
-            --outputDir "./Releases" \
-            --icon "./ConverterIcon/Converter.icns" \
-            --channel "${{ matrix.runtime }}"
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -330,10 +335,10 @@ jobs:
           path: ./Releases/*
 
   # ========================================================================
-  # JOB 2: BUILD NATIVE LINUX X86 APP (NO MORE WINE!)
+  # JOB 2: BUILD TRUELY SELF-CONTAINED LINUX X86 APP
   # ========================================================================
   build_ubuntu-latest_linux-x86:
-    name: Build Native Linux x86 App
+    name: Build Native Linux x86 App (Self-Contained)
     needs: build-runtime-x86
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -367,28 +372,67 @@ jobs:
           mkdir -p ~/custom-sdk
           tar -xzf ~/custom-sdk-tar/dotnet-linux-x86-sdk.tar.gz -C ~/custom-sdk
 
-      - name: Setup Native 64-bit SDK (for compiling C# to IL)
+      - name: Setup Native 64-bit SDK
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.x'
 
-      - name: Build and Publish App (IL Only)
+      - name: Restore and Publish App (Framework-Dependent)
         shell: bash
         run: |
+          dotnet restore "./sb1 sb2 sb3 xml to Csharp converter.csproj" -r linux-x86
           dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" \
             -c Release \
             -r linux-x86 \
             -o "./publish/linux-x86" \
             -p:SelfContained=false \
-            -p:UseAppHost=false
+            -p:UseAppHost=true
 
-      - name: Assemble Self-Contained App & Add Assets
+      - name: Assemble Self-Contained App & Inject Debian i386 Native Libs
         shell: bash
         run: |
           mkdir -p ./final-linux-x86
           cp -r ./publish/linux-x86/* ./final-linux-x86/
           
-          # MAGIC PATCH: Bind the apphost to the main DLL
+          # === PHASE 1: Extract 32-bit .so files from NuGet Cache ===
+          NUGET_PACKAGES=$(dotnet nuget locals global-packages -l | cut -d' ' -f2)
+          echo "Searching NuGet cache at: $NUGET_PACKAGES"
+          find "$NUGET_PACKAGES" -type f -name "*.so" -path "*linux-x86*" | while read so_file; do
+              echo "Copying NuGet native lib: $so_file"
+              cp "$so_file" ./final-linux-x86/
+          done
+          
+          # === PHASE 2: "Steal" 32-bit native binaries from Debian Repositories ===
+          sudo dpkg --add-architecture i386
+          sudo apt-get update
+          
+          mkdir -p ~/debs && cd ~/debs
+          
+          sudo apt-get download libvlc5:i386 libvlccore9:i386 vlc-plugin-base:i386 || true
+          sudo apt-get download libmagickcore-6.q16-6:i386 libmagickwand-6.q16-6:i386 || true
+          
+          for deb in *.deb; do
+              dpkg-deb -x "$deb" .
+          done
+          
+          cd ~/debs
+          find . -name "*.so*" -exec cp {} ~/my-app/final-linux-x86/ \;
+          echo "Successfully injected Debian i386 native libraries!"
+          cd ~/my-app
+          
+          # === PHASE 3: Inject Custom CoreCLR and Apphost ===
+          cp ~/custom-sdk/dotnet ./final-linux-x86/dotnet
+          chmod +x ./final-linux-x86/dotnet
+          
+          cat > ./final-linux-x86/run.sh << 'EOF'
+          #!/bin/bash
+          DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
+          export DOTNET_ROOT="$DIR"
+          export LD_LIBRARY_PATH="$DIR:$LD_LIBRARY_PATH"
+          exec "$DIR/Converter" "$@"
+          EOF
+          chmod +x ./final-linux-x86/run.sh
+
           python3 - <<'PYEOF'
           import os, glob, sys
           sdk_dir = os.path.expanduser("~/custom-sdk")
@@ -402,8 +446,6 @@ jobs:
               sys.exit(1)
               
           dll_name = dll_files[0]
-          print(f"Binding apphost to: {dll_name}")
-          
           replacement = dll_name.encode('utf-8') + b"\x00" * (len(placeholder) - len(dll_name))
           output_path = os.path.join(app_dir, "Converter")
           
@@ -413,7 +455,6 @@ jobs:
                   data = bytearray(f.read())
               idx = data.find(placeholder)
               if idx != -1:
-                  print(f"SUCCESS: Patched apphost at: {candidate}")
                   data[idx:idx+len(placeholder)] = replacement
                   with open(output_path, 'wb') as f:
                       f.write(data)
@@ -431,7 +472,7 @@ jobs:
           mkdir -p ./final-linux-x86/shared/Microsoft.NETCore.App
           cp -r ~/custom-sdk/shared/Microsoft.NETCore.App/* ./final-linux-x86/shared/Microsoft.NETCore.App/
           
-          # Add Assets
+          # === PHASE 4: Copy Assets ===
           mkdir -p ./final-linux-x86/ConverterIcon
           cp ./ConverterIcon/Converter.ico ./final-linux-x86/ConverterIcon/
           cp ./ConverterIcon/Converter.png ./final-linux-x86/ConverterIcon/
@@ -475,7 +516,6 @@ jobs:
       - name: Create Linux x86 Package
         shell: bash
         run: |
-          # Just tar the native folder directly. No Wine install.sh needed!
           tar -cJf Converter-linux-x86.tar.xz -C ./final-linux-x86 .
 
       - name: Upload Artifact (linux x86)
@@ -485,100 +525,10 @@ jobs:
           path: ./Converter-linux-x86.tar.xz
 
   # ========================================================================
-  # JOB 3: MACOS X86 (Wine Bundle)
-  # ========================================================================
-  build_macos-latest_osx-x86:
-    needs: build
-    runs-on: macos-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-      - name: Free up macOS disk space
-        run: |
-          sudo rm -rf /Applications/Xcode_*.app || true
-          sudo rm -rf /usr/local/share/boost || true
-          sudo rm -rf $AGENT_TOOLSDIRECTORY/* || true
-      - name: Checkout External Dependency (Scratch-Format-Converter)
-        uses: actions/checkout@v4
-        with:
-          repository: 'DaikoGames/Scratch-Format-Converter'
-          path: Scratch-Format-Converter
-      - name: Checkout External Dependency (Translator)
-        uses: actions/checkout@v4
-        with:
-          repository: 'DaikoGames/Translate-Folder'
-          path: Translate-Folder
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 9.0.x
-      - name: Build and Publish App
-        shell: bash
-        run: |
-          dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" \
-            -c Release \
-            -r win-x86 \
-            -o "./publish/macos-x86-app" \
-            -p:SelfContained=true \
-            -p:PublishSingleFile=true
-      - name: Build macOS x86 App Bundle with Wine
-        shell: bash
-        run: |
-          mkdir -p "Converter.app/Contents/MacOS"
-          mkdir -p "Converter.app/Contents/Resources/wine"
-          mkdir -p "Converter.app/Contents/Resources/app"
-          cp -R ./publish/macos-x86-app/* "Converter.app/Contents/Resources/app/"
-          brew install --cask wine-stable
-          WINE_PATH=$(which wine)
-          if [ -z "$WINE_PATH" ]; then
-              WINE_PATH="/Applications/Wine Stable.app/Contents/Resources/wine/bin/wine"
-          fi
-          cat << EOF > "Converter.app/Contents/MacOS/launcher"
-          #!/bin/bash
-          DIR="\$(cd "\$(dirname "\$0")" && pwd)"
-          if [ -f "\$DIR/../Resources/wine/bin/wine" ]; then
-              WINE_BIN="\$DIR/../Resources/wine/bin/wine"
-          else
-              WINE_BIN="$WINE_PATH"
-          fi
-          cd "\$DIR/../Resources/app"
-          env WINEDEBUG=-all "\$WINE_BIN" "Converter.exe"
-          EOF
-          chmod +x "Converter.app/Contents/MacOS/launcher"
-          cat << 'EOF' > "Converter.app/Contents/Info.plist"
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-              <key>CFBundleExecutable</key>
-              <string>launcher</string>
-              <key>CFBundleIdentifier</key>
-              <string>com.daikogames.converter.x86</string>
-              <key>CFBundleName</key>
-              <string>Converter</string>
-              <key>CFBundlePackageType</key>
-              <string>APPL</string>
-              <key>CFBundleShortVersionString</key>
-              <string>0.9</string>
-          </dict>
-          </plist>
-          EOF
-      - name: Package App Bundle into single DMG
-        shell: bash
-        run: |
-          mkdir ./dist
-          hdiutil create -volname "Converter-osx-x86" -srcfolder "Converter.app" -ov -format UDZO "./dist/Converter-osx-x86.dmg"
-      - name: Upload Artifact (macos x86)
-        uses: actions/upload-artifact@v4
-        with:
-          name: vpk-artifact-osx-x86
-          path: ./dist/Converter-osx-x86.dmg
-
-  # ========================================================================
-  # JOB 4: RELEASE
+  # JOB 3: RELEASE
   # ========================================================================
   release:
-    needs: [build, build-runtime-x86, build_ubuntu-latest_linux-x86, build_macos-latest_osx-x86]
+    needs: [build, build-runtime-x86, build_ubuntu-latest_linux-x86]
     runs-on: ubuntu-latest
     steps:
       - name: Download
