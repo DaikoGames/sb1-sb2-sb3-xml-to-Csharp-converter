@@ -8,7 +8,145 @@ permissions:
   contents: write
  
 jobs:
+  # ========================================================================
+  # JOB 0: BUILD THE CUSTOM LINUX X86 RUNTIME
+  # ========================================================================
+  build-runtime-x86:
+    name: Cross-compile .NET 9.0 x86 Runtime
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install host build prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential clang cmake cpio curl git libicu-dev \
+            libkrb5-dev libssl-dev lld lldb llvm ninja-build \
+            pigz python-is-python3 zlib1g-dev python3 liblttng-ust-dev
+
+      - name: Install i386 cross-compilation toolchain
+        run: |
+          sudo dpkg --add-architecture i386
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            crossbuild-essential-i386 binfmt-support debootstrap qemu-user-static
+
+      - name: Install Debian archive keyring
+        run: sudo apt-get install -y debian-archive-keyring
+
+      - name: Setup .NET SDK (bootstrap)
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Clone dotnet/runtime
+        run: |
+          git clone --depth 1 --branch "release/9.0" https://github.com/dotnet/runtime.git ~/runtime
+
+      - name: Apply Cross-Compile Patches
+        run: |
+          cd ~/runtime
+          cat > /tmp/patch.py << 'PYEOF'
+          import os, re
+          def replace(filepath, old, new):
+              if os.path.exists(filepath):
+                  with open(filepath, 'r') as f: content = f.read()
+                  if old in content:
+                      with open(filepath, 'w') as f: f.write(content.replace(old, new))
+          replace('src/coreclr/vm/vars.hpp', 'CORProfilerDisableOptimizations()', 'false')
+          replace('src/coreclr/vm/ceemain.cpp', 'BEGIN_PROFILER_CALLBACK(CORProfilerPresent());', 'if (false) {')
+          replace('src/coreclr/vm/ceemain.cpp', 'END_PROFILER_CALLBACK();', '}')
+          replace('src/coreclr/vm/ceemain.cpp', 'CORProfilerPresent()', 'false')
+          replace('src/coreclr/debug/ee/debugger.cpp', 'CORProfilerDisableOptimizations()', 'false')
+          replace('src/coreclr/vm/rejit.inl', 'BEGIN_PROFILER_CALLBACK(CORProfilerEnableRejit());', 'if (false) {')
+          replace('src/coreclr/vm/rejit.inl', 'END_PROFILER_CALLBACK();', '}')
+          replace('src/coreclr/vm/rejit.inl', 'CORProfilerEnableRejit() != FALSE', 'false')
+          replace('src/coreclr/vm/eeprofinterfaces.inl', 'CORProfilerTrackAllocations()', 'FALSE')
+          replace('src/coreclr/vm/eeprofinterfaces.inl', 'CORProfilerTrackLargeAllocations()', 'FALSE')
+          replace('src/coreclr/vm/eeprofinterfaces.inl', 'CORProfilerTrackPinnedAllocations()', 'FALSE')
+          replace('src/coreclr/vm/eetoprofinterfaceimpl.inl', 'CORProfilerPresent()', 'FALSE')
+          filepath = 'src/coreclr/inc/profilepriv.inl'
+          if os.path.exists(filepath):
+              with open(filepath, 'r') as f: content = f.read()
+              if not content.lstrip().startswith('#if FEATURE_PERFTRACING'):
+                  with open(filepath, 'w') as f: f.write('#if FEATURE_PERFTRACING\n' + content + '\n#endif\n')
+          for host in ['corerun', 'apphost', 'singlefilehost']:
+              filepath = f'src/coreclr/hosts/{host}/CMakeLists.txt'
+              if os.path.exists(filepath):
+                  with open(filepath, 'r') as f: content = f.read()
+                  pattern = r'(target_link_libraries\s*\(\s*' + host + r'\s+PRIVATE\s+coreclr_pal)'
+                  if re.search(pattern, content):
+                      content = re.sub(pattern, r'\1\n    -Wl,--start-group\n    dl\n    c\n    -Wl,--end-group', content)
+                      with open(filepath, 'w') as f: f.write(content)
+          print("Patches applied.")
+          PYEOF
+          python3 /tmp/patch.py
+
+      - name: Generate cross rootfs for x86
+        run: |
+          cd ~/runtime
+          sudo ./eng/common/cross/build-rootfs.sh "x86" "debian" "12" --skipunmount
+
+      - name: Cross-compile .NET runtime for linux-x86
+        run: |
+          cd ~/runtime
+          export ROOTFS_DIR="$HOME/runtime/.tools/rootfs/x86"
+          pkill -9 -f dotnet || true
+          ~/runtime/.dotnet/dotnet build-server shutdown || true
+          rm -rf ~/runtime/artifacts/obj ~/runtime/artifacts/bin ~/runtime/artifacts/packages
+          ./build.sh -subset clr+libs+host -configuration Release -arch "x86" --cross \
+            /p:UseAppHost=false /p:SelfContained=false /p:RunTests=false /p:BuildTests=false \
+            /p:BuildInstaller=false /p:FeatureEventTrace=0 /p:FeaturePerfTracing=0 \
+            /p:ContinuousIntegrationBuild=true /p:GeneratePackageOnBuild=false \
+            /p:BuildInParallel=false
+        env:
+          ROOTFS_DIR: /home/runner/runtime/.tools/rootfs/x86
+
+      - name: Assemble and Package Custom SDK
+        run: |
+          set -e
+          mkdir -p ~/custom-sdk
+          BASE_SDK_DIR="$HOME/runtime/.dotnet"
+          if [ -d "$BASE_SDK_DIR" ]; then cp -r "$BASE_SDK_DIR"/* ~/custom-sdk/ 2>/dev/null || true; fi
+          
+          rm -rf ~/custom-sdk/shared/Microsoft.NETCore.App
+          rm -rf ~/custom-sdk/host/fxr
+          rm -f ~/custom-sdk/dotnet
+          
+          DOTNET_HOST=$(find ~/runtime/artifacts/bin -type f -name "dotnet" | grep -iE "x86.*release" | head -n 1)
+          HOSTFXR_BIN=$(find ~/runtime/artifacts/bin -type f -name "libhostfxr.so" | grep -iE "x86.*release" | head -n 1)
+          TESTHOST_DIR=$(find ~/runtime/artifacts/bin/testhost -maxdepth 1 -type d | grep -iE "linux.*x86" | grep -i "release" | head -n 1)
+          SHARED_DIR="$TESTHOST_DIR/shared/Microsoft.NETCore.App"
+          
+          cp "$DOTNET_HOST" ~/custom-sdk/dotnet && chmod +x ~/custom-sdk/dotnet
+          FXR_VERSION=$(basename "$(dirname "$HOSTFXR_BIN")")
+          mkdir -p ~/custom-sdk/host/fxr/$FXR_VERSION
+          cp "$HOSTFXR_BIN" ~/custom-sdk/host/fxr/$FXR_VERSION/
+          cp -r "$SHARED_DIR" ~/custom-sdk/shared/
+          
+          SHARED_VER=$(basename "$SHARED_DIR")
+          PACKS_DIR=~/custom-sdk/packs/Microsoft.NETCore.App.Host.linux-x86/$SHARED_VER/runtimes/linux-x86/native
+          mkdir -p "$PACKS_DIR"
+          
+          APPHOST=$(find ~/runtime/artifacts/bin -type f -name "apphost" | grep -iE "x86.*release" | head -n 1)
+          cp "$APPHOST" "$PACKS_DIR/apphost" && chmod +x "$PACKS_DIR/apphost"
+          
+          cd ~/custom-sdk && tar -czf ~/dotnet-linux-x86-sdk.tar.gz .
+
+      - name: Upload Custom SDK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dotnet-linux-x86-sdk
+          path: ~/dotnet-linux-x86-sdk.tar.gz
+
+  # ========================================================================
+  # JOB 1: BUILD NATIVE APPS (Windows, Mac, Linux x64/arm64)
+  # ========================================================================
   build:
+    needs: build-runtime-x86 # Ensures runtime is ready if we ever need it
     strategy:
       matrix:
         include:
@@ -27,7 +165,6 @@ jobs:
           - os: macos-latest
             runtime: osx-arm64
     runs-on: ${{ matrix.os }}
-     
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -36,19 +173,16 @@ jobs:
         with:
           repository: 'DaikoGames/Scratch-Format-Converter'
           path: Scratch-Format-Converter
-         
       - name: Checkout External Dependency (Scratch-To-Snap)
         uses: actions/checkout@v4
         with:
           repository: 'DaikoGames/Scratch-To-Snap-'
           path: Scratch-To-Snap
-         
       - name: Checkout External Dependency (Translator)
         uses: actions/checkout@v4
         with:
           repository: 'DaikoGames/Translate-Folder'
           path: Translate-Folder
-         
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
@@ -110,7 +244,6 @@ jobs:
           Copy-Item -Path $YMLfile.FullName "$baseDir/Translate-Folder/$YMLDirectoryName/$JYMLFileName" -Force
           }
           Copy-Item "./README.md" "$baseDir/README.md"
- 
       - name: Add Files (Linux, MacOS)
         shell: pwsh
         if: contains(matrix.runtime, 'linux') || contains(matrix.runtime, 'osx')
@@ -130,7 +263,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path "$baseDir/Install"
           Copy-Item "./Install/dotnet-install.sh" "$baseDir/Install/dotnet-install.sh"
           New-Item -ItemType Directory -Force -Path "$baseDir/svg_library_ScratchJnr"
-          Copy-Item "./svg_library_ScratchJnr/*" "$baseDir/svg_library_ScratchJnr"
+          Copy-Item -Path "./svg_library_ScratchJnr/*" "$baseDir/svg_library_ScratchJnr"
           New-Item -ItemType Directory -Force -Path "$baseDir/wav_library_ScratchJnr"
           Copy-Item "./wav_library_ScratchJnr/*" "$baseDir/wav_library_ScratchJnr"
           $GZfiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.gz" -ErrorAction Stop
@@ -154,12 +287,9 @@ jobs:
           Copy-Item -Path $YMLfile.FullName "$baseDir/Translate-Folder/$YMLDirectoryName/$JYMLFileName" -Force
           }
           Copy-Item "./README.md" "$baseDir/README.md"
-         
       - name: Check Help
         shell: bash
-        run: |
-          vpk pack --help
-         
+        run: vpk pack --help
       - name: Pack with Velopack Windows
         shell: bash
         if: contains(matrix.runtime, 'win')
@@ -171,7 +301,6 @@ jobs:
             --outputDir "./Releases" \
             --icon "./ConverterIcon/Converter.ico" \
             --channel "${{ matrix.runtime }}"
-           
       - name: Pack with Velopack Linux
         shell: bash
         if: contains(matrix.runtime, 'linux')
@@ -183,7 +312,6 @@ jobs:
             --outputDir "./Releases" \
             --icon "./ConverterIcon/Converter.png" \
             --channel "${{ matrix.runtime }}"
-           
       - name: Pack with Velopack MacOS
         shell: bash
         if: contains(matrix.runtime, 'osx')
@@ -195,225 +323,160 @@ jobs:
             --outputDir "./Releases" \
             --icon "./ConverterIcon/Converter.icns" \
             --channel "${{ matrix.runtime }}"
-           
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: vpk-artifacts-${{ matrix.runtime }}
           path: ./Releases/*
-         
+
+  # ========================================================================
+  # JOB 2: BUILD NATIVE LINUX X86 APP (NO MORE WINE!)
+  # ========================================================================
   build_ubuntu-latest_linux-x86:
-    needs: build
+    name: Build Native Linux x86 App
+    needs: build-runtime-x86
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-
       - name: Checkout External Dependency (Scratch-Format-Converter)
         uses: actions/checkout@v4
         with:
           repository: 'DaikoGames/Scratch-Format-Converter'
           path: Scratch-Format-Converter
-
       - name: Checkout External Dependency (Scratch-To-Snap)
         uses: actions/checkout@v4
         with:
           repository: 'DaikoGames/Scratch-To-Snap-'
           path: Scratch-To-Snap
-
       - name: Checkout External Dependency (Translator)
         uses: actions/checkout@v4
         with:
           repository: 'DaikoGames/Translate-Folder'
           path: Translate-Folder
 
-      - name: Setup .NET
+      - name: Download Custom x86 Runtime
+        uses: actions/download-artifact@v4
+        with:
+          name: dotnet-linux-x86-sdk
+          path: ~/custom-sdk-tar
+
+      - name: Extract Custom x86 Runtime
+        run: |
+          mkdir -p ~/custom-sdk
+          tar -xzf ~/custom-sdk-tar/dotnet-linux-x86-sdk.tar.gz -C ~/custom-sdk
+
+      - name: Setup Native 64-bit SDK (for compiling C# to IL)
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 9.0.x
+          dotnet-version: '9.0.x'
 
-      - name: Build and Publish App (win-x86)
+      - name: Build and Publish App (IL Only)
         shell: bash
         run: |
           dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" \
             -c Release \
-            -r win-x86 \
-            -o "./publish/win-x86" \
-            -p:SelfContained=true \
-            -p:PublishSingleFile=true
+            -r linux-x86 \
+            -o "./publish/linux-x86" \
+            -p:SelfContained=false \
+            -p:UseAppHost=false
 
-      - name: Add Files (win-x86 for Linux)
-        shell: pwsh
-        run: |
-          $baseDir = "./publish/win-x86"
-          New-Item -ItemType Directory -Force -Path "$baseDir/ConverterIcon"
-          Copy-Item "./ConverterIcon/Converter.ico" "$baseDir/ConverterIcon/Converter.ico"
-          Copy-Item "./ConverterIcon/Converter.png" "$baseDir/ConverterIcon/Converter.png"
-
-          New-Item -ItemType Directory -Force -Path "$baseDir/Scratch-Format-Converter"
-          Copy-Item "./Scratch-Format-Converter/Convert.js" "$baseDir/Scratch-Format-Converter/Convert.js"
-          Copy-Item "./Scratch-Format-Converter/package.json" "$baseDir/Scratch-Format-Converter/package.json"
-          Copy-Item "./Scratch-Format-Converter/package-lock.json" "$baseDir/Scratch-Format-Converter/package-lock.json"
-
-          New-Item -ItemType Directory -Force -Path "$baseDir/Scratch-To-Snap"
-          Copy-Item "./Scratch-To-Snap/converter.js" "$baseDir/Scratch-To-Snap/converter.js"
-          Copy-Item "./Scratch-To-Snap/package.json" "$baseDir/Scratch-To-Snap/package.json"
-          Copy-Item "./Scratch-To-Snap/package-lock.json" "$baseDir/Scratch-To-Snap/package-lock.json"
-
-          New-Item -ItemType Directory -Force -Path "$baseDir/Install"
-          Copy-Item "./Install/dotnet-install.ps1" "$baseDir/Install/dotnet-install.ps1"
-
-          New-Item -ItemType Directory -Force -Path "$baseDir/svg_library_ScratchJnr"
-          Copy-Item -Path "./svg_library_ScratchJnr/*" "$baseDir/svg_library_ScratchJnr"
-
-          New-Item -ItemType Directory -Force -Path "$baseDir/wav_library_ScratchJnr"
-          Copy-Item "./wav_library_ScratchJnr/*" "$baseDir/wav_library_ScratchJnr"
-
-          $GZfiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.gz" -ErrorAction Stop
-          foreach ($GZfile in $GZfiles) {
-            $GZDirectoryName = $GZfile.Directory.Name
-            New-Item -ItemType Directory -Force -Path "$baseDir/Translate-Folder/$GZDirectoryName" | Out-Null
-            $OutFileName = $GZfile.Name -replace '\.gz$', ''
-            gzip -d -c $GZfile.FullName > "$baseDir/Translate-Folder/$GZDirectoryName/$OutFileName"
-            Remove-Item $GZfile.FullName -Force
-          }
-
-          $JSONFiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.json" -ErrorAction Stop
-          foreach ($JSONfile in $JSONFiles){
-            $JSONFileName = $JSONfile.Name
-            $JSONDirectoryName = (Get-Item $JSONfile).Directory.Name
-            Copy-Item -Path $JSONfile.FullName "$baseDir/Translate-Folder/$JSONDirectoryName/$JSONFileName" -Force
-          }
-
-          $YMLFiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.yml" -ErrorAction Stop
-          foreach ($YMLfile in $YMLFiles){
-            $JYMLFileName = $YMLfile.Name
-            $YMLDirectoryName = (Get-Item $YMLfile).Directory.Name
-            Copy-Item -Path $YMLfile.FullName "$baseDir/Translate-Folder/$YMLDirectoryName/$JYMLFileName" -Force
-          }
-
-          Copy-Item "./README.md" "$baseDir/README.md"
-
-      - name: Create install package
+      - name: Assemble Self-Contained App & Add Assets
         shell: bash
         run: |
-          mkdir -p ./linux-x86-package
-          cp -r ./publish/win-x86 ./linux-x86-package/app
+          mkdir -p ./final-linux-x86
+          cp -r ./publish/linux-x86/* ./final-linux-x86/
+          
+          # MAGIC PATCH: Bind the apphost to the main DLL
+          python3 - <<'PYEOF'
+          import os, glob, sys
+          sdk_dir = os.path.expanduser("~/custom-sdk")
+          app_dir = "./final-linux-x86"
+          apphost_candidates = glob.glob(f"{sdk_dir}/**/apphost", recursive=True)
+          placeholder = b"c3ab8ff13720e8ad9047dd39466b3c8974e592c2fa383d4a3960714caef0c4f2"
+          
+          dll_files = [f for f in os.listdir(app_dir) if f.endswith(".dll") and not f.startswith("System.") and not f.startswith("Microsoft.")]
+          if not dll_files:
+              print("ERROR: Could not find main app DLL!")
+              sys.exit(1)
+              
+          dll_name = dll_files[0]
+          print(f"Binding apphost to: {dll_name}")
+          
+          replacement = dll_name.encode('utf-8') + b"\x00" * (len(placeholder) - len(dll_name))
+          output_path = os.path.join(app_dir, "Converter")
+          
+          patched = False
+          for candidate in apphost_candidates:
+              with open(candidate, 'rb') as f:
+                  data = bytearray(f.read())
+              idx = data.find(placeholder)
+              if idx != -1:
+                  print(f"SUCCESS: Patched apphost at: {candidate}")
+                  data[idx:idx+len(placeholder)] = replacement
+                  with open(output_path, 'wb') as f:
+                      f.write(data)
+                  patched = True
+                  break
+          if not patched:
+              print("ERROR: Could not find placeholder!")
+              sys.exit(1)
+          PYEOF
+          
+          chmod +x ./final-linux-x86/Converter
+          
+          mkdir -p ./final-linux-x86/host/fxr
+          cp -r ~/custom-sdk/host/fxr/* ./final-linux-x86/host/fxr/
+          mkdir -p ./final-linux-x86/shared/Microsoft.NETCore.App
+          cp -r ~/custom-sdk/shared/Microsoft.NETCore.App/* ./final-linux-x86/shared/Microsoft.NETCore.App/
+          
+          # Add Assets
+          mkdir -p ./final-linux-x86/ConverterIcon
+          cp ./ConverterIcon/Converter.ico ./final-linux-x86/ConverterIcon/
+          cp ./ConverterIcon/Converter.png ./final-linux-x86/ConverterIcon/
+          
+          mkdir -p ./final-linux-x86/Scratch-Format-Converter
+          cp ./Scratch-Format-Converter/Convert.js ./final-linux-x86/Scratch-Format-Converter/
+          cp ./Scratch-Format-Converter/package.json ./final-linux-x86/Scratch-Format-Converter/
+          cp ./Scratch-Format-Converter/package-lock.json ./final-linux-x86/Scratch-Format-Converter/
+          
+          mkdir -p ./final-linux-x86/Scratch-To-Snap
+          cp ./Scratch-To-Snap/converter.js ./final-linux-x86/Scratch-To-Snap/
+          cp ./Scratch-To-Snap/package.json ./final-linux-x86/Scratch-To-Snap/
+          cp ./Scratch-To-Snap/package-lock.json ./final-linux-x86/Scratch-To-Snap/
+          
+          mkdir -p ./final-linux-x86/svg_library_ScratchJnr
+          cp -r ./svg_library_ScratchJnr/* ./final-linux-x86/svg_library_ScratchJnr/ || true
+          mkdir -p ./final-linux-x86/wav_library_ScratchJnr
+          cp -r ./wav_library_ScratchJnr/* ./final-linux-x86/wav_library_ScratchJnr/ || true
+          
+          find ./Translate-Folder -type f -name "*.gz" | while read gz_file; do
+              dir_name=$(basename "$(dirname "$gz_file")")
+              mkdir -p "./final-linux-x86/Translate-Folder/$dir_name"
+              out_file=$(basename "$gz_file" .gz)
+              gzip -d -c "$gz_file" > "./final-linux-x86/Translate-Folder/$dir_name/$out_file"
+          done
+          
+          find ./Translate-Folder -type f -name "*.json" | while read json_file; do
+              dir_name=$(basename "$(dirname "$json_file")")
+              mkdir -p "./final-linux-x86/Translate-Folder/$dir_name"
+              cp "$json_file" "./final-linux-x86/Translate-Folder/$dir_name/"
+          done
+          
+          find ./Translate-Folder -type f -name "*.yml" | while read yml_file; do
+              dir_name=$(basename "$(dirname "$yml_file")")
+              mkdir -p "./final-linux-x86/Translate-Folder/$dir_name"
+              cp "$yml_file" "./final-linux-x86/Translate-Folder/$dir_name/"
+          done
+          
+          cp ./README.md ./final-linux-x86/ || true
 
-          # ==================== install.sh ====================
-          cat > ./linux-x86-package/install.sh << 'INSTALL_EOF'
-          #!/bin/bash
-          set -e
-
-          echo "=== Converter Linux x86 Installer (Wine + Windows x86) ==="
-          echo ""
-
-          if [ "$EUID" -ne 0 ]; then
-            echo "Bitte mit sudo ausführen:"
-            echo "  sudo ./install.sh"
-            exit 1
-          fi
-
-          # 1. Wine installieren (inkl. 32-bit Multiarch)
-          if ! command -v wine &> /dev/null; then
-            echo "→ Installiere Wine..."
-            if command -v apt-get &> /dev/null; then
-              dpkg --add-architecture i386 || true
-              apt-get update -y
-              apt-get install -y wine wine32 wine64 libwine libwine:i386 || \
-              apt-get install -y wine-stable wine32 || true
-            elif command -v dnf &> /dev/null; then
-              dnf install -y wine
-            elif command -v yum &> /dev/null; then
-              yum install -y wine
-            elif command -v pacman &> /dev/null; then
-              pacman -S --noconfirm wine
-            else
-              echo "Konnte Wine nicht automatisch installieren. Bitte manuell installieren und erneut versuchen."
-              exit 1
-            fi
-          else
-            echo "→ Wine ist bereits installiert."
-          fi
-
-          # 2. Eigenen Wine-Prefix anlegen (Z: → /)
-          export WINEPREFIX="/opt/converter-wine"
-          export WINEARCH=win32
-          mkdir -p "$WINEPREFIX"
-          wineboot -i -u 2>/dev/null || true
-
-          mkdir -p "$WINEPREFIX/dosdevices"
-          ln -sf / "$WINEPREFIX/dosdevices/z:" 2>/dev/null || true
-
-          # 3. App nach /opt/converter kopieren
-          echo "→ Installiere Converter nach /opt/converter ..."
-          rm -rf /opt/converter
-          mkdir -p /opt/converter
-          cp -a ./app/* /opt/converter/
-
-          # 4. Wrapper "converter"
-          cat > /usr/local/bin/converter << 'EOF'
-          #!/bin/bash
-          export WINEPREFIX="/opt/converter-wine"
-          export WINEARCH=win32
-          export WINEDEBUG=-all
-          cd /opt/converter
-          exec wine Converter.exe "$@"
-          EOF
-          chmod +x /usr/local/bin/converter
-
-          # 5. Optionaler "dotnet"-Wrapper (zeigt auf die App, da self-contained)
-          cat > /usr/local/bin/dotnet << 'EOF'
-          #!/bin/bash
-          export WINEPREFIX="/opt/converter-wine"
-          export WINEARCH=win32
-          export WINEDEBUG=-all
-          echo "Hinweis: Dies ist der Converter-Wrapper unter Wine."
-          echo "Für die normale Nutzung bitte 'converter' verwenden."
-          cd /opt/converter
-          exec wine Converter.exe "$@"
-          EOF
-          chmod +x /usr/local/bin/dotnet
-
-          echo ""
-          echo "=== Installation erfolgreich ==="
-          echo ""
-          echo "Starte die App mit:"
-          echo "  converter"
-          echo ""
-          echo "Oder mit Datei:"
-          echo "  converter /home/deinuser/projekt.sb3"
-          echo ""
-          echo "Alle Linux-Pfade funktionieren normal"
-          echo "(Wine mappt Z: auf /)."
-          echo ""
-          INSTALL_EOF
-
-          chmod +x ./linux-x86-package/install.sh
-
-          # ==================== uninstall.sh ====================
-          cat > ./linux-x86-package/uninstall.sh << 'UNINSTALL_EOF'
-          #!/bin/bash
-          set -e
-
-          if [ "$EUID" -ne 0 ]; then
-            echo "Bitte mit sudo ausführen:"
-            echo "  sudo ./uninstall.sh"
-            exit 1
-          fi
-
-          rm -rf /opt/converter
-          rm -rf /opt/converter-wine
-          rm -f /usr/local/bin/converter
-          rm -f /usr/local/bin/dotnet
-
-          echo "Converter und Wine-Prefix wurden entfernt."
-          UNINSTALL_EOF
-
-          chmod +x ./linux-x86-package/uninstall.sh
-
-          # Alles packen
-          tar -cJf Converter-linux-x86.tar.xz -C ./linux-x86-package .
+      - name: Create Linux x86 Package
+        shell: bash
+        run: |
+          # Just tar the native folder directly. No Wine install.sh needed!
+          tar -cJf Converter-linux-x86.tar.xz -C ./final-linux-x86 .
 
       - name: Upload Artifact (linux x86)
         uses: actions/upload-artifact@v4
@@ -421,6 +484,9 @@ jobs:
           name: vpk-artifact-linux_x86
           path: ./Converter-linux-x86.tar.xz
 
+  # ========================================================================
+  # JOB 3: MACOS X86 (Wine Bundle)
+  # ========================================================================
   build_macos-latest_osx-x86:
     needs: build
     runs-on: macos-latest
@@ -429,25 +495,19 @@ jobs:
         uses: actions/checkout@v4
       - name: Free up macOS disk space
         run: |
-          echo "=== Disk Space Before Cleanup ==="
-          df -h
           sudo rm -rf /Applications/Xcode_*.app || true
           sudo rm -rf /usr/local/share/boost || true
           sudo rm -rf $AGENT_TOOLSDIRECTORY/* || true
-          echo "=== Disk Space After Cleanup ==="
-          df -h
       - name: Checkout External Dependency (Scratch-Format-Converter)
         uses: actions/checkout@v4
         with:
           repository: 'DaikoGames/Scratch-Format-Converter'
           path: Scratch-Format-Converter
-         
       - name: Checkout External Dependency (Translator)
         uses: actions/checkout@v4
         with:
           repository: 'DaikoGames/Translate-Folder'
           path: Translate-Folder
-         
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
@@ -467,32 +527,24 @@ jobs:
           mkdir -p "Converter.app/Contents/MacOS"
           mkdir -p "Converter.app/Contents/Resources/wine"
           mkdir -p "Converter.app/Contents/Resources/app"
-         
           cp -R ./publish/macos-x86-app/* "Converter.app/Contents/Resources/app/"
-         
           brew install --cask wine-stable
-         
           WINE_PATH=$(which wine)
           if [ -z "$WINE_PATH" ]; then
-            WINE_PATH="/Applications/Wine Stable.app/Contents/Resources/wine/bin/wine"
+              WINE_PATH="/Applications/Wine Stable.app/Contents/Resources/wine/bin/wine"
           fi
-         
           cat << EOF > "Converter.app/Contents/MacOS/launcher"
           #!/bin/bash
           DIR="\$(cd "\$(dirname "\$0")" && pwd)"
-         
           if [ -f "\$DIR/../Resources/wine/bin/wine" ]; then
               WINE_BIN="\$DIR/../Resources/wine/bin/wine"
           else
               WINE_BIN="$WINE_PATH"
           fi
-         
           cd "\$DIR/../Resources/app"
           env WINEDEBUG=-all "\$WINE_BIN" "Converter.exe"
           EOF
-         
           chmod +x "Converter.app/Contents/MacOS/launcher"
-         
           cat << 'EOF' > "Converter.app/Contents/Info.plist"
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -522,8 +574,11 @@ jobs:
           name: vpk-artifact-osx-x86
           path: ./dist/Converter-osx-x86.dmg
 
+  # ========================================================================
+  # JOB 4: RELEASE
+  # ========================================================================
   release:
-    needs: [build, build_ubuntu-latest_linux-x86, build_macos-latest_osx-x86]
+    needs: [build, build-runtime-x86, build_ubuntu-latest_linux-x86, build_macos-latest_osx-x86]
     runs-on: ubuntu-latest
     steps:
       - name: Download
