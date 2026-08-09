@@ -57,7 +57,7 @@ jobs:
                   if old in content:
                       with open(filepath, 'w') as f: f.write(content.replace(old, new))
           replace('src/coreclr/vm/vars.hpp', 'CORProfilerDisableOptimizations()', 'false')
-          replace('src/coreclr/vm/ceemain.cpp', 'BEGIN_PROFILER_CALLBACK(CORProfilerPresent());', 'if (false) {')
+          replace('src/coreclr/vm/ceemin.cpp', 'BEGIN_PROFILER_CALLBACK(CORProfilerPresent());', 'if (false) {')
           replace('src/coreclr/vm/ceemain.cpp', 'END_PROFILER_CALLBACK();', '}')
           replace('src/coreclr/vm/ceemain.cpp', 'CORProfilerPresent()', 'false')
           replace('src/coreclr/debug/ee/debugger.cpp', 'CORProfilerDisableOptimizations()', 'false')
@@ -380,17 +380,15 @@ jobs:
       - name: Restore and Publish App (Framework-Dependent)
         shell: bash
         run: |
-          # Tell restore to ignore the missing apphost pack
           dotnet restore "./sb1 sb2 sb3 xml to Csharp converter.csproj" -r linux-x86 -p:UseAppHost=false
           
-          # Tell publish to just output the DLLs, no apphost
           dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" \
             -c Release \
             -r linux-x86 \
             -o "./publish/linux-x86" \
             -p:SelfContained=false \
             -p:UseAppHost=false
-            
+
       - name: Assemble Self-Contained App & Inject Debian i386 Native Libs
         shell: bash
         run: |
@@ -415,13 +413,14 @@ jobs:
           sudo apt-get download libmagickcore-6.q16-6:i386 libmagickwand-6.q16-6:i386 || true
           
           for deb in *.deb; do
-              dpkg-deb -x "$deb" .
+              dpkg-deb -x "$deb" . || true
           done
           
-          cd ~/debs
-          find . -name "*.so*" -exec cp {} ~/my-app/final-linux-x86/ \;
+          # Use GITHUB_WORKSPACE to copy stolen libs into the app folder
+          APP_DIR="$GITHUB_WORKSPACE/final-linux-x86"
+          find . -name "*.so*" -exec cp {} "$APP_DIR"/ \;
           echo "Successfully injected Debian i386 native libraries!"
-          cd ~/my-app
+          cd "$GITHUB_WORKSPACE"
           
           # === PHASE 3: Inject Custom CoreCLR and Apphost ===
           cp ~/custom-sdk/dotnet ./final-linux-x86/dotnet
@@ -436,6 +435,7 @@ jobs:
           EOF
           chmod +x ./final-linux-x86/run.sh
 
+          # Explicitly bind apphost to Converter.dll
           python3 - <<'PYEOF'
           import os, glob, sys
           sdk_dir = os.path.expanduser("~/custom-sdk")
@@ -443,12 +443,12 @@ jobs:
           apphost_candidates = glob.glob(f"{sdk_dir}/**/apphost", recursive=True)
           placeholder = b"c3ab8ff13720e8ad9047dd39466b3c8974e592c2fa383d4a3960714caef0c4f2"
           
-          dll_files = [f for f in os.listdir(app_dir) if f.endswith(".dll") and not f.startswith("System.") and not f.startswith("Microsoft.")]
-          if not dll_files:
-              print("ERROR: Could not find main app DLL!")
+          dll_name = "Converter.dll"
+          if not os.path.exists(os.path.join(app_dir, dll_name)):
+              print(f"ERROR: Could not find {dll_name}!")
               sys.exit(1)
               
-          dll_name = dll_files[0]
+          print(f"Binding apphost to: {dll_name}")
           replacement = dll_name.encode('utf-8') + b"\x00" * (len(placeholder) - len(dll_name))
           output_path = os.path.join(app_dir, "Converter")
           
@@ -458,6 +458,7 @@ jobs:
                   data = bytearray(f.read())
               idx = data.find(placeholder)
               if idx != -1:
+                  print(f"SUCCESS: Patched apphost at: {candidate}")
                   data[idx:idx+len(placeholder)] = replacement
                   with open(output_path, 'wb') as f:
                       f.write(data)
