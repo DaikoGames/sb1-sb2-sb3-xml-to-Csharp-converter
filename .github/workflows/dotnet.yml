@@ -15,34 +15,23 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
       - name: Install host build prerequisites
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            build-essential clang cmake cpio curl git libicu-dev \
-            libkrb5-dev libssl-dev lld lldb llvm ninja-build \
-            pigz python-is-python3 zlib1g-dev python3 liblttng-ust-dev
-
+          sudo apt-get install -y --no-install-recommends build-essential clang cmake cpio curl git libicu-dev libkrb5-dev libssl-dev lld lldb llvm ninja-build pigz python-is-python3 zlib1g-dev python3 liblttng-ust-dev
       - name: Install i386 cross-compilation toolchain
         run: |
           sudo dpkg --add-architecture i386
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            crossbuild-essential-i386 binfmt-support debootstrap qemu-user-static
-
+          sudo apt-get install -y --no-install-recommends crossbuild-essential-i386 binfmt-support debootstrap qemu-user-static
       - name: Install Debian archive keyring
         run: sudo apt-get install -y debian-archive-keyring
-
       - name: Setup .NET SDK (bootstrap)
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.x'
-
       - name: Clone dotnet/runtime
-        run: |
-          git clone --depth 1 --branch "release/9.0" https://github.com/dotnet/runtime.git ~/runtime
-
+        run: git clone --depth 1 --branch "release/9.0" https://github.com/dotnet/runtime.git ~/runtime
       - name: Apply Cross-Compile Patches
         run: |
           cd ~/runtime
@@ -81,12 +70,10 @@ jobs:
           print("Patches applied.")
           PYEOF
           python3 /tmp/patch.py
-
       - name: Generate cross rootfs for x86
         run: |
           cd ~/runtime
           sudo ./eng/common/cross/build-rootfs.sh "x86" "debian" "12" --skipunmount
-
       - name: Cross-compile .NET runtime for linux-x86
         run: |
           cd ~/runtime
@@ -101,30 +88,23 @@ jobs:
             /p:BuildInParallel=false
         env:
           ROOTFS_DIR: /home/runner/runtime/.tools/rootfs/x86
-
       - name: Assemble and Package Custom SDK
         run: |
           set -e
           mkdir -p ~/custom-sdk
           BASE_SDK_DIR="$HOME/runtime/.dotnet"
           if [ -d "$BASE_SDK_DIR" ]; then cp -r "$BASE_SDK_DIR"/* ~/custom-sdk/ 2>/dev/null || true; fi
-          
           rm -rf ~/custom-sdk/shared/Microsoft.NETCore.App
           rm -rf ~/custom-sdk/host/fxr
           rm -f ~/custom-sdk/dotnet
           rm -f ~/custom-sdk/dotnet-real
-          
           DOTNET_HOST=$(find ~/runtime/artifacts/bin -type f -name "dotnet" | grep -iE "x86.*release" | head -n 1)
           HOSTFXR_BIN=$(find ~/runtime/artifacts/bin -type f -name "libhostfxr.so" | grep -iE "x86.*release" | head -n 1)
           TESTHOST_DIR=$(find ~/runtime/artifacts/bin/testhost -maxdepth 1 -type d | grep -iE "linux.*x86" | grep -i "release" | head -n 1)
-          
           SHARED_VER_DIR=$(find "$TESTHOST_DIR/shared/Microsoft.NETCore.App" -maxdepth 1 -mindepth 1 -type d | head -n 1)
           SHARED_VER=$(basename "$SHARED_VER_DIR")
-          echo "Detected Framework Version: $SHARED_VER"
-          
           cp "$DOTNET_HOST" ~/custom-sdk/dotnet-real
           chmod +x ~/custom-sdk/dotnet-real
-          
           cat > ~/custom-sdk/dotnet << 'EOF'
           #!/bin/bash
           export DOTNET_gcServer=0
@@ -138,21 +118,15 @@ jobs:
           exec "$DIR/dotnet-real" "$@"
           EOF
           chmod +x ~/custom-sdk/dotnet
-          
           mkdir -p ~/custom-sdk/host/fxr/$SHARED_VER
           cp "$HOSTFXR_BIN" ~/custom-sdk/host/fxr/$SHARED_VER/libhostfxr.so
-          
           mkdir -p ~/custom-sdk/shared/Microsoft.NETCore.App/$SHARED_VER
           cp -r "$SHARED_VER_DIR"/* ~/custom-sdk/shared/Microsoft.NETCore.App/$SHARED_VER/
-          
           PACKS_DIR=~/custom-sdk/packs/Microsoft.NETCore.App.Host.linux-x86/$SHARED_VER/runtimes/linux-x86/native
           mkdir -p "$PACKS_DIR"
-          
           APPHOST=$(find ~/runtime/artifacts/bin -type f -name "apphost" | grep -iE "x86.*release" | head -n 1)
           cp "$APPHOST" "$PACKS_DIR/apphost" && chmod +x "$PACKS_DIR/apphost"
-          
           cd ~/custom-sdk && tar -czf ~/dotnet-linux-x86-sdk.tar.gz .
-
       - name: Upload Custom SDK Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -200,12 +174,7 @@ jobs:
       - name: Build and Publish App
         shell: bash
         run: |
-          dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" \
-            -c Release \
-            -r ${{ matrix.runtime }} \
-            -o "./publish/${{ matrix.runtime }}" \
-            -p:SelfContained=true \
-            -p:PublishSingleFile=true
+          dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" -c Release -r ${{ matrix.runtime }} -o "./publish/${{ matrix.runtime }}" -p:SelfContained=true -p:PublishSingleFile=true
       - name: Install Velopack CLI
         run: dotnet tool install -g vpk
       - name: Add dotnet tools to PATH
@@ -216,112 +185,44 @@ jobs:
         if: contains(matrix.runtime, 'win')
         run: |
           $baseDir = "./publish/${{ matrix.runtime }}"
-          New-Item -ItemType Directory -Force -Path "$baseDir/ConverterIcon"
-          Copy-Item "./ConverterIcon/Converter.ico" "$baseDir/ConverterIcon/Converter.ico"
-          Copy-Item "./ConverterIcon/Converter.png" "$baseDir/ConverterIcon/Converter.png"
-          New-Item -ItemType Directory -Force -Path "$baseDir/Scratch-Format-Converter"
-          Copy-Item "./Scratch-Format-Converter/Convert.js" "$baseDir/Scratch-Format-Converter/Convert.js"
-          Copy-Item "./Scratch-Format-Converter/package.json" "$baseDir/Scratch-Format-Converter/package.json"
-          Copy-Item "./Scratch-Format-Converter/package-lock.json" "$baseDir/Scratch-Format-Converter/package-lock.json"
-          New-Item -ItemType Directory -Force -Path "$baseDir/Scratch-To-Snap"
-          Copy-Item "./Scratch-To-Snap/converter.js" "$baseDir/Scratch-To-Snap/converter.js"
-          Copy-Item "./Scratch-To-Snap/package.json" "$baseDir/Scratch-To-Snap/package.json"
-          Copy-Item "./Scratch-To-Snap/package-lock.json" "$baseDir/Scratch-To-Snap/package-lock.json"
-          New-Item -ItemType Directory -Force -Path "$baseDir/Install"
-          Copy-Item "./Install/dotnet-install.ps1" "$baseDir/Install/dotnet-install.ps1"
-          New-Item -ItemType Directory -Force -Path "$baseDir/svg_library_ScratchJnr"
-          Copy-Item -Path "./svg_library_ScratchJnr/*" "$baseDir/svg_library_ScratchJnr"
-          New-Item -ItemType Directory -Force -Path "$baseDir/wav_library_ScratchJnr"
-          Copy-Item "./wav_library_ScratchJnr/*" "$baseDir/wav_library_ScratchJnr"
-          $GZfiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.gz" -ErrorAction Stop
-          foreach ($GZfile in $GZfiles) {
-          $GZDirectoryName = $GZfile.Directory.Name
-          New-Item -ItemType Directory -Force -Path "$baseDir/Translate-Folder/$GZDirectoryName" | Out-Null
-          $OutFileName = $GZfile.Name -replace '\.gz$', ''
-          gzip -d -c $GZfile.FullName > "$baseDir/Translate-Folder/$GZDirectoryName/$OutFileName"
-          Remove-Item $GZfile.FullName -Force
-          }
-          $JSONFiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.json" -ErrorAction Stop
-          foreach ($JSONfile in $JSONFiles){
-          $JSONFileName = $JSONfile.Name
-          $JSONDirectoryName = (Get-Item $JSONfile).Directory.Name
-          Copy-Item -Path $JSONfile.FullName "$baseDir/Translate-Folder/$JSONDirectoryName/$JSONFileName" -Force
-          }
-          $YMLFiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.yml" -ErrorAction Stop
-          foreach ($YMLfile in $YMLFiles){
-          $JYMLFileName = $YMLfile.Name
-          $YMLDirectoryName = (Get-Item $YMLfile).Directory.Name
-          Copy-Item -Path $YMLfile.FullName "$baseDir/Translate-Folder/$YMLDirectoryName/$JYMLFileName" -Force
-          }
-          Copy-Item "./README.md" "$baseDir/README.md"
+          New-Item -ItemType Directory -Force -Path "$baseDir/ConverterIcon", "$baseDir/Scratch-Format-Converter", "$baseDir/Scratch-To-Snap", "$baseDir/Install", "$baseDir/svg_library_ScratchJnr", "$baseDir/wav_library_ScratchJnr"
+          Copy-Item "./ConverterIcon/Converter.ico", "./ConverterIcon/Converter.png" "$baseDir/ConverterIcon/"
+          Copy-Item "./Scratch-Format-Converter/Convert.js", "./Scratch-Format-Converter/package.json", "./Scratch-Format-Converter/package-lock.json" "$baseDir/Scratch-Format-Converter/"
+          Copy-Item "./Scratch-To-Snap/converter.js", "./Scratch-To-Snap/package.json", "./Scratch-To-Snap/package-lock.json" "$baseDir/Scratch-To-Snap/"
+          Copy-Item "./Install/dotnet-install.ps1" "$baseDir/Install/"
+          Copy-Item -Path "./svg_library_ScratchJnr/*" "$baseDir/svg_library_ScratchJnr/"
+          Copy-Item "./wav_library_ScratchJnr/*" "$baseDir/wav_library_ScratchJnr/"
+          Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.gz" | ForEach-Object { $dn = $_.Directory.Name; New-Item -ItemType Directory -Force -Path "$baseDir/Translate-Folder/$dn" | Out-Null; gzip -d -c $_.FullName > "$baseDir/Translate-Folder/$dn/$($_.Name -replace '\.gz$', '')"; Remove-Item $_.FullName -Force }
+          Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.json" | ForEach-Object { $dn = $_.Directory.Name; Copy-Item $_.FullName "$baseDir/Translate-Folder/$dn/" -Force }
+          Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.yml" | ForEach-Object { $dn = $_.Directory.Name; Copy-Item $_.FullName "$baseDir/Translate-Folder/$dn/" -Force }
+          Copy-Item "./README.md" "$baseDir/"
       - name: Add Files (Linux)
         shell: pwsh
         if: contains(matrix.runtime, 'linux')
         run: |
           $baseDir = "./publish/${{ matrix.runtime }}"
-          New-Item -ItemType Directory -Force -Path "$baseDir/ConverterIcon"
-          Copy-Item "./ConverterIcon/Converter.ico" "$baseDir/ConverterIcon/Converter.ico"
-          Copy-Item "./ConverterIcon/Converter.png" "$baseDir/ConverterIcon/Converter.png"
-          New-Item -ItemType Directory -Force -Path "$baseDir/Scratch-Format-Converter"
-          Copy-Item "./Scratch-Format-Converter/Convert.js" "$baseDir/Scratch-Format-Converter/Convert.js"
-          Copy-Item "./Scratch-Format-Converter/package.json" "$baseDir/Scratch-Format-Converter/package.json"
-          Copy-Item "./Scratch-Format-Converter/package-lock.json" "$baseDir/Scratch-Format-Converter/package-lock.json"
-          New-Item -ItemType Directory -Force -Path "$baseDir/Scratch-To-Snap"
-          Copy-Item "./Scratch-To-Snap/converter.js" "$baseDir/Scratch-To-Snap/converter.js"
-          Copy-Item "./Scratch-To-Snap/package.json" "$baseDir/Scratch-To-Snap/package.json"
-          Copy-Item "./Scratch-To-Snap/package-lock.json" "$baseDir/Scratch-To-Snap/package-lock.json"
-          New-Item -ItemType Directory -Force -Path "$baseDir/Install"
-          Copy-Item "./Install/dotnet-install.sh" "$baseDir/Install/dotnet-install.sh"
-          New-Item -ItemType Directory -Force -Path "$baseDir/svg_library_ScratchJnr"
-          Copy-Item -Path "./svg_library_ScratchJnr/*" "$baseDir/svg_library_ScratchJnr"
-          New-Item -ItemType Directory -Force -Path "$baseDir/wav_library_ScratchJnr"
-          Copy-Item "./wav_library_ScratchJnr/*" "$baseDir/wav_library_ScratchJnr"
-          $GZfiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.gz" -ErrorAction Stop
-          foreach ($GZfile in $GZfiles) {
-          $GZDirectoryName = $GZfile.Directory.Name
-          New-Item -ItemType Directory -Force -Path "$baseDir/Translate-Folder/$GZDirectoryName" | Out-Null
-          $OutFileName = $GZfile.Name -replace '\.gz$', ''
-          gzip -d -c $GZfile.FullName > "$baseDir/Translate-Folder/$GZDirectoryName/$OutFileName"
-          Remove-Item $GZfile.FullName -Force
-          }
-          $JSONFiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.json" -ErrorAction Stop
-          foreach ($JSONfile in $JSONFiles){
-          $JSONFileName = $JSONfile.Name
-          $JSONDirectoryName = (Get-Item $JSONfile).Directory.Name
-          Copy-Item -Path $JSONfile.FullName "$baseDir/Translate-Folder/$JSONDirectoryName/$JSONFileName" -Force
-          }
-          $YMLFiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.yml" -ErrorAction Stop
-          foreach ($YMLfile in $YMLFiles){
-          $JYMLFileName = $YMLfile.Name
-          $YMLDirectoryName = (Get-Item $YMLfile).Directory.Name
-          Copy-Item -Path $YMLfile.FullName "$baseDir/Translate-Folder/$YMLDirectoryName/$JYMLFileName" -Force
-          }
-          Copy-Item "./README.md" "$baseDir/README.md"
+          New-Item -ItemType Directory -Force -Path "$baseDir/ConverterIcon", "$baseDir/Scratch-Format-Converter", "$baseDir/Scratch-To-Snap", "$baseDir/Install", "$baseDir/svg_library_ScratchJnr", "$baseDir/wav_library_ScratchJnr"
+          Copy-Item "./ConverterIcon/Converter.ico", "./ConverterIcon/Converter.png" "$baseDir/ConverterIcon/"
+          Copy-Item "./Scratch-Format-Converter/Convert.js", "./Scratch-Format-Converter/package.json", "./Scratch-Format-Converter/package-lock.json" "$baseDir/Scratch-Format-Converter/"
+          Copy-Item "./Scratch-To-Snap/converter.js", "./Scratch-To-Snap/package.json", "./Scratch-To-Snap/package-lock.json" "$baseDir/Scratch-To-Snap/"
+          Copy-Item "./Install/dotnet-install.sh" "$baseDir/Install/"
+          Copy-Item -Path "./svg_library_ScratchJnr/*" "$baseDir/svg_library_ScratchJnr/"
+          Copy-Item "./wav_library_ScratchJnr/*" "$baseDir/wav_library_ScratchJnr/"
+          Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.gz" | ForEach-Object { $dn = $_.Directory.Name; New-Item -ItemType Directory -Force -Path "$baseDir/Translate-Folder/$dn" | Out-Null; gzip -d -c $_.FullName > "$baseDir/Translate-Folder/$dn/$($_.Name -replace '\.gz$', '')"; Remove-Item $_.FullName -Force }
+          Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.json" | ForEach-Object { $dn = $_.Directory.Name; Copy-Item $_.FullName "$baseDir/Translate-Folder/$dn/" -Force }
+          Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.yml" | ForEach-Object { $dn = $_.Directory.Name; Copy-Item $_.FullName "$baseDir/Translate-Folder/$dn/" -Force }
+          Copy-Item "./README.md" "$baseDir/"
       - name: Check Help
         shell: bash
         run: vpk pack --help
       - name: Pack with Velopack Windows
         shell: bash
         if: contains(matrix.runtime, 'win')
-        run: |
-          vpk pack \
-            -u "Converter" \
-            -v "0.9.${{ github.run_number }}" \
-            --packDir "./publish/${{ matrix.runtime }}" \
-            --outputDir "./Releases" \
-            --icon "./ConverterIcon/Converter.ico" \
-            --channel "${{ matrix.runtime }}"
+        run: vpk pack -u "Converter" -v "0.9.${{ github.run_number }}" --packDir "./publish/${{ matrix.runtime }}" --outputDir "./Releases" --icon "./ConverterIcon/Converter.ico" --channel "${{ matrix.runtime }}"
       - name: Pack with Velopack Linux
         shell: bash
         if: contains(matrix.runtime, 'linux')
-        run: |
-          vpk pack \
-            -u "Converter" \
-            -v "0.9.${{ github.run_number }}" \
-            --packDir "./publish/${{ matrix.runtime }}" \
-            --outputDir "./Releases" \
-            --icon "./ConverterIcon/Converter.png" \
-            --channel "${{ matrix.runtime }}"
+        run: vpk pack -u "Converter" -v "0.9.${{ github.run_number }}" --packDir "./publish/${{ matrix.runtime }}" --outputDir "./Releases" --icon "./ConverterIcon/Converter.png" --channel "${{ matrix.runtime }}"
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -351,93 +252,69 @@ jobs:
         with:
           repository: 'DaikoGames/Translate-Folder'
           path: Translate-Folder
-
       - name: Download Custom x86 Runtime
         uses: actions/download-artifact@v4
         with:
           name: dotnet-linux-x86-sdk
           path: ~/custom-sdk-tar
-
       - name: Extract Custom x86 Runtime
         run: |
           mkdir -p ~/custom-sdk
           tar -xzf ~/custom-sdk-tar/dotnet-linux-x86-sdk.tar.gz -C ~/custom-sdk
-
       - name: Setup Native 64-bit SDK
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.x'
-
-      - name: Restore and Publish App (Framework-Dependent)
+      - name: Restore and Publish App
         shell: bash
         run: |
-          dotnet restore "./sb1 sb2 sb3 xml to Csharp converter.csproj" -r linux-x86 -p:RuntimeIdentifier=linux-x86 -p:UseAppHost=false
-          
-          dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" \
-            -c Release \
-            -r linux-x86 \
-            -o "./publish/linux-x86" \
-            -p:SelfContained=false \
-            -p:UseAppHost=false \
-            -p:RuntimeIdentifier=linux-x86
-
+          dotnet restore "./sb1 sb2 sb3 xml to Csharp converter.csproj" -r linux-x86 -p:RuntimeIdentifier=linux-x86 -p:UseAppHost=false -p:ExcludeMagickX64=true
+          dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" -c Release -r linux-x86 -o "./publish/linux-x86" -p:SelfContained=false -p:UseAppHost=false -p:RuntimeIdentifier=linux-x86 -p:ExcludeMagickX64=true
       - name: Assemble Self-Contained App & Inject Debian i386 Native Libs
         shell: bash
         run: |
-          # CRITICAL: Force delete ALL wrong-architecture files that cause 0x8007000E crash
+          # PURGE 64-bit/ARM64 DLLs that cause 0x8007000E
           rm -f ./publish/linux-x86/Magick.NET-Q16-x64.dll
           rm -f ./publish/linux-x86/Magick.NET-Q16-arm64.dll
           rm -f ./publish/linux-x86/libMagick*x64*.so || true
           rm -f ./publish/linux-x86/libMagick*arm64*.so || true
-          rm -f ./publish/linux-x86/libSkiaSharp*x64*.so || true
-          rm -f ./publish/linux-x86/libHarfBuzzSharp*x64*.so || true
+          
+          # Clean deps.json
+          sed -i '/Magick.NET-Q16-x64/d' ./publish/linux-x86/Converter.deps.json || true
+          sed -i '/Magick.NET-Q16-arm64/d' ./publish/linux-x86/Converter.deps.json || true
 
           mkdir -p ./final-linux-x86
           cp -r ./publish/linux-x86/* ./final-linux-x86/
           
           NUGET_PACKAGES=$(dotnet nuget locals global-packages -l | cut -d' ' -f2)
-          echo "Searching NuGet cache at: $NUGET_PACKAGES"
-          find "$NUGET_PACKAGES" -type f -name "*.so" -path "*linux-x86*" | while read so_file; do
-              echo "Copying NuGet native lib: $so_file"
-              cp "$so_file" ./final-linux-x86/
-          done
+          find "$NUGET_PACKAGES" -type f -name "*.so" -path "*linux-x86*" | while read so_file; do cp "$so_file" ./final-linux-x86/; done
           
           sudo dpkg --add-architecture i386
           sudo apt-get update
-          
           mkdir -p ~/debs && cd ~/debs
-          
           sudo apt-get download libvlc5:i386 libvlccore9:i386 vlc-plugin-base:i386 || true
-          sudo apt-get download libmagickcore-6.q16-7t64:i386 libmagickwand-6.q16-7t64:i386 || true
-          
-          for deb in *.deb; do
-              dpkg-deb -x "$deb" . || true
-          done
-          
-          APP_DIR="$GITHUB_WORKSPACE/final-linux-x86"
-          find . -name "*.so*" -exec cp {} "$APP_DIR"/ \;
-          echo "Successfully injected Debian i386 native libraries!"
+          for deb in *.deb; do dpkg-deb -x "$deb" . || true; done
+          find . -name "*.so*" -exec cp {} "$GITHUB_WORKSPACE/final-linux-x86"/ \;
           cd "$GITHUB_WORKSPACE"
           
           cp ~/custom-sdk/dotnet ./final-linux-x86/dotnet
-          chmod +x ./final-linux-x86/dotnet
+          cp ~/custom-sdk/dotnet-real ./final-linux-x86/dotnet-real
+          chmod +x ./final-linux-x86/dotnet ./final-linux-x86/dotnet-real
           
           cat > ./final-linux-x86/run.sh << 'EOF'
           #!/bin/bash
           DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
           export DOTNET_ROOT="$DIR"
           export LD_LIBRARY_PATH="$DIR:$LD_LIBRARY_PATH"
-          
-          export DOTNET_GCHeapHardLimit=100000000
-          export DOTNET_EnableWriteXorExecute=0
+          export DOTNET_GCHeapHardLimit=200000000
           export DOTNET_gcServer=0
           export DOTNET_GCHeapCount=1
           export DOTNET_EnableDiagnostics=0
+          export DOTNET_EnableWriteXorExecute=0
           export DOTNET_TieredCompilation=0
           export DOTNET_ReadyToRun=0
-          export DOTNET_DefaultStackSize=131072
-          ulimit -s 128 2>/dev/null
-          
+          export DOTNET_DefaultStackSize=262144
+          ulimit -s 256 2>/dev/null || true
           exec "$DIR/Converter" "$@"
           EOF
           chmod +x ./final-linux-x86/run.sh
@@ -448,32 +325,18 @@ jobs:
           app_dir = "./final-linux-x86"
           apphost_candidates = glob.glob(f"{sdk_dir}/**/apphost", recursive=True)
           placeholder = b"c3ab8ff13720e8ad9047dd39466b3c8974e592c2fa383d4a3960714caef0c4f2"
-          
           dll_name = "Converter.dll"
-          if not os.path.exists(os.path.join(app_dir, dll_name)):
-              print(f"ERROR: {dll_name} not found!")
-              sys.exit(1)
-              
+          if not os.path.exists(os.path.join(app_dir, dll_name)): sys.exit(1)
           replacement = dll_name.encode('utf-8') + b"\x00" * (len(placeholder) - len(dll_name))
           output_path = os.path.join(app_dir, "Converter")
-          
-          patched = False
           for candidate in apphost_candidates:
-              with open(candidate, 'rb') as f:
-                  data = bytearray(f.read())
+              with open(candidate, 'rb') as f: data = bytearray(f.read())
               idx = data.find(placeholder)
               if idx != -1:
-                  print(f"SUCCESS: Patched apphost at: {candidate}")
                   data[idx:idx+len(placeholder)] = replacement
-                  with open(output_path, 'wb') as f:
-                      f.write(data)
-                  patched = True
+                  with open(output_path, 'wb') as f: f.write(data)
                   break
-          if not patched:
-              print("ERROR: Could not find placeholder!")
-              sys.exit(1)
           PYEOF
-          
           chmod +x ./final-linux-x86/Converter
           
           mkdir -p ./final-linux-x86/host/fxr
@@ -484,48 +347,27 @@ jobs:
           mkdir -p ./final-linux-x86/ConverterIcon
           cp ./ConverterIcon/Converter.ico ./final-linux-x86/ConverterIcon/ || true
           cp ./ConverterIcon/Converter.png ./final-linux-x86/ConverterIcon/ || true
-          
           mkdir -p ./final-linux-x86/Scratch-Format-Converter
           cp ./Scratch-Format-Converter/Convert.js ./final-linux-x86/Scratch-Format-Converter/ || true
           cp ./Scratch-Format-Converter/package.json ./final-linux-x86/Scratch-Format-Converter/ || true
           cp ./Scratch-Format-Converter/package-lock.json ./final-linux-x86/Scratch-Format-Converter/ || true
-          
           mkdir -p ./final-linux-x86/Scratch-To-Snap
           cp ./Scratch-To-Snap/converter.js ./final-linux-x86/Scratch-To-Snap/ || true
           cp ./Scratch-To-Snap/package.json ./final-linux-x86/Scratch-To-Snap/ || true
           cp ./Scratch-To-Snap/package-lock.json ./final-linux-x86/Scratch-To-Snap/ || true
-          
           mkdir -p ./final-linux-x86/svg_library_ScratchJnr
           cp -r ./svg_library_ScratchJnr/* ./final-linux-x86/svg_library_ScratchJnr/ 2>/dev/null || true
           mkdir -p ./final-linux-x86/wav_library_ScratchJnr
           cp -r ./wav_library_ScratchJnr/* ./final-linux-x86/wav_library_ScratchJnr/ 2>/dev/null || true
           
-          find ./Translate-Folder -type f -name "*.gz" | while read gz_file; do
-              dir_name=$(basename "$(dirname "$gz_file")")
-              mkdir -p "./final-linux-x86/Translate-Folder/$dir_name"
-              out_file=$(basename "$gz_file" .gz)
-              gzip -d -c "$gz_file" > "./final-linux-x86/Translate-Folder/$dir_name/$out_file"
-          done
-          
-          find ./Translate-Folder -type f -name "*.json" | while read json_file; do
-              dir_name=$(basename "$(dirname "$json_file")")
-              mkdir -p "./final-linux-x86/Translate-Folder/$dir_name"
-              cp "$json_file" "./final-linux-x86/Translate-Folder/$dir_name/"
-          done
-          
-          find ./Translate-Folder -type f -name "*.yml" | while read yml_file; do
-              dir_name=$(basename "$(dirname "$yml_file")")
-              mkdir -p "./final-linux-x86/Translate-Folder/$dir_name"
-              cp "$yml_file" "./final-linux-x86/Translate-Folder/$dir_name/"
-          done
-          
+          find ./Translate-Folder -type f -name "*.gz" | while read gz_file; do dir_name=$(basename "$(dirname "$gz_file")"); mkdir -p "./final-linux-x86/Translate-Folder/$dir_name"; out_file=$(basename "$gz_file" .gz); gzip -d -c "$gz_file" > "./final-linux-x86/Translate-Folder/$dir_name/$out_file"; done
+          find ./Translate-Folder -type f -name "*.json" | while read json_file; do dir_name=$(basename "$(dirname "$json_file")"); mkdir -p "./final-linux-x86/Translate-Folder/$dir_name"; cp "$json_file" "./final-linux-x86/Translate-Folder/$dir_name/"; done
+          find ./Translate-Folder -type f -name "*.yml" | while read yml_file; do dir_name=$(basename "$(dirname "$yml_file")"); mkdir -p "./final-linux-x86/Translate-Folder/$dir_name"; cp "$yml_file" "./final-linux-x86/Translate-Folder/$dir_name/"; done
           cp ./README.md ./final-linux-x86/ || true
 
       - name: Create Linux x86 Package
         shell: bash
-        run: |
-          tar -cJf Converter-linux-x86.tar.xz -C ./final-linux-x86 .
-
+        run: tar -cJf Converter-linux-x86.tar.xz -C ./final-linux-x86 .
       - name: Upload Artifact (linux x86)
         uses: actions/upload-artifact@v4
         with:
