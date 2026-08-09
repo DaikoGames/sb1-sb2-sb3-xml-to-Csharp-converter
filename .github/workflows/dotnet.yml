@@ -387,7 +387,9 @@ jobs:
             -r linux-x86 \
             -o "./publish/linux-x86" \
             -p:SelfContained=false \
-            -p:UseAppHost=false
+            -p:UseAppHost=false \
+            -p:PublishTrimmed=true \
+            -p:PublishReadyToRun=false
 
       - name: Assemble Self-Contained App & Inject Debian i386 Native Libs
         shell: bash
