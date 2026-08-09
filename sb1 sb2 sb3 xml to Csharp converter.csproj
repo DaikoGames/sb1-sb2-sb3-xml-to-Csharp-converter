@@ -9,11 +9,6 @@
     <AssemblyName>Converter</AssemblyName>
     <AssemblyTitle>Converter</AssemblyTitle>
     <RootNamespace>Converter</RootNamespace>
-    
-    <!-- Added Trimming to shrink the app for 32-bit memory limits -->
-    <PublishTrimmed>true</PublishTrimmed>
-    <TrimMode>link</TrimMode>
-    <PublishReadyToRun>false</PublishReadyToRun>
   </PropertyGroup>
 
   <PropertyGroup Label="Avalonia">
@@ -41,7 +36,7 @@
     <VlcWindowsArm64Enabled>true</VlcWindowsArm64Enabled>
   </PropertyGroup>
 
-   <ItemGroup>
+  <ItemGroup>
     <PackageReference Include="Avalonia" Version="12.1.1" />
     <PackageReference Include="Avalonia.Desktop" Version="12.1.1" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.1" />
