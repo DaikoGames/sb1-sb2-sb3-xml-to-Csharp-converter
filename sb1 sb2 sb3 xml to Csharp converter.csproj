@@ -1,4 +1,5 @@
- <PropertyGroup>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
@@ -8,9 +9,18 @@
     <AssemblyName>Converter</AssemblyName>
     <AssemblyTitle>Converter</AssemblyTitle>
     <RootNamespace>Converter</RootNamespace>
+    
+    <!-- Added Trimming to shrink the app for 32-bit memory limits -->
     <PublishTrimmed>true</PublishTrimmed>
     <TrimMode>link</TrimMode>
     <PublishReadyToRun>false</PublishReadyToRun>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Avalonia">
+    <AvaloniaXamlIlDebuggerLaunch>False</AvaloniaXamlIlDebuggerLaunch>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <SignAssembly>False</SignAssembly>
+    <GeneratePackageOnBuild>False</GeneratePackageOnBuild>
   </PropertyGroup>
 
   <PropertyGroup Label="Avalonia" Condition="('$(Configuration)' == 'Release' and '$(RuntimeIdentifier)' == 'win-x64')">
@@ -58,3 +68,4 @@
     <PackageReference Include="VideoLAN.LibVLC.Linux" Version="3.0.20" Condition="$([MSBuild]::IsOSPlatform('Linux'))" />
     <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="2.88.8" Condition="'$(RuntimeIdentifier)' == 'linux-x64' Or '$(RuntimeIdentifier)' == 'linux-arm64' Or '$(RuntimeIdentifier)' == 'linux-x86'" />
   </ItemGroup>
+</Project>
