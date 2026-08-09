@@ -57,7 +57,7 @@ jobs:
                   if old in content:
                       with open(filepath, 'w') as f: f.write(content.replace(old, new))
           replace('src/coreclr/vm/vars.hpp', 'CORProfilerDisableOptimizations()', 'false')
-          replace('src/coreclr/vm/ceemin.cpp', 'BEGIN_PROFILER_CALLBACK(CORProfilerPresent());', 'if (false) {')
+          replace('src/coreclr/vm/ceemain.cpp', 'BEGIN_PROFILER_CALLBACK(CORProfilerPresent());', 'if (false) {')
           replace('src/coreclr/vm/ceemain.cpp', 'END_PROFILER_CALLBACK();', '}')
           replace('src/coreclr/vm/ceemain.cpp', 'CORProfilerPresent()', 'false')
           replace('src/coreclr/debug/ee/debugger.cpp', 'CORProfilerDisableOptimizations()', 'false')
@@ -382,14 +382,13 @@ jobs:
         run: |
           dotnet restore "./sb1 sb2 sb3 xml to Csharp converter.csproj" -r linux-x86 -p:UseAppHost=false
           
+          # Trimming removed to fix NETSDK1102
           dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" \
             -c Release \
             -r linux-x86 \
             -o "./publish/linux-x86" \
             -p:SelfContained=false \
-            -p:UseAppHost=false \
-            -p:PublishTrimmed=true \
-            -p:PublishReadyToRun=false
+            -p:UseAppHost=false
 
       - name: Assemble Self-Contained App & Inject Debian i386 Native Libs
         shell: bash
@@ -397,15 +396,11 @@ jobs:
           mkdir -p ./final-linux-x86
           cp -r ./publish/linux-x86/* ./final-linux-x86/
           
-          # === PHASE 1: Extract 32-bit .so files from NuGet Cache ===
           NUGET_PACKAGES=$(dotnet nuget locals global-packages -l | cut -d' ' -f2)
-          echo "Searching NuGet cache at: $NUGET_PACKAGES"
           find "$NUGET_PACKAGES" -type f -name "*.so" -path "*linux-x86*" | while read so_file; do
-              echo "Copying NuGet native lib: $so_file"
               cp "$so_file" ./final-linux-x86/
           done
           
-          # === PHASE 2: "Steal" 32-bit native binaries from Debian Repositories ===
           sudo dpkg --add-architecture i386
           sudo apt-get update
           
@@ -418,26 +413,35 @@ jobs:
               dpkg-deb -x "$deb" . || true
           done
           
-          # Use GITHUB_WORKSPACE to copy stolen libs into the app folder
           APP_DIR="$GITHUB_WORKSPACE/final-linux-x86"
           find . -name "*.so*" -exec cp {} "$APP_DIR"/ \;
-          echo "Successfully injected Debian i386 native libraries!"
           cd "$GITHUB_WORKSPACE"
           
-          # === PHASE 3: Inject Custom CoreCLR and Apphost ===
           cp ~/custom-sdk/dotnet ./final-linux-x86/dotnet
           chmod +x ./final-linux-x86/dotnet
           
+          # THE ULTIMATE RUN.SH: Bakes in DOTNET_ROOT AND Memory Limits!
           cat > ./final-linux-x86/run.sh << 'EOF'
           #!/bin/bash
           DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
           export DOTNET_ROOT="$DIR"
           export LD_LIBRARY_PATH="$DIR:$LD_LIBRARY_PATH"
+          
+          # 32-bit Memory Limits baked in!
+          export DOTNET_GCHeapHardLimit=100000000
+          export DOTNET_EnableWriteXorExecute=0
+          export DOTNET_gcServer=0
+          export DOTNET_GCHeapCount=1
+          export DOTNET_EnableDiagnostics=0
+          export DOTNET_TieredCompilation=0
+          export DOTNET_ReadyToRun=0
+          export DOTNET_DefaultStackSize=131072
+          ulimit -s 128 2>/dev/null
+          
           exec "$DIR/Converter" "$@"
           EOF
           chmod +x ./final-linux-x86/run.sh
 
-          # Explicitly bind apphost to Converter.dll
           python3 - <<'PYEOF'
           import os, glob, sys
           sdk_dir = os.path.expanduser("~/custom-sdk")
@@ -447,10 +451,8 @@ jobs:
           
           dll_name = "Converter.dll"
           if not os.path.exists(os.path.join(app_dir, dll_name)):
-              print(f"ERROR: Could not find {dll_name}!")
               sys.exit(1)
               
-          print(f"Binding apphost to: {dll_name}")
           replacement = dll_name.encode('utf-8') + b"\x00" * (len(placeholder) - len(dll_name))
           output_path = os.path.join(app_dir, "Converter")
           
@@ -460,14 +462,12 @@ jobs:
                   data = bytearray(f.read())
               idx = data.find(placeholder)
               if idx != -1:
-                  print(f"SUCCESS: Patched apphost at: {candidate}")
                   data[idx:idx+len(placeholder)] = replacement
                   with open(output_path, 'wb') as f:
                       f.write(data)
                   patched = True
                   break
           if not patched:
-              print("ERROR: Could not find placeholder!")
               sys.exit(1)
           PYEOF
           
@@ -478,7 +478,6 @@ jobs:
           mkdir -p ./final-linux-x86/shared/Microsoft.NETCore.App
           cp -r ~/custom-sdk/shared/Microsoft.NETCore.App/* ./final-linux-x86/shared/Microsoft.NETCore.App/
           
-          # === PHASE 4: Copy Assets ===
           mkdir -p ./final-linux-x86/ConverterIcon
           cp ./ConverterIcon/Converter.ico ./final-linux-x86/ConverterIcon/
           cp ./ConverterIcon/Converter.png ./final-linux-x86/ConverterIcon/
