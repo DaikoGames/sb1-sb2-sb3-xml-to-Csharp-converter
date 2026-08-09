@@ -8,9 +8,6 @@ permissions:
   contents: write
  
 jobs:
-  # ========================================================================
-  # JOB 0: BUILD THE CUSTOM LINUX X86 RUNTIME
-  # ========================================================================
   build-runtime-x86:
     name: Cross-compile .NET 9.0 x86 Runtime
     runs-on: ubuntu-22.04
@@ -162,9 +159,6 @@ jobs:
           name: dotnet-linux-x86-sdk
           path: ~/dotnet-linux-x86-sdk.tar.gz
 
-  # ========================================================================
-  # JOB 1: BUILD NATIVE APPS (Windows, Linux x64/arm64)
-  # ========================================================================
   build:
     needs: build-runtime-x86
     strategy:
@@ -334,9 +328,6 @@ jobs:
           name: vpk-artifacts-${{ matrix.runtime }}
           path: ./Releases/*
 
-  # ========================================================================
-  # JOB 2: BUILD TRUELY SELF-CONTAINED LINUX X86 APP
-  # ========================================================================
   build_ubuntu-latest_linux-x86:
     name: Build Native Linux x86 App (Self-Contained)
     needs: build-runtime-x86
@@ -380,24 +371,34 @@ jobs:
       - name: Restore and Publish App (Framework-Dependent)
         shell: bash
         run: |
-          dotnet restore "./sb1 sb2 sb3 xml to Csharp converter.csproj" -r linux-x86 -p:UseAppHost=false
+          dotnet restore "./sb1 sb2 sb3 xml to Csharp converter.csproj" -r linux-x86 -p:RuntimeIdentifier=linux-x86 -p:UseAppHost=false
           
-          # Trimming removed to fix NETSDK1102
           dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" \
             -c Release \
             -r linux-x86 \
             -o "./publish/linux-x86" \
             -p:SelfContained=false \
-            -p:UseAppHost=false
+            -p:UseAppHost=false \
+            -p:RuntimeIdentifier=linux-x86
 
       - name: Assemble Self-Contained App & Inject Debian i386 Native Libs
         shell: bash
         run: |
+          # CRITICAL: Force delete ALL wrong-architecture files that cause 0x8007000E crash
+          rm -f ./publish/linux-x86/Magick.NET-Q16-x64.dll
+          rm -f ./publish/linux-x86/Magick.NET-Q16-arm64.dll
+          rm -f ./publish/linux-x86/libMagick*x64*.so || true
+          rm -f ./publish/linux-x86/libMagick*arm64*.so || true
+          rm -f ./publish/linux-x86/libSkiaSharp*x64*.so || true
+          rm -f ./publish/linux-x86/libHarfBuzzSharp*x64*.so || true
+
           mkdir -p ./final-linux-x86
           cp -r ./publish/linux-x86/* ./final-linux-x86/
           
           NUGET_PACKAGES=$(dotnet nuget locals global-packages -l | cut -d' ' -f2)
+          echo "Searching NuGet cache at: $NUGET_PACKAGES"
           find "$NUGET_PACKAGES" -type f -name "*.so" -path "*linux-x86*" | while read so_file; do
+              echo "Copying NuGet native lib: $so_file"
               cp "$so_file" ./final-linux-x86/
           done
           
@@ -407,7 +408,7 @@ jobs:
           mkdir -p ~/debs && cd ~/debs
           
           sudo apt-get download libvlc5:i386 libvlccore9:i386 vlc-plugin-base:i386 || true
-          sudo apt-get download libmagickcore-6.q16-6:i386 libmagickwand-6.q16-6:i386 || true
+          sudo apt-get download libmagickcore-6.q16-7t64:i386 libmagickwand-6.q16-7t64:i386 || true
           
           for deb in *.deb; do
               dpkg-deb -x "$deb" . || true
@@ -415,19 +416,18 @@ jobs:
           
           APP_DIR="$GITHUB_WORKSPACE/final-linux-x86"
           find . -name "*.so*" -exec cp {} "$APP_DIR"/ \;
+          echo "Successfully injected Debian i386 native libraries!"
           cd "$GITHUB_WORKSPACE"
           
           cp ~/custom-sdk/dotnet ./final-linux-x86/dotnet
           chmod +x ./final-linux-x86/dotnet
           
-          # THE ULTIMATE RUN.SH: Bakes in DOTNET_ROOT AND Memory Limits!
           cat > ./final-linux-x86/run.sh << 'EOF'
           #!/bin/bash
           DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
           export DOTNET_ROOT="$DIR"
           export LD_LIBRARY_PATH="$DIR:$LD_LIBRARY_PATH"
           
-          # 32-bit Memory Limits baked in!
           export DOTNET_GCHeapHardLimit=100000000
           export DOTNET_EnableWriteXorExecute=0
           export DOTNET_gcServer=0
@@ -451,6 +451,7 @@ jobs:
           
           dll_name = "Converter.dll"
           if not os.path.exists(os.path.join(app_dir, dll_name)):
+              print(f"ERROR: {dll_name} not found!")
               sys.exit(1)
               
           replacement = dll_name.encode('utf-8') + b"\x00" * (len(placeholder) - len(dll_name))
@@ -462,12 +463,14 @@ jobs:
                   data = bytearray(f.read())
               idx = data.find(placeholder)
               if idx != -1:
+                  print(f"SUCCESS: Patched apphost at: {candidate}")
                   data[idx:idx+len(placeholder)] = replacement
                   with open(output_path, 'wb') as f:
                       f.write(data)
                   patched = True
                   break
           if not patched:
+              print("ERROR: Could not find placeholder!")
               sys.exit(1)
           PYEOF
           
@@ -479,23 +482,23 @@ jobs:
           cp -r ~/custom-sdk/shared/Microsoft.NETCore.App/* ./final-linux-x86/shared/Microsoft.NETCore.App/
           
           mkdir -p ./final-linux-x86/ConverterIcon
-          cp ./ConverterIcon/Converter.ico ./final-linux-x86/ConverterIcon/
-          cp ./ConverterIcon/Converter.png ./final-linux-x86/ConverterIcon/
+          cp ./ConverterIcon/Converter.ico ./final-linux-x86/ConverterIcon/ || true
+          cp ./ConverterIcon/Converter.png ./final-linux-x86/ConverterIcon/ || true
           
           mkdir -p ./final-linux-x86/Scratch-Format-Converter
-          cp ./Scratch-Format-Converter/Convert.js ./final-linux-x86/Scratch-Format-Converter/
-          cp ./Scratch-Format-Converter/package.json ./final-linux-x86/Scratch-Format-Converter/
-          cp ./Scratch-Format-Converter/package-lock.json ./final-linux-x86/Scratch-Format-Converter/
+          cp ./Scratch-Format-Converter/Convert.js ./final-linux-x86/Scratch-Format-Converter/ || true
+          cp ./Scratch-Format-Converter/package.json ./final-linux-x86/Scratch-Format-Converter/ || true
+          cp ./Scratch-Format-Converter/package-lock.json ./final-linux-x86/Scratch-Format-Converter/ || true
           
           mkdir -p ./final-linux-x86/Scratch-To-Snap
-          cp ./Scratch-To-Snap/converter.js ./final-linux-x86/Scratch-To-Snap/
-          cp ./Scratch-To-Snap/package.json ./final-linux-x86/Scratch-To-Snap/
-          cp ./Scratch-To-Snap/package-lock.json ./final-linux-x86/Scratch-To-Snap/
+          cp ./Scratch-To-Snap/converter.js ./final-linux-x86/Scratch-To-Snap/ || true
+          cp ./Scratch-To-Snap/package.json ./final-linux-x86/Scratch-To-Snap/ || true
+          cp ./Scratch-To-Snap/package-lock.json ./final-linux-x86/Scratch-To-Snap/ || true
           
           mkdir -p ./final-linux-x86/svg_library_ScratchJnr
-          cp -r ./svg_library_ScratchJnr/* ./final-linux-x86/svg_library_ScratchJnr/ || true
+          cp -r ./svg_library_ScratchJnr/* ./final-linux-x86/svg_library_ScratchJnr/ 2>/dev/null || true
           mkdir -p ./final-linux-x86/wav_library_ScratchJnr
-          cp -r ./wav_library_ScratchJnr/* ./final-linux-x86/wav_library_ScratchJnr/ || true
+          cp -r ./wav_library_ScratchJnr/* ./final-linux-x86/wav_library_ScratchJnr/ 2>/dev/null || true
           
           find ./Translate-Folder -type f -name "*.gz" | while read gz_file; do
               dir_name=$(basename "$(dirname "$gz_file")")
@@ -529,9 +532,6 @@ jobs:
           name: vpk-artifact-linux_x86
           path: ./Converter-linux-x86.tar.xz
 
-  # ========================================================================
-  # JOB 3: RELEASE
-  # ========================================================================
   release:
     needs: [build, build-runtime-x86, build_ubuntu-latest_linux-x86]
     runs-on: ubuntu-latest
