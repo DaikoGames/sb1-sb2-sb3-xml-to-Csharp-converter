@@ -68,7 +68,6 @@ jobs:
           print("Using exact .NET 9 GC symbols from diagnostic log...")
 
           # 1. Force a 64MB Hard Limit on the GC (Prevents massive VAS reservation)
-          # This mimics Windows x86 behavior where the GC stays small and grows dynamically.
           gc_cpp = 'src/coreclr/gc/gc.cpp'
           patch_file(gc_cpp, [
               ('size_t      gc_heap::heap_hard_limit = 0;',
@@ -220,19 +219,34 @@ jobs:
         with:
           repository: 'DaikoGames/Translate-Folder'
           path: Translate-Folder
+          
+      - name: Inject Trimmer Protections into .csproj
+        shell: bash
+        run: |
+          # Protects heavy reflection libraries from being deleted by the IL Trimmer
+          sed -i 's|</Project>|  <ItemGroup>\n    <TrimmerRootAssembly Include="Avalonia" />\n    <TrimmerRootAssembly Include="Avalonia.Base" />\n    <TrimmerRootAssembly Include="Avalonia.Controls" />\n    <TrimmerRootAssembly Include="Avalonia.Skia" />\n    <TrimmerRootAssembly Include="Newtonsoft.Json" />\n    <TrimmerRootAssembly Include="LibVLCSharp" />\n    <TrimmerRootAssembly Include="Magick.NET-Q16-x86" />\n    <TrimmerRootAssembly Include="Magick.NET.Core" />\n    <TrimmerRootAssembly Include="HarfBuzzSharp" />\n    <TrimmerRootAssembly Include="SkiaSharp" />\n    <TrimmerRootAssembly Include="Converter" />\n  </ItemGroup>\n</Project>|' "./sb1 sb2 sb3 xml to Csharp converter.csproj"
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 9.0.x
-      - name: Build and Publish App
+          
+      - name: Build and Publish App (Trimmed & SingleFile)
         shell: bash
         run: |
-          dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" -c Release -r ${{ matrix.runtime }} -o "./publish/${{ matrix.runtime }}" -p:SelfContained=true -p:PublishSingleFile=true
+          dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" -c Release -r ${{ matrix.runtime }} -o "./publish/${{ matrix.runtime }}" \
+            -p:SelfContained=true \
+            -p:PublishSingleFile=true \
+            -p:PublishTrimmed=true \
+            -p:TrimMode=partial \
+            -p:IncludeNativeLibrariesForSelfExtract=true
+            
       - name: Install Velopack CLI
         run: dotnet tool install -g vpk
       - name: Add dotnet tools to PATH
         shell: bash
         run: echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
+        
       - name: Add files (Windows)
         shell: pwsh
         if: contains(matrix.runtime, 'win')
@@ -249,6 +263,7 @@ jobs:
           Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.json" | ForEach-Object { $dn = $_.Directory.Name; Copy-Item $_.FullName "$baseDir/Translate-Folder/$dn/" -Force }
           Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.yml" | ForEach-Object { $dn = $_.Directory.Name; Copy-Item $_.FullName "$baseDir/Translate-Folder/$dn/" -Force }
           Copy-Item "./README.md" "$baseDir/"
+          
       - name: Add Files (Linux)
         shell: pwsh
         if: contains(matrix.runtime, 'linux')
@@ -265,17 +280,21 @@ jobs:
           Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.json" | ForEach-Object { $dn = $_.Directory.Name; Copy-Item $_.FullName "$baseDir/Translate-Folder/$dn/" -Force }
           Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.yml" | ForEach-Object { $dn = $_.Directory.Name; Copy-Item $_.FullName "$baseDir/Translate-Folder/$dn/" -Force }
           Copy-Item "./README.md" "$baseDir/"
+          
       - name: Check Help
         shell: bash
         run: vpk pack --help
+        
       - name: Pack with Velopack Windows
         shell: bash
         if: contains(matrix.runtime, 'win')
         run: vpk pack -u "Converter" -v "0.9.${{ github.run_number }}" --packDir "./publish/${{ matrix.runtime }}" --outputDir "./Releases" --icon "./ConverterIcon/Converter.ico" --channel "${{ matrix.runtime }}"
+        
       - name: Pack with Velopack Linux
         shell: bash
         if: contains(matrix.runtime, 'linux')
         run: vpk pack -u "Converter" -v "0.9.${{ github.run_number }}" --packDir "./publish/${{ matrix.runtime }}" --outputDir "./Releases" --icon "./ConverterIcon/Converter.png" --channel "${{ matrix.runtime }}"
+        
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -305,24 +324,41 @@ jobs:
         with:
           repository: 'DaikoGames/Translate-Folder'
           path: Translate-Folder
+          
       - name: Download Custom x86 Runtime
         uses: actions/download-artifact@v4
         with:
           name: dotnet-linux-x86-sdk
           path: ~/custom-sdk-tar
+          
       - name: Extract Custom x86 Runtime
         run: |
           mkdir -p ~/custom-sdk
           tar -xzf ~/custom-sdk-tar/dotnet-linux-x86-sdk.tar.gz -C ~/custom-sdk
+          
       - name: Setup Native 64-bit SDK
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.x'
-      - name: Restore and Publish App
+          
+      - name: Inject Trimmer Protections into .csproj
+        shell: bash
+        run: |
+          sed -i 's|</Project>|  <ItemGroup>\n    <TrimmerRootAssembly Include="Avalonia" />\n    <TrimmerRootAssembly Include="Avalonia.Base" />\n    <TrimmerRootAssembly Include="Avalonia.Controls" />\n    <TrimmerRootAssembly Include="Avalonia.Skia" />\n    <TrimmerRootAssembly Include="Newtonsoft.Json" />\n    <TrimmerRootAssembly Include="LibVLCSharp" />\n    <TrimmerRootAssembly Include="Magick.NET-Q16-x86" />\n    <TrimmerRootAssembly Include="Magick.NET.Core" />\n    <TrimmerRootAssembly Include="HarfBuzzSharp" />\n    <TrimmerRootAssembly Include="SkiaSharp" />\n    <TrimmerRootAssembly Include="Converter" />\n  </ItemGroup>\n</Project>|' "./sb1 sb2 sb3 xml to Csharp converter.csproj"
+
+      - name: Restore and Publish App (Trimmed)
         shell: bash
         run: |
           dotnet restore "./sb1 sb2 sb3 xml to Csharp converter.csproj" -r linux-x86 -p:RuntimeIdentifier=linux-x86 -p:UseAppHost=false -p:ExcludeMagickX64=true
-          dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" -c Release -r linux-x86 -o "./publish/linux-x86" -p:SelfContained=false -p:UseAppHost=false -p:RuntimeIdentifier=linux-x86 -p:ExcludeMagickX64=true
+          # Note: PublishSingleFile is omitted here because the official 64-bit SDK refuses to bundle single-file executables for the unsupported 'linux-x86' RID.
+          dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" -c Release -r linux-x86 -o "./publish/linux-x86" \
+            -p:SelfContained=false \
+            -p:UseAppHost=false \
+            -p:RuntimeIdentifier=linux-x86 \
+            -p:ExcludeMagickX64=true \
+            -p:PublishTrimmed=true \
+            -p:TrimMode=partial
+            
       - name: Assemble Self-Contained App & Inject Debian i386 Native Libs
         shell: bash
         run: |
@@ -357,6 +393,7 @@ jobs:
           export DOTNET_ROOT="$DIR"
           export LD_LIBRARY_PATH="$DIR:$LD_LIBRARY_PATH"
           export DOTNET_GCHeapHardLimit=200000000
+          export DOTNET_GCHeapHardLimitPercent=10
           export DOTNET_gcServer=0
           export DOTNET_GCHeapCount=1
           export DOTNET_EnableDiagnostics=0
