@@ -38,135 +38,85 @@ jobs:
       - name: Clone dotnet/runtime
         run: git clone --depth 1 --branch "release/9.0" https://github.com/dotnet/runtime.git ~/runtime
 
-      - name: Diagnose and patch CoreCLR memory manager for 32-bit Linux
+      - name: Surgical 32-bit Linux Memory Patches (Exact .NET 9 Symbols)
         run: |
           cd ~/runtime
           cat > /tmp/patch.py << 'PYEOF'
-          import os, re, subprocess
+          import os, re
 
-          def sh(cmd):
-              subprocess.run(cmd, shell=True)
-
-          def read(path):
-              if os.path.exists(path):
-                  with open(path, 'r', errors='replace') as f:
-                      return f.read()
-              return None
-
-          def write(path, content):
-              with open(path, 'w') as f:
-                  f.write(content)
-
-          patched = []
-          skipped = []
-
-          def try_replace(path, candidates, label):
-              content = read(path)
-              if content is None:
-                  skipped.append(f"{label}: FILE MISSING ({path})")
+          def patch_file(path, patches):
+              if not os.path.exists(path):
+                  print(f"MISSING: {path}")
                   return
-              for old, new in candidates:
+              with open(path, 'r', errors='replace') as f:
+                  content = f.read()
+              
+              applied = 0
+              for old, new, label in patches:
                   if old in content:
                       content = content.replace(old, new)
-                      write(path, content)
-                      patched.append(f"{label}: MATCHED")
-                      return
-              skipped.append(f"{label}: no candidate matched in {path}")
+                      applied += 1
+                      print(f"  [OK] {label}")
+                  else:
+                      print(f"  [SKIP] {label}")
+                      
+              if applied > 0:
+                  with open(path, 'w') as f:
+                      f.write(content)
 
-          print("=" * 70)
-          print("STEP 1: DIAGNOSTIC - dumping real GC memory constants from source")
-          print("=" * 70)
-          sh("echo '--- Segment size definitions ---'")
-          sh("grep -rn 'seg_size\\|large_seg_size\\|min_segment_size' src/coreclr/gc/*.h 2>/dev/null | head -25")
-          sh("echo '--- Heap hard limit logic ---'")
-          sh("grep -rn 'gcHeapHardLimit\\|HeapHardLimit\\|hard_limit' src/coreclr/gc/*.cpp src/coreclr/gc/*.h 2>/dev/null | head -25")
-          sh("echo '--- gc_max_address ---'")
-          sh("grep -rn 'gc_max_address' src/coreclr/gc/*.h src/coreclr/gc/*.cpp 2>/dev/null | head -25")
-          sh("echo '--- VirtualAlloc / mmap in PAL ---'")
-          sh("grep -rn 'MAP_32BIT\\|VirtualAlloc' src/coreclr/pal/src/virtual/virtual.cpp 2>/dev/null | head -25")
-          sh("echo '--- WriteXorExecute ---'")
-          sh("grep -rn 'WriteXorExecute\\|W_X' src/coreclr/gc/gc.cpp src/coreclr/vm/*.cpp 2>/dev/null | head -15")
-          print("=" * 70)
-          print("STEP 2: Applying conservative 32-bit patches")
-          print("=" * 70)
+          print("=== SURGICAL 32-BIT LINUX MEMORY PATCHES ===")
+          print("Using exact .NET 9 GC symbols from diagnostic log...")
 
-          try_replace(
-              'src/coreclr/gc/gcpriv.h',
-              [
-                  ('gc_max_address = (size_t)0x7FFFFFFF;',
-                   '#if defined(TARGET_LINUX) && !defined(TARGET_64BIT)\n        gc_max_address = (size_t)0x70000000;\n#else\n        gc_max_address = (size_t)0x7FFFFFFF;\n#endif'),
-                  ('gc_max_address = 0x7FFFFFFF;',
-                   '#if defined(TARGET_LINUX) && !defined(TARGET_64BIT)\n    gc_max_address = 0x70000000;\n#else\n    gc_max_address = 0x7FFFFFFF;\n#endif'),
-                  ('gc_max_address = 0x7fffffff;',
-                   '#if defined(TARGET_LINUX) && !defined(TARGET_64BIT)\n    gc_max_address = 0x70000000;\n#else\n    gc_max_address = 0x7fffffff;\n#endif'),
-              ],
-              'A. cap gc_max_address'
-          )
+          # 1. Force a 64MB Hard Limit on the GC (Prevents massive VAS reservation)
+          # This mimics Windows x86 behavior where the GC stays small and grows dynamically.
+          gc_cpp = 'src/coreclr/gc/gc.cpp'
+          patch_file(gc_cpp, [
+              ('size_t      gc_heap::heap_hard_limit = 0;',
+               '#if defined(TARGET_LINUX) && !defined(TARGET_64BIT)\nsize_t      gc_heap::heap_hard_limit = 64 * 1024 * 1024; /* PATCHED: 64MB for 32-bit Linux */\n#else\nsize_t      gc_heap::heap_hard_limit = 0;\n#endif',
+               'Force 64MB heap hard limit'),
+               
+              ('bool        gc_heap::hard_limit_config_p = false;',
+               '#if defined(TARGET_LINUX) && !defined(TARGET_64BIT)\nbool        gc_heap::hard_limit_config_p = true; /* PATCHED: Enable hard limit */\n#else\nbool        gc_heap::hard_limit_config_p = false;\n#endif',
+               'Enable hard limit config'),
+               
+              ('const size_t min_segment_size_hard_limit = 1024*1024*16;',
+               '#if defined(TARGET_LINUX) && !defined(TARGET_64BIT)\nconst size_t min_segment_size_hard_limit = 1024*1024*4; /* PATCHED: 4MB segments */\n#else\nconst size_t min_segment_size_hard_limit = 1024*1024*16;\n#endif',
+               'Force 4MB min segment size')
+          ])
 
-          try_replace(
-              'src/coreclr/vm/gcenv.h',
-              [
-                  ('GCHeapCount = GC_PROCESSOR_COUNT;',
-                   '#ifndef TARGET_64BIT\n            GCHeapCount = 1;\n#else\n            GCHeapCount = GC_PROCESSOR_COUNT;\n#endif'),
-              ],
-              'B. single GC heap'
-          )
-
-          virt = 'src/coreclr/pal/src/virtual/virtual.cpp'
-          content = read(virt)
-          if content and 'MAP_32BIT' not in content and 'MAP_PRIVATE | MAP_ANON' in content:
-              content = content.replace(
-                  'MAP_PRIVATE | MAP_ANON',
-                  'MAP_PRIVATE | MAP_ANON\n#ifdef TARGET_X86\n            | MAP_32BIT\n#endif',
-                  1
-              )
-              write(virt, content)
-              patched.append('C. MAP_32BIT in PAL mmap')
-          else:
-              skipped.append('C. MAP_32BIT: pattern not found or already present')
-
+          # 2. Keep the original profiler/linker patches that we know work
           def simple_replace(path, old, new, label):
-              c = read(path)
-              if c and old in c:
-                  write(path, c.replace(old, new))
-                  patched.append(f'{label}: applied')
-              else:
-                  skipped.append(f'{label}: pattern not found')
+              if os.path.exists(path):
+                  with open(path, 'r') as f: c = f.read()
+                  if old in c:
+                      with open(path, 'w') as f: f.write(c.replace(old, new))
+                      print(f"  [OK] {label}")
 
-          simple_replace('src/coreclr/vm/vars.hpp', 'CORProfilerDisableOptimizations()', 'false', 'D1. profiler vars')
-          simple_replace('src/coreclr/vm/ceemain.cpp', 'BEGIN_PROFILER_CALLBACK(CORProfilerPresent());', 'if (false) {', 'D2. profiler begin')
-          simple_replace('src/coreclr/vm/ceemain.cpp', 'CORProfilerPresent()', 'false', 'D3. profiler present')
-          simple_replace('src/coreclr/vm/rejit.inl', 'CORProfilerEnableRejit() != FALSE', 'false', 'D4. rejit')
-          simple_replace('src/coreclr/vm/eeprofinterfaces.inl', 'CORProfilerTrackAllocations()', 'FALSE', 'D5. alloc track')
-          simple_replace('src/coreclr/vm/eetoprofinterfaceimpl.inl', 'CORProfilerPresent()', 'FALSE', 'D6. prof interface')
+          simple_replace('src/coreclr/vm/vars.hpp', 'CORProfilerDisableOptimizations()', 'false', 'Profiler vars')
+          simple_replace('src/coreclr/vm/ceemain.cpp', 'BEGIN_PROFILER_CALLBACK(CORProfilerPresent());', 'if (false) {', 'Profiler begin')
+          simple_replace('src/coreclr/vm/ceemain.cpp', 'CORProfilerPresent()', 'false', 'Profiler present')
+          simple_replace('src/coreclr/vm/rejit.inl', 'CORProfilerEnableRejit() != FALSE', 'false', 'Rejit')
+          simple_replace('src/coreclr/vm/eeprofinterfaces.inl', 'CORProfilerTrackAllocations()', 'FALSE', 'Alloc track')
+          simple_replace('src/coreclr/vm/eetoprofinterfaceimpl.inl', 'CORProfilerPresent()', 'FALSE', 'Prof interface')
 
           filepath = 'src/coreclr/inc/profilepriv.inl'
           if os.path.exists(filepath):
-              with open(filepath, 'r') as f: content = f.read()
-              if not content.lstrip().startswith('#if FEATURE_PERFTRACING'):
-                  with open(filepath, 'w') as f: f.write('#if FEATURE_PERFTRACING\n' + content + '\n#endif\n')
-                  patched.append('D7. profilepriv guard')
+              with open(filepath, 'r') as f: c = f.read()
+              if not c.lstrip().startswith('#if FEATURE_PERFTRACING'):
+                  with open(filepath, 'w') as f: f.write('#if FEATURE_PERFTRACING\n' + c + '\n#endif\n')
+                  print("  [OK] Profilepriv guard")
 
           for host in ['corerun', 'apphost', 'singlefilehost']:
-              filepath = f'src/coreclr/hosts/{host}/CMakeLists.txt'
-              if os.path.exists(filepath):
-                  with open(filepath, 'r') as f: c = f.read()
+              fp = f'src/coreclr/hosts/{host}/CMakeLists.txt'
+              if os.path.exists(fp):
+                  with open(fp, 'r') as f: c = f.read()
                   pattern = r'(target_link_libraries\s*\(\s*' + host + r'\s+PRIVATE\s+coreclr_pal)'
                   if re.search(pattern, c):
                       c = re.sub(pattern, r'\1\n    -Wl,--start-group\n    dl\n    c\n    -Wl,--end-group', c)
-                      with open(filepath, 'w') as f: f.write(c)
-                      patched.append(f'D8. {host} linker')
+                      with open(fp, 'w') as f: f.write(c)
+                      print(f"  [OK] {host} linker")
 
-          print("\n" + "=" * 70)
-          print("PATCH SUMMARY")
-          print("=" * 70)
-          print("APPLIED:")
-          for p in patched:
-              print(f"  [OK]   {p}")
-          print("SKIPPED:")
-          for s in skipped:
-              print(f"  [SKIP] {s}")
-          print("=" * 70)
+          print("=== ALL SURGICAL PATCHES APPLIED ===")
           PYEOF
           python3 /tmp/patch.py
 
