@@ -135,6 +135,9 @@ jobs:
           pkill -9 -f dotnet || true
           ~/runtime/.dotnet/dotnet build-server shutdown || true
           rm -rf ~/runtime/artifacts/obj ~/runtime/artifacts/bin ~/runtime/artifacts/packages
+          
+          # Note: Do NOT use /p:UseAppHost=false. It breaks internal SelfContained test assets 
+          # and prevents the apphost binary from being generated for your custom SDK packaging.
           ./build.sh -subset clr+libs+host+packs -configuration Release -arch "x86" --cross \
             /p:RunTests=false /p:BuildTests=false \
             /p:BuildInstaller=false /p:FeatureEventTrace=0 /p:FeaturePerfTracing=0 \
