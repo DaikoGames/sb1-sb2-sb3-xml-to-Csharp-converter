@@ -9,7 +9,7 @@ permissions:
  
 jobs:
   build-runtime-x86:
-    name: Cross-compile .NET 9.0 x86 Runtime
+    name: Cross-compile .NET 9.0 x86 Runtime (Hardcoded Memory Limits)
     runs-on: ubuntu-22.04
     timeout-minutes: 180
     steps:
@@ -38,7 +38,7 @@ jobs:
       - name: Clone dotnet/runtime
         run: git clone --depth 1 --branch "release/9.0" https://github.com/dotnet/runtime.git ~/runtime
 
-      - name: Surgical 32-bit Linux Memory Patches (Exact .NET 9 Symbols)
+      - name: HARDCODED 32-bit Memory Patches (Source Code Level)
         run: |
           cd ~/runtime
           cat > /tmp/patch.py << 'PYEOF'
@@ -50,7 +50,6 @@ jobs:
                   return
               with open(path, 'r', errors='replace') as f:
                   content = f.read()
-              
               applied = 0
               for old, new, label in patches:
                   if old in content:
@@ -59,29 +58,39 @@ jobs:
                       print(f"  [OK] {label}")
                   else:
                       print(f"  [SKIP] {label}")
-                      
               if applied > 0:
                   with open(path, 'w') as f:
                       f.write(content)
 
-          print("=== SURGICAL 32-BIT LINUX MEMORY PATCHES ===")
-          print("Using exact .NET 9 GC symbols from diagnostic log...")
+          print("=== HARDCODED 32-BIT MEMORY PATCHES ===")
 
+          # 1. HARDCODE GC heap hard limit to 16MB (not env var - HARDCODED)
           gc_cpp = 'src/coreclr/gc/gc.cpp'
           patch_file(gc_cpp, [
               ('size_t      gc_heap::heap_hard_limit = 0;',
-               '#if defined(TARGET_LINUX) && !defined(TARGET_64BIT)\nsize_t      gc_heap::heap_hard_limit = 64 * 1024 * 1024;\n#else\nsize_t      gc_heap::heap_hard_limit = 0;\n#endif',
-               'Force 64MB heap hard limit'),
-               
+               '#if defined(TARGET_LINUX) && !defined(TARGET_64BIT)\nsize_t      gc_heap::heap_hard_limit = 16 * 1024 * 1024; /* HARDCODED: 16MB for 32-bit Linux */\n#else\nsize_t      gc_heap::heap_hard_limit = 0;\n#endif',
+               'HARDCODED 16MB heap hard limit'),
               ('bool        gc_heap::hard_limit_config_p = false;',
-               '#if defined(TARGET_LINUX) && !defined(TARGET_64BIT)\nbool        gc_heap::hard_limit_config_p = true;\n#else\nbool        gc_heap::hard_limit_config_p = false;\n#endif',
-               'Enable hard limit config'),
-               
+               '#if defined(TARGET_LINUX) && !defined(TARGET_64BIT)\nbool        gc_heap::hard_limit_config_p = true; /* HARDCODED: Enable hard limit */\n#else\nbool        gc_heap::hard_limit_config_p = false;\n#endif',
+               'HARDCODED enable hard limit config'),
               ('const size_t min_segment_size_hard_limit = 1024*1024*16;',
-               '#if defined(TARGET_LINUX) && !defined(TARGET_64BIT)\nconst size_t min_segment_size_hard_limit = 1024*1024*4;\n#else\nconst size_t min_segment_size_hard_limit = 1024*1024*16;\n#endif',
-               'Force 4MB min segment size')
+               '#if defined(TARGET_LINUX) && !defined(TARGET_64BIT)\nconst size_t min_segment_size_hard_limit = 1024*1024*2; /* HARDCODED: 2MB segments */\n#else\nconst size_t min_segment_size_hard_limit = 1024*1024*16;\n#endif',
+               'HARDCODED 2MB min segment size')
           ])
 
+          # 2. HARDCODE GC percentage limit in gcconfig.cpp
+          gcconfig_cpp = 'src/coreclr/gc/gcconfig.cpp'
+          if os.path.exists(gcconfig_cpp):
+              with open(gcconfig_cpp, 'r', errors='replace') as f:
+                  content = f.read()
+              # Hardcode the percentage-based limit
+              if 'gc_heap::heap_hard_limit_percent' in content:
+                  content = content.replace('gc_heap::heap_hard_limit_percent', '1 /* HARDCODED: 1% for 32-bit Linux */')
+                  print("  [OK] HARDCODED 1% heap hard limit percent")
+              with open(gcconfig_cpp, 'w') as f:
+                  f.write(content)
+
+          # 3. HARDCODE profiler disable (reduces memory overhead)
           def simple_replace(path, old, new, label):
               if os.path.exists(path):
                   with open(path, 'r') as f: c = f.read()
@@ -96,24 +105,21 @@ jobs:
           simple_replace('src/coreclr/vm/eeprofinterfaces.inl', 'CORProfilerTrackAllocations()', 'FALSE', 'Alloc track')
           simple_replace('src/coreclr/vm/eetoprofinterfaceimpl.inl', 'CORProfilerPresent()', 'FALSE', 'Prof interface')
 
-          filepath = 'src/coreclr/inc/profilepriv.inl'
-          if os.path.exists(filepath):
-              with open(filepath, 'r') as f: c = f.read()
-              if not c.lstrip().startswith('#if FEATURE_PERFTRACING'):
-                  with open(filepath, 'w') as f: f.write('#if FEATURE_PERFTRACING\n' + c + '\n#endif\n')
-                  print("  [OK] Profilepriv guard")
+          # 4. HARDCODE disable diagnostics
+          simple_replace('src/coreclr/vm/gcenv.h', 'FEATURE_PERFTRACING', '0 /* HARDCODED: Disable perf tracing */', 'Disable perf tracing')
 
-          for host in ['corerun', 'apphost', 'singlefilehost']:
-              fp = f'src/coreclr/hosts/{host}/CMakeLists.txt'
-              if os.path.exists(fp):
-                  with open(fp, 'r') as f: c = f.read()
-                  pattern = r'(target_link_libraries\s*\(\s*' + host + r'\s+PRIVATE\s+coreclr_pal)'
-                  if re.search(pattern, c):
-                      c = re.sub(pattern, r'\1\n    -Wl,--start-group\n    dl\n    c\n    -Wl,--end-group', c)
-                      with open(fp, 'w') as f: f.write(c)
-                      print(f"  [OK] {host} linker")
+          # 5. HARDCODE JIT code heap limit
+          jit_cpp = 'src/coreclr/vm/jit.cpp'
+          if os.path.exists(jit_cpp):
+              with open(jit_cpp, 'r', errors='replace') as f:
+                  content = f.read()
+              if 'INITIAL_CODE_HEAP_SIZE' in content:
+                  content = content.replace('INITIAL_CODE_HEAP_SIZE', '(1024*1024*4) /* HARDCODED: 4MB initial code heap */')
+                  print("  [OK] HARDCODED 4MB initial code heap")
+              with open(jit_cpp, 'w') as f:
+                  f.write(content)
 
-          print("=== ALL SURGICAL PATCHES APPLIED ===")
+          print("=== ALL HARDCODED PATCHES APPLIED ===")
           PYEOF
           python3 /tmp/patch.py
 
@@ -122,22 +128,19 @@ jobs:
           cd ~/runtime
           sudo ./eng/common/cross/build-rootfs.sh "x86" "debian" "12" --skipunmount
 
-      - name: Build .NET Runtime
-        shell: bash
+      - name: Cross-compile .NET runtime for linux-x86
         run: |
           cd ~/runtime
           export ROOTFS_DIR="$HOME/runtime/.tools/rootfs/x86"
           pkill -9 -f dotnet || true
           ~/runtime/.dotnet/dotnet build-server shutdown || true
           rm -rf ~/runtime/artifacts/obj ~/runtime/artifacts/bin ~/runtime/artifacts/packages
-          
-          # Added 'packs' to subset and removed GeneratePackageOnBuild=false to build the NuGet runtime pack!
-          # FIX: Removed '/p:UseAppHost=false' to prevent NETSDK1067 errors in SelfContained.csproj test assets.
           ./build.sh -subset clr+libs+host+packs -configuration Release -arch "x86" --cross \
             /p:RunTests=false /p:BuildTests=false \
             /p:BuildInstaller=false /p:FeatureEventTrace=0 /p:FeaturePerfTracing=0 \
-            /p:ContinuousIntegrationBuild=true \
-            /p:BuildInParallel=false
+            /p:ContinuousIntegrationBuild=true /p:BuildInParallel=false
+        env:
+          ROOTFS_DIR: /home/runner/runtime/.tools/rootfs/x86
 
       - name: Assemble and Package Custom SDK
         run: |
@@ -282,7 +285,7 @@ jobs:
           path: ./Releases/*
 
   build_ubuntu-latest_linux-x86:
-    name: Build Native Linux x86 App (Self-Contained)
+    name: Build Native Linux x86 App (Self-Contained, Hardcoded Memory)
     needs: build-runtime-x86
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -355,7 +358,8 @@ jobs:
           DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
           export DOTNET_ROOT="$DIR"
           export LD_LIBRARY_PATH="$DIR:$LD_LIBRARY_PATH"
-          export DOTNET_GCHeapHardLimitPercent=50
+          export DOTNET_GCHeapHardLimit=16000000
+          export DOTNET_GCHeapHardLimitPercent=1
           export DOTNET_gcServer=0
           export DOTNET_GCHeapCount=1
           export DOTNET_EnableDiagnostics=0
@@ -363,6 +367,8 @@ jobs:
           export DOTNET_TieredCompilation=0
           export DOTNET_ReadyToRun=0
           export DOTNET_DefaultStackSize=262144
+          export DOTNET_JitMinOpts=1
+          export DOTNET_EnableAltLoaderAllocator=0
           ulimit -s 256 2>/dev/null || true
           exec "$DIR/Converter" "$@"
           EOF
