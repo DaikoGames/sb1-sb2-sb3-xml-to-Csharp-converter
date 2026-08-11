@@ -128,40 +128,28 @@ jobs:
           cd ~/runtime
           sudo ./eng/common/cross/build-rootfs.sh "x86" "debian" "12" --skipunmount
 
-      - name: Build .NET Runtime (linux-x86)
-        shell: /usr/bin/bash -e {0}
+      - name: Build .NET Runtime (x86 Cross-Compile)
+        shell: bash
         env:
-          # REMOVE DOTNET_ROOT. Let build.sh automatically manage it and point to the local .dotnet folder.
-          # Keeping /usr/share/dotnet forces MSBuild to look in the global dir which lacks linux-x86 packs.
+          DOTNET_ROOT: /usr/share/dotnet
           ROOTFS_DIR: /home/runner/runtime/.tools/rootfs/x86
         run: |
           cd ~/runtime
           export ROOTFS_DIR="$HOME/runtime/.tools/rootfs/x86"
           
+          # Kill any stale dotnet processes and clean previous artifacts
           pkill -9 -f dotnet || true
-          # Only shutdown build-server if the dotnet executable already exists
-          [ -f ~/runtime/.dotnet/dotnet ] && ~/runtime/.dotnet/dotnet build-server shutdown || true
-          
+          ~/runtime/.dotnet/dotnet build-server shutdown || true
           rm -rf ~/runtime/artifacts/obj ~/runtime/artifacts/bin ~/runtime/artifacts/packages
           
-          # STEP 1: RESTORE PHASE
-          # We use /p:UseAppHost=false ONLY during restore. This bypasses NETSDK1084 
-          # because the x64 SDK doesn't contain the linux-x86 AppHost pack initially.
-          ./build.sh -restore -subset clr+libs+host+packs -configuration Release -arch "x86" --cross \
+          # Build the runtime
+          # FIX: Removed `/p:UseAppHost=false` to prevent NETSDK1067 errors 
+          # on the HelloWorld/SelfContained.csproj test assets.
+          ./build.sh -subset clr+libs+host+packs -configuration Release -arch "x86" --cross \
             /p:RunTests=false /p:BuildTests=false \
             /p:BuildInstaller=false /p:FeatureEventTrace=0 /p:FeaturePerfTracing=0 \
-            /p:ContinuousIntegrationBuild=true /p:BuildInParallel=false \
-            /p:UseAppHost=false
-
-          # STEP 2: BUILD PHASE
-          # We DO NOT use /p:UseAppHost=false here. This allows SelfContained test assets 
-          # to successfully generate the apphost binary and avoids NETSDK1067.
-          # By this time, the 'packs' subset has already built the linux-x86 AppHost pack 
-          # and placed it in the local NuGet sources, so the SDK can find it.
-          ./build.sh -build -subset clr+libs+host+packs -configuration Release -arch "x86" --cross \
-            /p:RunTests=false /p:BuildTests=false \
-            /p:BuildInstaller=false /p:FeatureEventTrace=0 /p:FeaturePerfTracing=0 \
-            /p:ContinuousIntegrationBuild=true /p:BuildInParallel=false
+            /p:ContinuousIntegrationBuild=true \
+            /p:BuildInParallel=false
 
       - name: Assemble and Package Custom SDK
         run: |
