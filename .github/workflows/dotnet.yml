@@ -1,4 +1,4 @@
-name: Deploy to GitHub Releases (True x86 Source Build)
+name: Deploy to GitHub Releases
 
 on:
   schedule:
@@ -34,7 +34,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             crossbuild-essential-i386 binfmt-support debootstrap \
-            qemu-user-static qemu-user debian-archive-keyring
+            qemu-user-static qemu-user
+
+      - name: Install Debian archive keyring
+        run: sudo apt-get install -y debian-archive-keyring
 
       - name: Setup .NET SDK (bootstrap)
         uses: actions/setup-dotnet@v4
@@ -44,11 +47,12 @@ jobs:
       - name: Clone dotnet/runtime
         run: git clone --depth 1 --branch "release/9.0" https://github.com/dotnet/runtime.git ~/runtime
 
-      - name: Apply Cross-Compile Patches
+      - name: Apply Cross-Compile Patches (Fixes NETSDK1084 & Builds Hosts)
         run: |
           cd ~/runtime
           cat > /tmp/patch.py << 'PYEOF'
           import os, re
+
           def replace(filepath, old, new):
               if os.path.exists(filepath):
                   with open(filepath, 'r') as f: content = f.read()
@@ -96,14 +100,15 @@ jobs:
               with open(crossgen2_proj, 'r') as f: content = f.read()
               if '<UseAppHost>false</UseAppHost>' not in content:
                   new_props = '''  <PropertyGroup>
-                  <UseAppHost>false</UseAppHost>
-                  <PublishReadyToRun>false</PublishReadyToRun>
-                  <PublishTrimmed>false</PublishTrimmed>
-                  <PublishSingleFile>false</PublishSingleFile>
-                  </PropertyGroup>
-                  </Project>'''
+              <UseAppHost>false</UseAppHost>
+              <PublishReadyToRun>false</PublishReadyToRun>
+              <PublishTrimmed>false</PublishTrimmed>
+              <PublishSingleFile>false</PublishSingleFile>
+              </PropertyGroup>
+              </Project>'''
                   content = content.replace('</Project>', new_props)
                   with open(crossgen2_proj, 'w') as f: f.write(content)
+                  print("Patched crossgen2_publish.csproj to prevent NETSDK1084")
           PYEOF
           python3 /tmp/patch.py
 
@@ -119,34 +124,55 @@ jobs:
         run: |
           cd ~/runtime
           export ROOTFS_DIR="$HOME/runtime/.tools/rootfs/x86"
-          pkill -9 -f dotnet || true; pkill -9 -f msbuild || true
+          
+          pkill -9 -f "VBCSCompiler" || true
+          pkill -9 -f "msbuild" || true
+          pkill -9 -f "dotnet" || true
           ~/runtime/.dotnet/dotnet build-server shutdown || true
           sleep 3
-          sudo chmod -R 777 ~/runtime/artifacts || true
-          sudo rm -rf ~/runtime/artifacts/obj ~/runtime/artifacts/bin ~/runtime/artifacts/packages
           
-          ./build.sh -subset clr+libs+host -configuration Release -arch "x86" --cross \
-            /p:UseAppHost=false /p:SelfContained=false /p:RunTests=false /p:BuildTests=false \
-            /p:BuildInstaller=false /p:FeatureEventTrace=0 /p:FeaturePerfTracing=0 \
-            /p:ContinuousIntegrationBuild=true /p:GeneratePackageOnBuild=false
+          sudo chmod -R 777 ~/runtime/artifacts || true
+          sudo rm -rf ~/runtime/artifacts/obj
+          sudo rm -rf ~/runtime/artifacts/bin
+          sudo rm -rf ~/runtime/artifacts/packages
+          
+          ./build.sh \
+            -subset clr+libs+host \
+            -configuration Release \
+            -arch "x86" \
+            --cross \
+            /p:UseAppHost=false \
+            /p:SelfContained=false \
+            /p:RunTests=false \
+            /p:BuildTests=false \
+            /p:BuildInstaller=false \
+            /p:FeatureEventTrace=0 \
+            /p:FeaturePerfTracing=0 \
+            /p:ContinuousIntegrationBuild=true \
+            /p:GeneratePackageOnBuild=false
 
-      - name: Assemble Custom SDK
+      - name: Assemble and Package Custom SDK
         run: |
           set -e
-          mkdir -p ~/custom-sdk/host/fxr ~/custom-sdk/shared/Microsoft.NETCore.App
+          mkdir -p ~/custom-sdk/host/fxr
+          mkdir -p ~/custom-sdk/shared/Microsoft.NETCore.App
+          
           DOTNET_BIN=$(find ~/runtime/artifacts/bin -type f -name "dotnet" | grep -iE "x86.*release|release.*x86" | head -n 1)
           APPHOST_BIN=$(find ~/runtime/artifacts/bin -type f -name "apphost" | grep -iE "x86.*release|release.*x86" | head -n 1)
           SINGLEFILEHOST_BIN=$(find ~/runtime/artifacts/bin -type f -name "singlefilehost" | grep -iE "x86.*release|release.*x86" | head -n 1)
           HOSTFXR_BIN=$(find ~/runtime/artifacts/bin -type f -name "libhostfxr.so" | grep -iE "x86.*release|release.*x86" | head -n 1)
           
-          [ -n "$DOTNET_BIN" ] && { cp "$DOTNET_BIN" ~/custom-sdk/dotnet; chmod +x ~/custom-sdk/dotnet; }
-          [ -n "$APPHOST_BIN" ] && { cp "$APPHOST_BIN" ~/custom-sdk/host/apphost; chmod +x ~/custom-sdk/host/apphost; }
-          [ -n "$SINGLEFILEHOST_BIN" ] && { cp "$SINGLEFILEHOST_BIN" ~/custom-sdk/host/singlefilehost; chmod +x ~/custom-sdk/host/singlefilehost; }
+          [ -n "$DOTNET_BIN" ] && { cp "$DOTNET_BIN" ~/custom-sdk/dotnet; chmod +x ~/custom-sdk/dotnet; echo "✅ dotnet"; }
+          [ -n "$APPHOST_BIN" ] && { cp "$APPHOST_BIN" ~/custom-sdk/host/apphost; chmod +x ~/custom-sdk/host/apphost; echo "✅ apphost"; }
+          [ -n "$SINGLEFILEHOST_BIN" ] && { cp "$SINGLEFILEHOST_BIN" ~/custom-sdk/host/singlefilehost; chmod +x ~/custom-sdk/host/singlefilehost; echo "✅ singlefilehost"; }
           
           if [ -n "$HOSTFXR_BIN" ]; then
             FXR_VERSION=$(basename "$(dirname "$HOSTFXR_BIN")")
             mkdir -p ~/custom-sdk/host/fxr/$FXR_VERSION
             cp "$HOSTFXR_BIN" ~/custom-sdk/host/fxr/$FXR_VERSION/
+            echo "✅ libhostfxr.so → host/fxr/$FXR_VERSION/"
+          else
+            echo "❌ libhostfxr.so NOT FOUND"; exit 1
           fi
           
           SHARED_DIR=$(find ~/runtime/artifacts/bin -type d -path "*/shared/Microsoft.NETCore.App" | grep -iE "x86.*release|release.*x86" | head -n 1)
@@ -161,54 +187,148 @@ jobs:
           path: ~/dotnet-linux-x86-sdk.tar.gz
 
   # ========================================================================
-  # JOB 2: Build App, Compile Native Deps from Source, and Enforce RAM Limits
+  # JOB 2: Build Normal Platforms (Windows + Linux x64/arm64)
+  # ========================================================================
+  build:
+    needs: build-runtime-x86
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            runtime: win-x64
+          - os: windows-latest
+            runtime: win-arm64
+          - os: windows-latest
+            runtime: win-x86
+          - os: ubuntu-latest
+            runtime: linux-x64
+          - os: ubuntu-latest
+            runtime: linux-arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      - name: Checkout External Dependency (Scratch-Format-Converter)
+        uses: actions/checkout@v4
+        with:
+          repository: 'DaikoGames/Scratch-Format-Converter'
+          path: Scratch-Format-Converter
+      - name: Checkout External Dependency (Scratch-To-Snap)
+        uses: actions/checkout@v4
+        with:
+          repository: 'DaikoGames/Scratch-To-Snap-'
+          path: Scratch-To-Snap
+      - name: Checkout External Dependency (Translator)
+        uses: actions/checkout@v4
+        with:
+          repository: 'DaikoGames/Translate-Folder'
+          path: Translate-Folder
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+      - name: Build and Publish App
+        shell: bash
+        run: |
+          dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" -c Release -r ${{ matrix.runtime }} -o "./publish/${{ matrix.runtime }}" -p:SelfContained=true -p:PublishSingleFile=true
+      - name: Install Velopack CLI
+        run: dotnet tool install -g vpk
+      - name: Add dotnet tools to PATH
+        shell: bash
+        run: echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
+      - name: Add files (Windows)
+        shell: pwsh
+        if: contains(matrix.runtime, 'win')
+        run: |
+          $baseDir = "./publish/${{ matrix.runtime }}"
+          New-Item -ItemType Directory -Force -Path "$baseDir/ConverterIcon", "$baseDir/Scratch-Format-Converter", "$baseDir/Scratch-To-Snap", "$baseDir/Install", "$baseDir/svg_library_ScratchJnr", "$baseDir/wav_library_ScratchJnr"
+          Copy-Item "./ConverterIcon/Converter.ico", "./ConverterIcon/Converter.png" "$baseDir/ConverterIcon/"
+          Copy-Item "./Scratch-Format-Converter/Convert.js", "./Scratch-Format-Converter/package.json", "./Scratch-Format-Converter/package-lock.json" "$baseDir/Scratch-Format-Converter/"
+          Copy-Item "./Scratch-To-Snap/converter.js", "./Scratch-To-Snap/package.json", "./Scratch-To-Snap/package-lock.json" "$baseDir/Scratch-To-Snap/"
+          Copy-Item "./Install/dotnet-install.ps1" "$baseDir/Install/"
+          Copy-Item -Path "./svg_library_ScratchJnr/*" "$baseDir/svg_library_ScratchJnr/"
+          Copy-Item "./wav_library_ScratchJnr/*" "$baseDir/wav_library_ScratchJnr/"
+          Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.gz" | ForEach-Object { $dn = $_.Directory.Name; New-Item -ItemType Directory -Force -Path "$baseDir/Translate-Folder/$dn" | Out-Null; gzip -d -c $_.FullName > "$baseDir/Translate-Folder/$dn/$($_.Name -replace '\.gz$', '')"; Remove-Item $_.FullName -Force }
+          Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.json" | ForEach-Object { $dn = $_.Directory.Name; Copy-Item $_.FullName "$baseDir/Translate-Folder/$dn/" -Force }
+          Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.yml" | ForEach-Object { $dn = $_.Directory.Name; Copy-Item $_.FullName "$baseDir/Translate-Folder/$dn/" -Force }
+          Copy-Item "./README.md" "$baseDir/"
+      - name: Add Files (Linux)
+        shell: pwsh
+        if: contains(matrix.runtime, 'linux')
+        run: |
+          $baseDir = "./publish/${{ matrix.runtime }}"
+          New-Item -ItemType Directory -Force -Path "$baseDir/ConverterIcon", "$baseDir/Scratch-Format-Converter", "$baseDir/Scratch-To-Snap", "$baseDir/Install", "$baseDir/svg_library_ScratchJnr", "$baseDir/wav_library_ScratchJnr"
+          Copy-Item "./ConverterIcon/Converter.ico", "./ConverterIcon/Converter.png" "$baseDir/ConverterIcon/"
+          Copy-Item "./Scratch-Format-Converter/Convert.js", "./Scratch-Format-Converter/package.json", "./Scratch-Format-Converter/package-lock.json" "$baseDir/Scratch-Format-Converter/"
+          Copy-Item "./Scratch-To-Snap/converter.js", "./Scratch-To-Snap/package.json", "./Scratch-To-Snap/package-lock.json" "$baseDir/Scratch-To-Snap/"
+          Copy-Item "./Install/dotnet-install.sh" "$baseDir/Install/"
+          Copy-Item -Path "./svg_library_ScratchJnr/*" "$baseDir/svg_library_ScratchJnr/"
+          Copy-Item "./wav_library_ScratchJnr/*" "$baseDir/wav_library_ScratchJnr/"
+          Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.gz" | ForEach-Object { $dn = $_.Directory.Name; New-Item -ItemType Directory -Force -Path "$baseDir/Translate-Folder/$dn" | Out-Null; gzip -d -c $_.FullName > "$baseDir/Translate-Folder/$dn/$($_.Name -replace '\.gz$', '')"; Remove-Item $_.FullName -Force }
+          Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.json" | ForEach-Object { $dn = $_.Directory.Name; Copy-Item $_.FullName "$baseDir/Translate-Folder/$dn/" -Force }
+          Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.yml" | ForEach-Object { $dn = $_.Directory.Name; Copy-Item $_.FullName "$baseDir/Translate-Folder/$dn/" -Force }
+          Copy-Item "./README.md" "$baseDir/"
+      - name: Check Help
+        shell: bash
+        run: vpk pack --help
+      - name: Pack with Velopack Windows
+        shell: bash
+        if: contains(matrix.runtime, 'win')
+        run: vpk pack -u "Converter" -v "0.9.${{ github.run_number }}" --packDir "./publish/${{ matrix.runtime }}" --outputDir "./Releases" --icon "./ConverterIcon/Converter.ico" --channel "${{ matrix.runtime }}"
+      - name: Pack with Velopack Linux
+        shell: bash
+        if: contains(matrix.runtime, 'linux')
+        run: vpk pack -u "Converter" -v "0.9.${{ github.run_number }}" --packDir "./publish/${{ matrix.runtime }}" --outputDir "./Releases" --icon "./ConverterIcon/Converter.png" --channel "${{ matrix.runtime }}"
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: vpk-artifacts-${{ matrix.runtime }}
+          path: ./Releases/*
+
+  # ========================================================================
+  # JOB 3: Build Linux x86 (Custom Runtime + True i386 Libs + RAM Limits)
   # ========================================================================
   build_ubuntu-latest_linux-x86:
-    name: Build Linux x86 App (True Source Dependencies + Hardcoded RAM)
+    name: Build Linux x86 (Self-Contained, Single-File, Low RAM)
     needs: build-runtime-x86
     runs-on: ubuntu-22.04
     timeout-minutes: 60
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-        
+      - name: Checkout External Dependency (Scratch-Format-Converter)
+        uses: actions/checkout@v4
+        with:
+          repository: 'DaikoGames/Scratch-Format-Converter'
+          path: Scratch-Format-Converter
+      - name: Checkout External Dependency (Scratch-To-Snap)
+        uses: actions/checkout@v4
+        with:
+          repository: 'DaikoGames/Scratch-To-Snap-'
+          path: Scratch-To-Snap
+      - name: Checkout External Dependency (Translator)
+        uses: actions/checkout@v4
+        with:
+          repository: 'DaikoGames/Translate-Folder'
+          path: Translate-Folder
       - name: Download Custom x86 Runtime
         uses: actions/download-artifact@v4
         with:
           name: dotnet-linux-x86-sdk
           path: ~/custom-sdk-tar
-
       - name: Extract Custom x86 Runtime
         run: |
           mkdir -p ~/custom-sdk
           tar -xzf ~/custom-sdk-tar/dotnet-linux-x86-sdk.tar.gz -C ~/custom-sdk
-
-      - name: Setup Official .NET 9 SDK
+      - name: Setup Native 64-bit SDK
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.200'
-
-      - name: Install i386 Build Tools & Source Dependencies
+      - name: Install i386 Native Libraries (True x86)
         run: |
           sudo dpkg --add-architecture i386
           sudo apt-get update
-          # Install tools to compile ImageMagick from source for i386
-          sudo apt-get install -y gcc-multilib g++-multilib libjpeg-dev:i386 libpng-dev:i386 libtiff-dev:i386
-          # Fetch verified source-built LibVLC i386 binaries (Debian compiles these from source)
-          sudo apt-get install -y libvlc-dev:i386 libvlccore-dev:i386 vlc-plugin-base:i386
-
-      - name: Compile ImageMagick from Source (True x86)
-        run: |
-          echo "=== Compiling ImageMagick from source for i386 ==="
-          wget -q https://imagemagick.org/archive/ImageMagick.tar.gz
-          tar xzf ImageMagick.tar.gz
-          cd ImageMagick-*
-          # Configure explicitly for 32-bit x86 Linux
-          ./configure --host=i686-pc-linux-gnu --prefix=/usr/local --disable-openmp --disable-opencl --without-x --without-magick-plus-plus
-          make -j$(nproc)
-          sudo make install
-          echo "=== ImageMagick x86 compilation complete ==="
-
+          sudo apt-get install -y libvlc-dev:i386 libvlccore-dev:i386 vlc-plugin-base:i386 libmagickcore-6.q16-6:i386 libmagickwand-6.q16-6:i386
       - name: Restore and Publish App
         shell: bash
         run: |
@@ -218,6 +338,7 @@ jobs:
             -p:PublishSingleFile=true \
             -p:UseAppHost=true \
             -p:RuntimeIdentifier=linux-x86 \
+            -p:ExcludeMagickX64=true \
             -p:DebugType=none \
             -p:DebugSymbols=false
 
@@ -236,52 +357,45 @@ jobs:
           CUSTOM_HOSTFXR=$(find ~/custom-sdk/host/fxr -name "libhostfxr.so" | head -n 1)
           [ -f "$CUSTOM_HOSTFXR" ] && cp "$CUSTOM_HOSTFXR" "./publish/linux-x86/libhostfxr.so"
 
-      - name: Assemble Final Package with TRUE x86 Native Libs & Hardcoded RAM Limits
+      - name: Assemble Final Package (Inject True i386 Libs + RAM Limits)
         shell: bash
         run: |
           mkdir -p ./final-linux-x86
           cp -r ./publish/linux-x86/* ./final-linux-x86/
           
-          # 1. Nuke any x64/arm64 native assets that NuGet might have sneaked in
+          # Purge x64/arm64 artifacts
           rm -f ./final-linux-x86/Magick.NET-Q16-x64.dll ./final-linux-x86/Magick.NET-Q16-arm64.dll
           rm -f ./final-linux-x86/libMagick*x64*.so ./final-linux-x86/libMagick*arm64*.so
           sed -i '/Magick.NET-Q16-x64/d; /Magick.NET-Q16-arm64/d' ./final-linux-x86/Converter.deps.json || true
 
-          # 2. Inject our CUSTOM COMPILED ImageMagick x86 libraries
-          cp /usr/local/lib/libMagick*.* ./final-linux-x86/ 2>/dev/null || true
-
-          # 3. Inject verified Debian source-built LibVLC x86 libraries
+          # Inject verified Debian source-built LibVLC i386
           cp /usr/lib/i386-linux-gnu/libvlc.so* ./final-linux-x86/ 2>/dev/null || true
           cp /usr/lib/i386-linux-gnu/libvlccore.so* ./final-linux-x86/ 2>/dev/null || true
           cp -r /usr/lib/i386-linux-gnu/vlc/ ./final-linux-x86/ 2>/dev/null || true
 
-          # 4. CREATE THE HARDCODED RAM-LIMIT LAUNCH WRAPPER
+          # Create RAM-limited launch wrapper
           cat > ./final-linux-x86/run.sh << 'EOF'
           #!/bin/bash
           DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
           export DOTNET_ROOT="$DIR"
           export LD_LIBRARY_PATH="$DIR:$DIR/vlc:$LD_LIBRARY_PATH"
-          
-          # === HARDCODED MEMORY LIMITS FOR 32-BIT SINGLE-FILE ===
           export DOTNET_BUNDLE_EXTRACT_BASE_DIR=/tmp/dotnet_extract
-          export DOTNET_GCHeapHardLimit=536870912       # 512 MB absolute hard limit
-          export DOTNET_GCHeapHardLimitPercent=50       # 50% of available RAM
-          export DOTNET_gcServer=0                      # Workstation GC (drastically lower memory footprint)
-          export DOTNET_GCHeapCount=1                   # Force single GC heap
-          export DOTNET_EnableDiagnostics=0             # Disable diagnostic endpoints (saves ~50MB)
-          export DOTNET_TieredCompilation=0             # Disable tiered JIT (saves memory)
+          export DOTNET_GCHeapHardLimit=536870912
+          export DOTNET_GCHeapHardLimitPercent=50
+          export DOTNET_gcServer=0
+          export DOTNET_GCHeapCount=1
+          export DOTNET_EnableDiagnostics=0
+          export DOTNET_TieredCompilation=0
           export DOTNET_ReadyToRun=0
-          export DOTNET_DefaultStackSize=262144         # 256KB stack per thread (default is 1MB+)
-          export DOTNET_JitMinOpts=1                    # Minimize JIT optimization memory
-          
+          export DOTNET_DefaultStackSize=262144
+          export DOTNET_JitMinOpts=1
           ulimit -s 256 2>/dev/null || true
           mkdir -p /tmp/dotnet_extract
-          
           exec "$DIR/Converter" "$@"
           EOF
           chmod +x ./final-linux-x86/run.sh
 
-          # 5. Copy remaining project assets
+          # Copy assets
           mkdir -p ./final-linux-x86/ConverterIcon ./final-linux-x86/Scratch-Format-Converter ./final-linux-x86/Scratch-To-Snap ./final-linux-x86/svg_library_ScratchJnr ./final-linux-x86/wav_library_ScratchJnr
           cp ./ConverterIcon/* ./final-linux-x86/ConverterIcon/ 2>/dev/null || true
           cp ./Scratch-Format-Converter/* ./final-linux-x86/Scratch-Format-Converter/ 2>/dev/null || true
@@ -289,6 +403,18 @@ jobs:
           cp -r ./svg_library_ScratchJnr/* ./final-linux-x86/svg_library_ScratchJnr/ 2>/dev/null || true
           cp -r ./wav_library_ScratchJnr/* ./final-linux-x86/wav_library_ScratchJnr/ 2>/dev/null || true
           cp ./README.md ./final-linux-x86/ 2>/dev/null || true
+
+          find ./Translate-Folder -type f -name "*.gz" | while read gz_file; do 
+            dir_name=$(basename "$(dirname "$gz_file")")
+            mkdir -p "./final-linux-x86/Translate-Folder/$dir_name"
+            out_file=$(basename "$gz_file" .gz)
+            gzip -d -c "$gz_file" > "./final-linux-x86/Translate-Folder/$dir_name/$out_file"
+          done
+          find ./Translate-Folder -type f \( -name "*.json" -o -name "*.yml" \) | while read file; do 
+            dir_name=$(basename "$(dirname "$file")")
+            mkdir -p "./final-linux-x86/Translate-Folder/$dir_name"
+            cp "$file" "./final-linux-x86/Translate-Folder/$dir_name/"
+          done
 
       - name: Create Linux x86 Archive
         run: tar -cJf Converter-linux-x86.tar.xz -C ./final-linux-x86 .
@@ -300,10 +426,10 @@ jobs:
           path: ./Converter-linux-x86.tar.xz
 
   # ========================================================================
-  # JOB 3: Release
+  # JOB 4: Release
   # ========================================================================
   release:
-    needs: [build_ubuntu-latest_linux-x86]
+    needs: [build, build_ubuntu-latest_linux-x86]
     runs-on: ubuntu-latest
     steps:
       - name: Download Artifacts
