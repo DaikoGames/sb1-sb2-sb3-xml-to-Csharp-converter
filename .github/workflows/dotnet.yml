@@ -142,10 +142,9 @@ jobs:
           ~/runtime/.dotnet/dotnet build-server shutdown || true
           rm -rf ~/runtime/artifacts/obj ~/runtime/artifacts/bin ~/runtime/artifacts/packages
           
-          # Build the runtime
-          # FIX: Removed `/p:UseAppHost=false` to prevent NETSDK1067 errors 
-          # on the HelloWorld/SelfContained.csproj test assets.
+          # FIX: Added /p:UseAppHost=true to prevent NETSDK1067 on SelfContained test assets
           ./build.sh -subset clr+libs+host+packs -configuration Release -arch "x86" --cross \
+            /p:UseAppHost=true \
             /p:RunTests=false /p:BuildTests=false \
             /p:BuildInstaller=false /p:FeatureEventTrace=0 /p:FeaturePerfTracing=0 \
             /p:ContinuousIntegrationBuild=true \
@@ -332,8 +331,38 @@ jobs:
       - name: Restore and Publish App
         shell: bash
         run: |
-          dotnet restore "./sb1 sb2 sb3 xml to Csharp converter.csproj" -r linux-x86 -p:RuntimeIdentifier=linux-x86 -p:UseAppHost=false -p:ExcludeMagickX64=true
-          dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" -c Release -r linux-x86 -o "./publish/linux-x86" -p:SelfContained=false -p:UseAppHost=false -p:RuntimeIdentifier=linux-x86 -p:ExcludeMagickX64=true
+          # Publish natively as Self-Contained. The SDK will automatically patch the apphost for us.
+          dotnet restore "./sb1 sb2 sb3 xml to Csharp converter.csproj" -r linux-x86 -p:RuntimeIdentifier=linux-x86 -p:ExcludeMagickX64=true
+          dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" -c Release -r linux-x86 -o "./publish/linux-x86" \
+            -p:SelfContained=true \
+            -p:UseAppHost=true \
+            -p:RuntimeIdentifier=linux-x86 \
+            -p:ExcludeMagickX64=true
+
+      - name: Inject Custom Patched CoreCLR
+        shell: bash
+        run: |
+          # Overwrite the OFFICIAL CoreCLR downloaded from NuGet with our CUSTOM memory-patched one
+          CUSTOM_SHARED=$(find ~/custom-sdk/shared/Microsoft.NETCore.App -type d | head -n 1)
+          if [ -d "$CUSTOM_SHARED" ]; then
+            echo "Injecting custom CoreCLR native libraries..."
+            for so_file in "$CUSTOM_SHARED"/*.so; do
+              if [ -f "$so_file" ]; then
+                filename=$(basename "$so_file")
+                # Do not overwrite the apphost (Converter) because the SDK already patched it for us!
+                if [ "$filename" != "Converter" ] && [ "$filename" != "dotnet" ]; then
+                  cp "$so_file" "./publish/linux-x86/$filename"
+                  echo "  Injected $filename"
+                fi
+              fi
+            done
+          fi
+
+          CUSTOM_HOSTFXR=$(find ~/custom-sdk/host/fxr -name "libhostfxr.so" | head -n 1)
+          if [ -f "$CUSTOM_HOSTFXR" ] && [ -f "./publish/linux-x86/libhostfxr.so" ]; then
+            cp "$CUSTOM_HOSTFXR" "./publish/linux-x86/libhostfxr.so"
+          fi
+
       - name: Assemble Self-Contained App & Inject Debian i386 Native Libs
         shell: bash
         run: |
@@ -358,10 +387,6 @@ jobs:
           find . -name "*.so*" -exec cp {} "$GITHUB_WORKSPACE/final-linux-x86"/ \;
           cd "$GITHUB_WORKSPACE"
           
-          cp ~/custom-sdk/dotnet ./final-linux-x86/dotnet
-          cp ~/custom-sdk/dotnet-real ./final-linux-x86/dotnet-real
-          chmod +x ./final-linux-x86/dotnet ./final-linux-x86/dotnet-real
-          
           cat > ./final-linux-x86/run.sh << 'EOF'
           #!/bin/bash
           DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
@@ -383,31 +408,6 @@ jobs:
           EOF
           chmod +x ./final-linux-x86/run.sh
 
-          python3 - <<'PYEOF'
-          import os, glob, sys
-          sdk_dir = os.path.expanduser("~/custom-sdk")
-          app_dir = "./final-linux-x86"
-          apphost_candidates = glob.glob(f"{sdk_dir}/**/apphost", recursive=True)
-          placeholder = b"c3ab8ff13720e8ad9047dd39466b3c8974e592c2fa383d4a3960714caef0c4f2"
-          dll_name = "Converter.dll"
-          if not os.path.exists(os.path.join(app_dir, dll_name)): sys.exit(1)
-          replacement = dll_name.encode('utf-8') + b"\x00" * (len(placeholder) - len(dll_name))
-          output_path = os.path.join(app_dir, "Converter")
-          for candidate in apphost_candidates:
-              with open(candidate, 'rb') as f: data = bytearray(f.read())
-              idx = data.find(placeholder)
-              if idx != -1:
-                  data[idx:idx+len(placeholder)] = replacement
-                  with open(output_path, 'wb') as f: f.write(data)
-                  break
-          PYEOF
-          chmod +x ./final-linux-x86/Converter
-          
-          mkdir -p ./final-linux-x86/host/fxr
-          cp -r ~/custom-sdk/host/fxr/* ./final-linux-x86/host/fxr/
-          mkdir -p ./final-linux-x86/shared/Microsoft.NETCore.App
-          cp -r ~/custom-sdk/shared/Microsoft.NETCore.App/* ./final-linux-x86/shared/Microsoft.NETCore.App/
-          
           mkdir -p ./final-linux-x86/ConverterIcon
           cp ./ConverterIcon/Converter.ico ./final-linux-x86/ConverterIcon/ || true
           cp ./ConverterIcon/Converter.png ./final-linux-x86/ConverterIcon/ || true
