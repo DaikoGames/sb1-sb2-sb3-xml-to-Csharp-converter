@@ -122,19 +122,22 @@ jobs:
           cd ~/runtime
           sudo ./eng/common/cross/build-rootfs.sh "x86" "debian" "12" --skipunmount
 
-      - name: Cross-compile .NET runtime for linux-x86
+      - name: Build .NET Runtime
+        shell: bash
         run: |
           cd ~/runtime
           export ROOTFS_DIR="$HOME/runtime/.tools/rootfs/x86"
           pkill -9 -f dotnet || true
           ~/runtime/.dotnet/dotnet build-server shutdown || true
           rm -rf ~/runtime/artifacts/obj ~/runtime/artifacts/bin ~/runtime/artifacts/packages
+          
+          # Added 'packs' to subset and removed GeneratePackageOnBuild=false to build the NuGet runtime pack!
+          # FIX: Removed '/p:UseAppHost=false' to prevent NETSDK1067 errors in SelfContained.csproj test assets.
           ./build.sh -subset clr+libs+host+packs -configuration Release -arch "x86" --cross \
             /p:RunTests=false /p:BuildTests=false \
             /p:BuildInstaller=false /p:FeatureEventTrace=0 /p:FeaturePerfTracing=0 \
-            /p:ContinuousIntegrationBuild=true /p:BuildInParallel=false
-        env:
-          ROOTFS_DIR: /home/runner/runtime/.tools/rootfs/x86
+            /p:ContinuousIntegrationBuild=true \
+            /p:BuildInParallel=false
 
       - name: Assemble and Package Custom SDK
         run: |
