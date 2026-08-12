@@ -135,7 +135,12 @@ jobs:
           ~/runtime/.dotnet/dotnet build-server shutdown || true
           rm -rf ~/runtime/artifacts/obj ~/runtime/artifacts/bin ~/runtime/artifacts/packages
           
+          # FIX: Added /p:UseAppHost=false and /p:SelfContained=false back!
+          # UseAppHost=false prevents NETSDK1084 on Build.proj (stops looking for missing linux-x86 pack).
+          # SelfContained=false prevents NETSDK1067 on any remaining test assets.
           ./build.sh -subset clr+libs+host+packs -configuration Release -arch "x86" --cross \
+            /p:UseAppHost=false \
+            /p:SelfContained=false \
             /p:RunTests=false /p:BuildTests=false \
             /p:BuildInstaller=false /p:FeatureEventTrace=0 /p:FeaturePerfTracing=0 \
             /p:ContinuousIntegrationBuild=true \
