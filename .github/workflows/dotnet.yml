@@ -10,7 +10,7 @@ permissions:
  
 jobs:
   # ========================================================================
-  # JOB 1: Build Custom 32-bit .NET Runtime from Source
+  # JOB 1: Build Custom 32-bit .NET Runtime from Source (Fully Patched)
   # ========================================================================
   build-runtime-x86:
     name: Cross-compile .NET 9.0 x86 Runtime
@@ -80,7 +80,7 @@ jobs:
               if not content.lstrip().startswith('#if FEATURE_PERFTRACING'):
                   with open(filepath, 'w') as f: f.write('#if FEATURE_PERFTRACING\n' + content + '\n#endif // FEATURE_PERFTRACING\n')
 
-          # 2. Fix linker groups for 32-bit
+          # 2. Fix linker groups for 32-bit hosts
           for host in ['corerun', 'apphost', 'singlefilehost']:
               filepath = f'src/coreclr/hosts/{host}/CMakeLists.txt'
               if os.path.exists(filepath):
@@ -114,8 +114,7 @@ jobs:
                   with open(crossgen2_proj, 'w') as f: f.write(content)
                   print("Patched crossgen2_publish.csproj to prevent NETSDK1084")
 
-          # 5. SURGICAL FIX FOR MSB3101: Delete the cache file right before MSBuild tries to create it
-          # This prevents the "already exists" collision when the project is evaluated twice.
+          # 5. SURGICAL FIX FOR MSB3101: Delete cache file right before MSBuild tries to create it
           hostmodel_proj = 'src/installer/managed/Microsoft.NET.HostModel/Microsoft.NET.HostModel.csproj'
           if os.path.exists(hostmodel_proj):
               with open(hostmodel_proj, 'r') as f: content = f.read()
@@ -130,6 +129,9 @@ jobs:
                   print("Patched Microsoft.NET.HostModel.csproj to delete cache before generation (Fixes MSB3101)")
           PYEOF
           python3 /tmp/patch.py
+
+      - name: Generate cross rootfs for x86
+        run: cd ~/runtime && sudo ./eng/common/cross/build-rootfs.sh "x86" "debian" "12" --skipunmount
 
       - name: Build .NET Runtime (x86 Cross-Compile)
         shell: bash
@@ -146,14 +148,14 @@ jobs:
           pkill -9 -f "msbuild" || true
           pkill -9 -f "dotnet" || true
           ~/runtime/.dotnet/dotnet build-server shutdown || true
-          sleep 3
+          sleep 5
           
           # Nuclear wipe of artifacts
           sudo rm -rf ~/runtime/artifacts
           mkdir -p ~/runtime/artifacts
           sudo chmod -R 777 ~/runtime/artifacts
           
-          # Build command with MAXIMUM test suppression to prevent duplicate evaluations
+          # Build command with MAXIMUM test suppression
           ./build.sh \
             -subset clr+libs+host \
             -configuration Release \
@@ -165,44 +167,6 @@ jobs:
             /p:BuildTests=false \
             /p:Test=false \
             /p:BuildTestProjects=false \
-            /p:BuildInstaller=false \
-            /p:FeatureEventTrace=0 \
-            /p:FeaturePerfTracing=0 \
-            /p:ContinuousIntegrationBuild=true \
-            /p:GeneratePackageOnBuild=false
-      - name: Generate cross rootfs for x86
-        run: cd ~/runtime && sudo ./eng/common/cross/build-rootfs.sh "x86" "debian" "12" --skipunmount
-
-      - name: Build .NET Runtime (x86 Cross-Compile)
-        shell: bash
-        env:
-          DOTNET_ROOT: /usr/share/dotnet
-          ROOTFS_DIR: /home/runner/runtime/.tools/rootfs/x86
-          MSBUILDDISABLENODEREUSE: 1
-        run: |
-          cd ~/runtime
-          export ROOTFS_DIR="$HOME/runtime/.tools/rootfs/x86"
-          
-          pkill -9 -f "VBCSCompiler" || true
-          pkill -9 -f "msbuild" || true
-          pkill -9 -f "dotnet" || true
-          ~/runtime/.dotnet/dotnet build-server shutdown || true
-          sleep 3
-          
-          sudo chmod -R 777 ~/runtime/artifacts || true
-          sudo rm -rf ~/runtime/artifacts/obj
-          sudo rm -rf ~/runtime/artifacts/bin
-          sudo rm -rf ~/runtime/artifacts/packages
-          
-          ./build.sh \
-            -subset clr+libs+host \
-            -configuration Release \
-            -arch "x86" \
-            --cross \
-            /p:UseAppHost=false \
-            /p:SelfContained=false \
-            /p:RunTests=false \
-            /p:BuildTests=false \
             /p:BuildInstaller=false \
             /p:FeatureEventTrace=0 \
             /p:FeaturePerfTracing=0 \
