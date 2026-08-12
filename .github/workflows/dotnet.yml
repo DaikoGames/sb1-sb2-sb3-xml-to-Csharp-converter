@@ -107,8 +107,6 @@ jobs:
                   with open(crossgen2_proj, 'w') as f: f.write(content)
                   print("Patched crossgen2_publish.csproj to prevent NETSDK1084")
 
-          # FIX: Safely bypass crossgen2 sfxproj without breaking the SharedFramework SDK targets.
-          # We append empty targets to satisfy MSB4057 (CreateManifestResourceNames) while doing nothing.
           sfxproj = 'src/installer/pkg/sfx/Microsoft.NETCore.App/Microsoft.NETCore.App.Crossgen2.sfxproj'
           if os.path.exists(sfxproj):
               with open(sfxproj, 'r') as f: content = f.read()
@@ -205,6 +203,10 @@ jobs:
             runtime: win-arm64
           - os: windows-latest
             runtime: win-x86
+          - os: macos-13
+            runtime: osx-x64
+          - os: macos-latest
+            runtime: osx-arm64
           - os: ubuntu-latest
             runtime: linux-x64
           - os: ubuntu-latest
@@ -257,6 +259,22 @@ jobs:
           Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.json" | ForEach-Object { $dn = $_.Directory.Name; Copy-Item $_.FullName "$baseDir/Translate-Folder/$dn/" -Force }
           Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.yml" | ForEach-Object { $dn = $_.Directory.Name; Copy-Item $_.FullName "$baseDir/Translate-Folder/$dn/" -Force }
           Copy-Item "./README.md" "$baseDir/"
+      - name: Add Files (macOS)
+        shell: pwsh
+        if: contains(matrix.runtime, 'osx')
+        run: |
+          $baseDir = "./publish/${{ matrix.runtime }}"
+          New-Item -ItemType Directory -Force -Path "$baseDir/ConverterIcon", "$baseDir/Scratch-Format-Converter", "$baseDir/Scratch-To-Snap", "$baseDir/Install", "$baseDir/svg_library_ScratchJnr", "$baseDir/wav_library_ScratchJnr"
+          Copy-Item "./ConverterIcon/Converter.ico", "./ConverterIcon/Converter.png" "$baseDir/ConverterIcon/"
+          Copy-Item "./Scratch-Format-Converter/Convert.js", "./Scratch-Format-Converter/package.json", "./Scratch-Format-Converter/package-lock.json" "$baseDir/Scratch-Format-Converter/"
+          Copy-Item "./Scratch-To-Snap/converter.js", "./Scratch-To-Snap/package.json", "./Scratch-To-Snap/package-lock.json" "$baseDir/Scratch-To-Snap/"
+          Copy-Item "./Install/dotnet-install.sh" "$baseDir/Install/"
+          Copy-Item -Path "./svg_library_ScratchJnr/*" "$baseDir/svg_library_ScratchJnr/"
+          Copy-Item "./wav_library_ScratchJnr/*" "$baseDir/wav_library_ScratchJnr/"
+          Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.gz" | ForEach-Object { $dn = $_.Directory.Name; New-Item -ItemType Directory -Force -Path "$baseDir/Translate-Folder/$dn" | Out-Null; gzip -d -c $_.FullName > "$baseDir/Translate-Folder/$dn/$($_.Name -replace '\.gz$', '')"; Remove-Item $_.FullName -Force }
+          Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.json" | ForEach-Object { $dn = $_.Directory.Name; Copy-Item $_.FullName "$baseDir/Translate-Folder/$dn/" -Force }
+          Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.yml" | ForEach-Object { $dn = $_.Directory.Name; Copy-Item $_.FullName "$baseDir/Translate-Folder/$dn/" -Force }
+          Copy-Item "./README.md" "$baseDir/"
       - name: Add Files (Linux)
         shell: pwsh
         if: contains(matrix.runtime, 'linux')
@@ -280,6 +298,10 @@ jobs:
         shell: bash
         if: contains(matrix.runtime, 'win')
         run: vpk pack -u "Converter" -v "0.9.${{ github.run_number }}" --packDir "./publish/${{ matrix.runtime }}" --outputDir "./Releases" --icon "./ConverterIcon/Converter.ico" --channel "${{ matrix.runtime }}"
+      - name: Pack with Velopack macOS
+        shell: bash
+        if: contains(matrix.runtime, 'osx')
+        run: vpk pack -u "Converter" -v "0.9.${{ github.run_number }}" --packDir "./publish/${{ matrix.runtime }}" --outputDir "./Releases" --icon "./ConverterIcon/Converter.png" --channel "${{ matrix.runtime }}"
       - name: Pack with Velopack Linux
         shell: bash
         if: contains(matrix.runtime, 'linux')
@@ -326,31 +348,37 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.200'
+
+      - name: Force SDK Path and Inject Custom Host Pack
+        shell: bash
+        run: |
+          # FIX: Force the runner to use the SDK installed by setup-dotnet (~/.dotnet) 
+          # instead of the global system SDK (/usr/share/dotnet) which lacks linux-x86 support.
+          export DOTNET_ROOT="$HOME/.dotnet"
+          export PATH="$HOME/.dotnet:$PATH"
+          echo "DOTNET_ROOT=$HOME/.dotnet" >> $GITHUB_ENV
+          echo "$HOME/.dotnet" >> $GITHUB_PATH
+          
+          # Inject the custom apphost into the 9.0.20 pack directory of the 9.0.200 SDK
+          HOST_PACK_DIR="$HOME/.dotnet/packs/Microsoft.NETCore.App.Host.linux-x86/9.0.20/runtimes/linux-x86/native"
+          mkdir -p "$HOST_PACK_DIR"
+          cp ~/custom-sdk/host/apphost "$HOST_PACK_DIR/apphost"
+          cp ~/custom-sdk/host/singlefilehost "$HOST_PACK_DIR/singlefilehost"
+          
+          echo "✅ Custom linux-x86 hosts injected into: $HOST_PACK_DIR"
+          ls -la "$HOST_PACK_DIR"
+
       - name: Install i386 Native Libraries
         run: |
           sudo dpkg --add-architecture i386
           sudo apt-get update
           sudo apt-get install -y libvlc-dev:i386 libvlccore-dev:i386 vlc-plugin-base:i386 libmagickcore-6.q16-6:i386 libmagickwand-6.q16-6:i386
 
-      - name: Inject Custom Host Pack to bypass NETSDK1084
-        shell: bash
-        run: |
-          PACK_VERSION="9.0.20"
-          HOST_PACK_DIR="$HOME/.dotnet/packs/Microsoft.NETCore.App.Host.linux-x86/$PACK_VERSION/runtimes/linux-x86/native"
-          mkdir -p "$HOST_PACK_DIR"
-          
-          cp ~/custom-sdk/host/apphost "$HOST_PACK_DIR/apphost"
-          cp ~/custom-sdk/host/singlefilehost "$HOST_PACK_DIR/singlefilehost"
-          
-          echo "✅ Custom linux-x86 hosts injected into SDK pack directory: $HOST_PACK_DIR"
-          ls -la "$HOST_PACK_DIR"
-
       - name: Restore and Publish App
         shell: bash
+        env:
+          DOTNET_ROOT: ${{ env.DOTNET_ROOT }}
         run: |
-          # PublishReadyToRun=true uses the host's 64-bit crossgen2 to generate 32-bit R2R images.
-          # IncludeNativeLibrariesForSelfExtract=false keeps native .so files outside the single-file bundle 
-          # so we can swap in our custom memory-patched libcoreclr.so.
           dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" -c Release -r linux-x86 -o "./publish/linux-x86" \
             -p:SelfContained=true \
             -p:PublishSingleFile=true \
