@@ -127,43 +127,20 @@ jobs:
           cd ~/runtime
           sudo ./eng/common/cross/build-rootfs.sh "x86" "debian" "12" --skipunmount
 
-      - name: Build .NET Runtime (x86 Cross-Compile)
-        shell: bash
-        env:
-          DOTNET_ROOT: /usr/share/dotnet
-          ROOTFS_DIR: /home/runner/runtime/.tools/rootfs/x86
-          MSBUILDDISABLENODEREUSE: 1
+      - name: Build .NET Runtime
         run: |
           cd ~/runtime
           export ROOTFS_DIR="$HOME/runtime/.tools/rootfs/x86"
-          
-          pkill -9 -f "VBCSCompiler" || true
-          pkill -9 -f "msbuild" || true
-          pkill -9 -f "dotnet" || true
+          pkill -9 -f dotnet || true
           ~/runtime/.dotnet/dotnet build-server shutdown || true
-          sleep 5
+          rm -rf ~/runtime/artifacts/obj ~/runtime/artifacts/bin ~/runtime/artifacts/packages
           
-          sudo rm -rf ~/runtime/artifacts
-          mkdir -p ~/runtime/artifacts
-          sudo chmod -R 777 ~/runtime/artifacts
-          
-          ./build.sh \
-            -subset clr+libs+host \
-            -configuration Release \
-            -arch "x86" \
-            --cross \
-            /p:UseAppHost=false \
-            /p:SelfContained=false \
-            /p:RunTests=false \
-            /p:BuildTests=false \
-            /p:Test=false \
-            /p:BuildTestProjects=false \
-            /p:BuildInstaller=false \
-            /p:FeatureEventTrace=0 \
-            /p:FeaturePerfTracing=0 \
+          ./build.sh -subset clr+libs+host+packs -configuration Release -arch "x86" --cross \
+            /p:RunTests=false /p:BuildTests=false \
+            /p:BuildInstaller=false /p:FeatureEventTrace=0 /p:FeaturePerfTracing=0 \
             /p:ContinuousIntegrationBuild=true \
-            /p:GeneratePackageOnBuild=false
-
+            /p:BuildInParallel=false
+            
       - name: Assemble and Package Custom SDK
         run: |
           set -e
