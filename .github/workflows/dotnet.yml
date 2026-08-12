@@ -349,24 +349,44 @@ jobs:
         with:
           dotnet-version: '9.0.200'
 
-      - name: Force SDK Path and Inject Custom Host Pack
+      - name: Nuke System SDK and Force Custom SDK Path
         shell: bash
         run: |
-          # FIX: Force the runner to use the SDK installed by setup-dotnet (~/.dotnet) 
-          # instead of the global system SDK (/usr/share/dotnet) which lacks linux-x86 support.
+          # NUCLEAR FIX: The runner has a pre-installed .NET 10 SDK at /usr/share/dotnet that hijacks the 'dotnet' command.
+          # We physically delete it and symlink the system paths to our custom 9.0.200 SDK.
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -f /usr/bin/dotnet
+          sudo rm -f /usr/local/bin/dotnet
+          
+          sudo ln -s $HOME/.dotnet/dotnet /usr/bin/dotnet
+          sudo ln -s $HOME/.dotnet/dotnet /usr/local/bin/dotnet
+          
           export DOTNET_ROOT="$HOME/.dotnet"
-          export PATH="$HOME/.dotnet:$PATH"
           echo "DOTNET_ROOT=$HOME/.dotnet" >> $GITHUB_ENV
           echo "$HOME/.dotnet" >> $GITHUB_PATH
           
-          # Inject the custom apphost into the 9.0.20 pack directory of the 9.0.200 SDK
-          HOST_PACK_DIR="$HOME/.dotnet/packs/Microsoft.NETCore.App.Host.linux-x86/9.0.20/runtimes/linux-x86/native"
-          mkdir -p "$HOST_PACK_DIR"
-          cp ~/custom-sdk/host/apphost "$HOST_PACK_DIR/apphost"
-          cp ~/custom-sdk/host/singlefilehost "$HOST_PACK_DIR/singlefilehost"
+          # Inject the custom apphost into ALL version folders in our 9.0.200 SDK
+          PACK_BASE="$HOME/.dotnet/packs/Microsoft.NETCore.App.Host.linux-x86"
+          mkdir -p "$PACK_BASE"
           
-          echo "✅ Custom linux-x86 hosts injected into: $HOST_PACK_DIR"
-          ls -la "$HOST_PACK_DIR"
+          for PACK_VERSION_DIR in "$PACK_BASE"/*; do
+            if [ -d "$PACK_VERSION_DIR" ]; then
+              NATIVE_DIR="$PACK_VERSION_DIR/runtimes/linux-x86/native"
+              mkdir -p "$NATIVE_DIR"
+              cp ~/custom-sdk/host/apphost "$NATIVE_DIR/apphost"
+              cp ~/custom-sdk/host/singlefilehost "$NATIVE_DIR/singlefilehost"
+              echo "✅ Injected into $NATIVE_DIR"
+            fi
+          done
+          
+          # Fallback if no version dirs existed
+          if [ ! -d "$PACK_BASE/9.0.20" ] && [ ! -d "$PACK_BASE/9.0.0" ]; then
+            NATIVE_DIR="$PACK_BASE/9.0.20/runtimes/linux-x86/native"
+            mkdir -p "$NATIVE_DIR"
+            cp ~/custom-sdk/host/apphost "$NATIVE_DIR/apphost"
+            cp ~/custom-sdk/host/singlefilehost "$NATIVE_DIR/singlefilehost"
+            echo "✅ Injected into $NATIVE_DIR"
+          fi
 
       - name: Install i386 Native Libraries
         run: |
@@ -376,8 +396,6 @@ jobs:
 
       - name: Restore and Publish App
         shell: bash
-        env:
-          DOTNET_ROOT: ${{ env.DOTNET_ROOT }}
         run: |
           dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" -c Release -r linux-x86 -o "./publish/linux-x86" \
             -p:SelfContained=true \
