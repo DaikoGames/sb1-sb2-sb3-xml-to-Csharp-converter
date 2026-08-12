@@ -104,12 +104,12 @@ jobs:
               with open(crossgen2_proj, 'r') as f: content = f.read()
               if '<UseAppHost>false</UseAppHost>' not in content:
                   new_props = '''  <PropertyGroup>
-    <UseAppHost>false</UseAppHost>
-    <PublishReadyToRun>false</PublishReadyToRun>
-    <PublishTrimmed>false</PublishTrimmed>
-    <PublishSingleFile>false</PublishSingleFile>
-  </PropertyGroup>
-</Project>'''
+              <UseAppHost>false</UseAppHost>
+             <PublishReadyToRun>false</PublishReadyToRun>
+             <PublishTrimmed>false</PublishTrimmed>
+             <PublishSingleFile>false</PublishSingleFile>
+             </PropertyGroup>
+             </Project>'''
                   content = content.replace('</Project>', new_props)
                   with open(crossgen2_proj, 'w') as f: f.write(content)
                   print("Patched crossgen2_publish.csproj to prevent NETSDK1084")
@@ -120,10 +120,10 @@ jobs:
               with open(hostmodel_proj, 'r') as f: content = f.read()
               if 'DeleteAssemblyReferenceCache' not in content:
                   patch = '''
-  <Target Name="DeleteAssemblyReferenceCache" BeforeTargets="GenerateAssemblyReferenceCache">
-    <Delete Files="$(IntermediateOutputPath)$(MSBuildProjectName).csproj.AssemblyReference.cache" ContinueOnError="true" />
-  </Target>
-</Project>'''
+           <Target Name="DeleteAssemblyReferenceCache" BeforeTargets="GenerateAssemblyReferenceCache">
+           <Delete Files="$(IntermediateOutputPath)$(MSBuildProjectName).csproj.AssemblyReference.cache" ContinueOnError="true" />
+           </Target>
+           </Project>'''
                   content = content.replace('</Project>', patch)
                   with open(hostmodel_proj, 'w') as f: f.write(content)
                   print("Patched Microsoft.NET.HostModel.csproj to delete cache before generation (Fixes MSB3101)")
