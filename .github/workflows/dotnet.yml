@@ -47,7 +47,7 @@ jobs:
       - name: Clone dotnet/runtime
         run: git clone --depth 1 --branch "release/9.0" https://github.com/dotnet/runtime.git ~/runtime
 
-      - name: Apply Cross-Compile Patches (Fixes NETSDK1084 & Builds Hosts)
+      - name: Apply Cross-Compile Patches (Fixes NETSDK1084 & MSB3101)
         run: |
           cd ~/runtime
           cat > /tmp/patch.py << 'PYEOF'
@@ -60,6 +60,7 @@ jobs:
                       with open(filepath, 'w') as f: f.write(content.replace(old, new))
                       print(f"Patched: {filepath}")
 
+          # 1. Disable profiler overhead (saves RAM)
           replace('src/coreclr/vm/vars.hpp', 'CORProfilerDisableOptimizations()', 'false')
           replace('src/coreclr/vm/ceemain.cpp', 'BEGIN_PROFILER_CALLBACK(CORProfilerPresent());', 'if (false) {')
           replace('src/coreclr/vm/ceemain.cpp', 'END_PROFILER_CALLBACK();', '}')
@@ -79,6 +80,7 @@ jobs:
               if not content.lstrip().startswith('#if FEATURE_PERFTRACING'):
                   with open(filepath, 'w') as f: f.write('#if FEATURE_PERFTRACING\n' + content + '\n#endif // FEATURE_PERFTRACING\n')
 
+          # 2. Fix linker groups for 32-bit
           for host in ['corerun', 'apphost', 'singlefilehost']:
               filepath = f'src/coreclr/hosts/{host}/CMakeLists.txt'
               if os.path.exists(filepath):
@@ -88,6 +90,7 @@ jobs:
                       content = re.sub(pattern, r'\1\n    -Wl,--start-group\n    dl\n    c\n    -Wl,--end-group', content)
                       with open(filepath, 'w') as f: f.write(content)
 
+          # 3. Prevent test assets from failing restore
           test_proj = 'src/installer/tests/Assets/Projects/HelloWorld/SelfContained.csproj'
           if os.path.exists(test_proj):
               with open(test_proj, 'r') as f: content = f.read()
@@ -95,23 +98,78 @@ jobs:
               content = content.replace('<UseAppHost>true</UseAppHost>', '<UseAppHost>false</UseAppHost>')
               with open(test_proj, 'w') as f: f.write(content)
 
+          # 4. ROOT CAUSE FIX: Prevent crossgen2 from demanding deleted linux-x86 apphost NuGet package
           crossgen2_proj = 'src/coreclr/tools/aot/crossgen2/crossgen2_publish.csproj'
           if os.path.exists(crossgen2_proj):
               with open(crossgen2_proj, 'r') as f: content = f.read()
               if '<UseAppHost>false</UseAppHost>' not in content:
                   new_props = '''  <PropertyGroup>
-              <UseAppHost>false</UseAppHost>
-              <PublishReadyToRun>false</PublishReadyToRun>
-              <PublishTrimmed>false</PublishTrimmed>
-              <PublishSingleFile>false</PublishSingleFile>
-              </PropertyGroup>
-              </Project>'''
+    <UseAppHost>false</UseAppHost>
+    <PublishReadyToRun>false</PublishReadyToRun>
+    <PublishTrimmed>false</PublishTrimmed>
+    <PublishSingleFile>false</PublishSingleFile>
+  </PropertyGroup>
+</Project>'''
                   content = content.replace('</Project>', new_props)
                   with open(crossgen2_proj, 'w') as f: f.write(content)
                   print("Patched crossgen2_publish.csproj to prevent NETSDK1084")
+
+          # 5. SURGICAL FIX FOR MSB3101: Delete the cache file right before MSBuild tries to create it
+          # This prevents the "already exists" collision when the project is evaluated twice.
+          hostmodel_proj = 'src/installer/managed/Microsoft.NET.HostModel/Microsoft.NET.HostModel.csproj'
+          if os.path.exists(hostmodel_proj):
+              with open(hostmodel_proj, 'r') as f: content = f.read()
+              if 'DeleteAssemblyReferenceCache' not in content:
+                  patch = '''
+  <Target Name="DeleteAssemblyReferenceCache" BeforeTargets="GenerateAssemblyReferenceCache">
+    <Delete Files="$(IntermediateOutputPath)$(MSBuildProjectName).csproj.AssemblyReference.cache" ContinueOnError="true" />
+  </Target>
+</Project>'''
+                  content = content.replace('</Project>', patch)
+                  with open(hostmodel_proj, 'w') as f: f.write(content)
+                  print("Patched Microsoft.NET.HostModel.csproj to delete cache before generation (Fixes MSB3101)")
           PYEOF
           python3 /tmp/patch.py
 
+      - name: Build .NET Runtime (x86 Cross-Compile)
+        shell: bash
+        env:
+          DOTNET_ROOT: /usr/share/dotnet
+          ROOTFS_DIR: /home/runner/runtime/.tools/rootfs/x86
+          MSBUILDDISABLENODEREUSE: 1
+        run: |
+          cd ~/runtime
+          export ROOTFS_DIR="$HOME/runtime/.tools/rootfs/x86"
+          
+          # Aggressive process kill
+          pkill -9 -f "VBCSCompiler" || true
+          pkill -9 -f "msbuild" || true
+          pkill -9 -f "dotnet" || true
+          ~/runtime/.dotnet/dotnet build-server shutdown || true
+          sleep 3
+          
+          # Nuclear wipe of artifacts
+          sudo rm -rf ~/runtime/artifacts
+          mkdir -p ~/runtime/artifacts
+          sudo chmod -R 777 ~/runtime/artifacts
+          
+          # Build command with MAXIMUM test suppression to prevent duplicate evaluations
+          ./build.sh \
+            -subset clr+libs+host \
+            -configuration Release \
+            -arch "x86" \
+            --cross \
+            /p:UseAppHost=false \
+            /p:SelfContained=false \
+            /p:RunTests=false \
+            /p:BuildTests=false \
+            /p:Test=false \
+            /p:BuildTestProjects=false \
+            /p:BuildInstaller=false \
+            /p:FeatureEventTrace=0 \
+            /p:FeaturePerfTracing=0 \
+            /p:ContinuousIntegrationBuild=true \
+            /p:GeneratePackageOnBuild=false
       - name: Generate cross rootfs for x86
         run: cd ~/runtime && sudo ./eng/common/cross/build-rootfs.sh "x86" "debian" "12" --skipunmount
 
