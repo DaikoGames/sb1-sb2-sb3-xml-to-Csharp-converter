@@ -107,25 +107,31 @@ jobs:
                   with open(crossgen2_proj, 'w') as f: f.write(content)
                   print("Patched crossgen2_publish.csproj to prevent NETSDK1084")
 
-          # NEUTER crossgen2 sfxproj completely.
-          # Microsoft doesn't support a 32-bit crossgen2 tool. We will use the host's 64-bit 
-          # crossgen2 to cross-compile the app's managed DLLs into 32-bit ReadyToRun images.
+          # FIX: Safely bypass crossgen2 sfxproj without breaking the SharedFramework SDK targets.
+          # We append empty targets to satisfy MSB4057 (CreateManifestResourceNames) while doing nothing.
           sfxproj = 'src/installer/pkg/sfx/Microsoft.NETCore.App/Microsoft.NETCore.App.Crossgen2.sfxproj'
           if os.path.exists(sfxproj):
-              with open(sfxproj, 'w') as f:
-                  f.write('<Project Sdk="Microsoft.NET.Sdk">\n  <Target Name="Build" />\n  <Target Name="Pack" />\n</Project>')
-              print("Neutered Crossgen2 sfxproj to bypass 32-bit packaging errors")
+              with open(sfxproj, 'r') as f: content = f.read()
+              if 'Name="Build" />' not in content:
+                  patch = '''
+              <Target Name="Build" />
+              <Target Name="Pack" />
+              <Target Name="CreateManifestResourceNames" />
+              <Target Name="VerifySharedFrameworkDependencies" />
+              </Project>'''
+                  content = content.replace('</Project>', patch)
+                  with open(sfxproj, 'w') as f: f.write(content)
+                  print("Patched Crossgen2 sfxproj to bypass build/pack targets safely")
 
           hostmodel_proj = 'src/installer/managed/Microsoft.NET.HostModel/Microsoft.NET.HostModel.csproj'
           if os.path.exists(hostmodel_proj):
               with open(hostmodel_proj, 'r') as f: content = f.read()
               if 'DeleteAssemblyReferenceCache' not in content:
                   patch = '''
-           <Target Name="DeleteAssemblyReferenceCache" BeforeTargets="GenerateAssemblyReferenceCache">
-           <Delete Files="$(IntermediateOutputPath)$(MSBuildProjectName).csproj.AssemblyReference.cache" ContinueOnError="true" />
-          </Target>
-            
-          </Project>'''
+              <Target Name="DeleteAssemblyReferenceCache" BeforeTargets="GenerateAssemblyReferenceCache">
+              <Delete Files="$(IntermediateOutputPath)$(MSBuildProjectName).csproj.AssemblyReference.cache" ContinueOnError="true" />
+              </Target>
+              </Project>'''
                   content = content.replace('</Project>', patch)
                   with open(hostmodel_proj, 'w') as f: f.write(content)
                   print("Patched Microsoft.NET.HostModel.csproj to delete cache (Fixes MSB3101)")
@@ -329,7 +335,7 @@ jobs:
       - name: Inject Custom Host Pack to bypass NETSDK1084
         shell: bash
         run: |
-          PACK_VERSION="9.0.0"
+          PACK_VERSION="9.0.20"
           HOST_PACK_DIR="$HOME/.dotnet/packs/Microsoft.NETCore.App.Host.linux-x86/$PACK_VERSION/runtimes/linux-x86/native"
           mkdir -p "$HOST_PACK_DIR"
           
