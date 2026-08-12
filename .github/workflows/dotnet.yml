@@ -1,15 +1,16 @@
 name: Deploy to GitHub Releases
+
 on:
   schedule:
-      - cron: '30 14 * * 6'
+    - cron: '30 14 * * 6'
   workflow_dispatch:
-    
+
 permissions:
   contents: write
- 
+
 jobs:
   build-runtime-x86:
-    name: Cross-compile .NET 9.0 x86 Runtime (Hardcoded Memory Limits)
+    name: Cross-compile .NET 9.0 x86 Runtime
     runs-on: ubuntu-22.04
     timeout-minutes: 180
     steps:
@@ -19,13 +20,18 @@ jobs:
       - name: Install host build prerequisites
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends build-essential clang cmake cpio curl git libicu-dev libkrb5-dev libssl-dev lld lldb llvm ninja-build pigz python-is-python3 zlib1g-dev python3 liblttng-ust-dev
+          sudo apt-get install -y --no-install-recommends \
+            build-essential clang cmake cpio curl git libicu-dev \
+            libkrb5-dev libssl-dev lld lldb llvm ninja-build \
+            pigz python-is-python3 zlib1g-dev python3 liblttng-ust-dev
 
       - name: Install i386 cross-compilation toolchain
         run: |
           sudo dpkg --add-architecture i386
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends crossbuild-essential-i386 binfmt-support debootstrap qemu-user-static
+          sudo apt-get install -y --no-install-recommends \
+            crossbuild-essential-i386 binfmt-support debootstrap \
+            qemu-user-static qemu-user
 
       - name: Install Debian archive keyring
         run: sudo apt-get install -y debian-archive-keyring
@@ -33,93 +39,86 @@ jobs:
       - name: Setup .NET SDK (bootstrap)
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '9.0.x'
+          dotnet-version: '9.0.200'
 
       - name: Clone dotnet/runtime
         run: git clone --depth 1 --branch "release/9.0" https://github.com/dotnet/runtime.git ~/runtime
 
-      - name: HARDCODED 32-bit Memory Patches (Source Code Level)
+      - name: Apply Cross-Compile Patches
         run: |
           cd ~/runtime
           cat > /tmp/patch.py << 'PYEOF'
           import os, re
 
-          def patch_file(path, patches):
-              if not os.path.exists(path):
-                  print(f"MISSING: {path}")
-                  return
-              with open(path, 'r', errors='replace') as f:
-                  content = f.read()
-              applied = 0
-              for old, new, label in patches:
+          def replace(filepath, old, new):
+              if os.path.exists(filepath):
+                  with open(filepath, 'r') as f: content = f.read()
                   if old in content:
-                      content = content.replace(old, new)
-                      applied += 1
-                      print(f"  [OK] {label}")
-                  else:
-                      print(f"  [SKIP] {label}")
-              if applied > 0:
-                  with open(path, 'w') as f:
-                      f.write(content)
+                      with open(filepath, 'w') as f: f.write(content.replace(old, new))
+                      print(f"Patched: {filepath}")
 
-          print("=== HARDCODED 32-BIT MEMORY PATCHES ===")
+          replace('src/coreclr/vm/vars.hpp', 'CORProfilerDisableOptimizations()', 'false')
+          replace('src/coreclr/vm/ceemain.cpp', 'BEGIN_PROFILER_CALLBACK(CORProfilerPresent());', 'if (false) {')
+          replace('src/coreclr/vm/ceemain.cpp', 'END_PROFILER_CALLBACK();', '}')
+          replace('src/coreclr/vm/ceemain.cpp', 'CORProfilerPresent()', 'false')
+          replace('src/coreclr/debug/ee/debugger.cpp', 'CORProfilerDisableOptimizations()', 'false')
+          replace('src/coreclr/vm/rejit.inl', 'BEGIN_PROFILER_CALLBACK(CORProfilerEnableRejit());', 'if (false) {')
+          replace('src/coreclr/vm/rejit.inl', 'END_PROFILER_CALLBACK();', '}')
+          replace('src/coreclr/vm/rejit.inl', 'CORProfilerEnableRejit() != FALSE', 'false')
+          replace('src/coreclr/vm/eeprofinterfaces.inl', 'CORProfilerTrackAllocations()', 'FALSE')
+          replace('src/coreclr/vm/eeprofinterfaces.inl', 'CORProfilerTrackLargeAllocations()', 'FALSE')
+          replace('src/coreclr/vm/eeprofinterfaces.inl', 'CORProfilerTrackPinnedAllocations()', 'FALSE')
+          replace('src/coreclr/vm/eetoprofinterfaceimpl.inl', 'CORProfilerPresent()', 'FALSE')
 
-          # 1. HARDCODE GC heap hard limit to 16MB (not env var - HARDCODED)
-          gc_cpp = 'src/coreclr/gc/gc.cpp'
-          patch_file(gc_cpp, [
-              ('size_t      gc_heap::heap_hard_limit = 0;',
-               '#if defined(TARGET_LINUX) && !defined(TARGET_64BIT)\nsize_t      gc_heap::heap_hard_limit = 16 * 1024 * 1024; /* HARDCODED: 16MB for 32-bit Linux */\n#else\nsize_t      gc_heap::heap_hard_limit = 0;\n#endif',
-               'HARDCODED 16MB heap hard limit'),
-              ('bool        gc_heap::hard_limit_config_p = false;',
-               '#if defined(TARGET_LINUX) && !defined(TARGET_64BIT)\nbool        gc_heap::hard_limit_config_p = true; /* HARDCODED: Enable hard limit */\n#else\nbool        gc_heap::hard_limit_config_p = false;\n#endif',
-               'HARDCODED enable hard limit config'),
-              ('const size_t min_segment_size_hard_limit = 1024*1024*16;',
-               '#if defined(TARGET_LINUX) && !defined(TARGET_64BIT)\nconst size_t min_segment_size_hard_limit = 1024*1024*2; /* HARDCODED: 2MB segments */\n#else\nconst size_t min_segment_size_hard_limit = 1024*1024*16;\n#endif',
-               'HARDCODED 2MB min segment size')
-          ])
+          filepath = 'src/coreclr/inc/profilepriv.inl'
+          if os.path.exists(filepath):
+              with open(filepath, 'r') as f: content = f.read()
+              if not content.lstrip().startswith('#if FEATURE_PERFTRACING'):
+                  with open(filepath, 'w') as f: f.write('#if FEATURE_PERFTRACING\n' + content + '\n#endif // FEATURE_PERFTRACING\n')
 
-          # 2. HARDCODE GC percentage limit in gcconfig.cpp
-          gcconfig_cpp = 'src/coreclr/gc/gcconfig.cpp'
-          if os.path.exists(gcconfig_cpp):
-              with open(gcconfig_cpp, 'r', errors='replace') as f:
-                  content = f.read()
-              # Hardcode the percentage-based limit
-              if 'gc_heap::heap_hard_limit_percent' in content:
-                  content = content.replace('gc_heap::heap_hard_limit_percent', '1 /* HARDCODED: 1% for 32-bit Linux */')
-                  print("  [OK] HARDCODED 1% heap hard limit percent")
-              with open(gcconfig_cpp, 'w') as f:
-                  f.write(content)
+          for host in ['corerun', 'apphost', 'singlefilehost']:
+              filepath = f'src/coreclr/hosts/{host}/CMakeLists.txt'
+              if os.path.exists(filepath):
+                  with open(filepath, 'r') as f: content = f.read()
+                  pattern = r'(target_link_libraries\s*\(\s*' + host + r'\s+PRIVATE\s+coreclr_pal)'
+                  if re.search(pattern, content):
+                      content = re.sub(pattern, r'\1\n    -Wl,--start-group\n    dl\n    c\n    -Wl,--end-group', content)
+                      with open(filepath, 'w') as f: f.write(content)
 
-          # 3. HARDCODE profiler disable (reduces memory overhead)
-          def simple_replace(path, old, new, label):
-              if os.path.exists(path):
-                  with open(path, 'r') as f: c = f.read()
-                  if old in c:
-                      with open(path, 'w') as f: f.write(c.replace(old, new))
-                      print(f"  [OK] {label}")
+          test_proj = 'src/installer/tests/Assets/Projects/HelloWorld/SelfContained.csproj'
+          if os.path.exists(test_proj):
+              with open(test_proj, 'r') as f: content = f.read()
+              content = content.replace('<SelfContained>true</SelfContained>', '<SelfContained>false</SelfContained>')
+              content = content.replace('<UseAppHost>true</UseAppHost>', '<UseAppHost>false</UseAppHost>')
+              with open(test_proj, 'w') as f: f.write(content)
 
-          simple_replace('src/coreclr/vm/vars.hpp', 'CORProfilerDisableOptimizations()', 'false', 'Profiler vars')
-          simple_replace('src/coreclr/vm/ceemain.cpp', 'BEGIN_PROFILER_CALLBACK(CORProfilerPresent());', 'if (false) {', 'Profiler begin')
-          simple_replace('src/coreclr/vm/ceemain.cpp', 'CORProfilerPresent()', 'false', 'Profiler present')
-          simple_replace('src/coreclr/vm/rejit.inl', 'CORProfilerEnableRejit() != FALSE', 'false', 'Rejit')
-          simple_replace('src/coreclr/vm/eeprofinterfaces.inl', 'CORProfilerTrackAllocations()', 'FALSE', 'Alloc track')
-          simple_replace('src/coreclr/vm/eetoprofinterfaceimpl.inl', 'CORProfilerPresent()', 'FALSE', 'Prof interface')
+          crossgen2_proj = 'src/coreclr/tools/aot/crossgen2/crossgen2_publish.csproj'
+          if os.path.exists(crossgen2_proj):
+              with open(crossgen2_proj, 'r') as f: content = f.read()
+              if '<UseAppHost>false</UseAppHost>' not in content:
+                  new_props = '''  <PropertyGroup>
+              <UseAppHost>false</UseAppHost>
+              <PublishReadyToRun>false</PublishReadyToRun>
+              <PublishTrimmed>false</PublishTrimmed>
+              <PublishSingleFile>false</PublishSingleFile>
+              </PropertyGroup>
+              </Project>'''
+                  content = content.replace('</Project>', new_props)
+                  with open(crossgen2_proj, 'w') as f: f.write(content)
+                  print("Patched crossgen2_publish.csproj to prevent NETSDK1084")
 
-          # 4. HARDCODE disable diagnostics
-          simple_replace('src/coreclr/vm/gcenv.h', 'FEATURE_PERFTRACING', '0 /* HARDCODED: Disable perf tracing */', 'Disable perf tracing')
-
-          # 5. HARDCODE JIT code heap limit
-          jit_cpp = 'src/coreclr/vm/jit.cpp'
-          if os.path.exists(jit_cpp):
-              with open(jit_cpp, 'r', errors='replace') as f:
-                  content = f.read()
-              if 'INITIAL_CODE_HEAP_SIZE' in content:
-                  content = content.replace('INITIAL_CODE_HEAP_SIZE', '(1024*1024*4) /* HARDCODED: 4MB initial code heap */')
-                  print("  [OK] HARDCODED 4MB initial code heap")
-              with open(jit_cpp, 'w') as f:
-                  f.write(content)
-
-          print("=== ALL HARDCODED PATCHES APPLIED ===")
+          hostmodel_proj = 'src/installer/managed/Microsoft.NET.HostModel/Microsoft.NET.HostModel.csproj'
+          if os.path.exists(hostmodel_proj):
+              with open(hostmodel_proj, 'r') as f: content = f.read()
+              if 'DeleteAssemblyReferenceCache' not in content:
+                  patch = '''
+              <Target Name="DeleteAssemblyReferenceCache" BeforeTargets="GenerateAssemblyReferenceCache">
+              <Delete Files="$(IntermediateOutputPath)$(MSBuildProjectName).csproj.AssemblyReference.cache" ContinueOnError="true" />
+              </Target>
+              </Project>'''
+                  content = content.replace('</Project>', patch)
+                  with open(hostmodel_proj, 'w') as f: f.write(content)
+                  print("Patched Microsoft.NET.HostModel.csproj to delete cache (Fixes MSB3101)")
           PYEOF
           python3 /tmp/patch.py
 
@@ -133,64 +132,68 @@ jobs:
         env:
           DOTNET_ROOT: /usr/share/dotnet
           ROOTFS_DIR: /home/runner/runtime/.tools/rootfs/x86
+          MSBUILDDISABLENODEREUSE: 1
         run: |
           cd ~/runtime
           export ROOTFS_DIR="$HOME/runtime/.tools/rootfs/x86"
           
-          # Kill any stale dotnet processes and clean previous artifacts
-          pkill -9 -f dotnet || true
+          pkill -9 -f "VBCSCompiler" || true
+          pkill -9 -f "msbuild" || true
+          pkill -9 -f "dotnet" || true
           ~/runtime/.dotnet/dotnet build-server shutdown || true
-          rm -rf ~/runtime/artifacts/obj ~/runtime/artifacts/bin ~/runtime/artifacts/packages
+          sleep 5
           
-          # FIX: Added /p:UseAppHost=true to prevent NETSDK1067 on SelfContained test assets
-          ./build.sh -subset clr+libs+host+packs -configuration Release -arch "x86" --cross \
-            /p:UseAppHost=true \
-            /p:RunTests=false /p:BuildTests=false \
-            /p:BuildInstaller=false /p:FeatureEventTrace=0 /p:FeaturePerfTracing=0 \
+          sudo rm -rf ~/runtime/artifacts
+          mkdir -p ~/runtime/artifacts
+          sudo chmod -R 777 ~/runtime/artifacts
+          
+          ./build.sh \
+            -subset clr+libs+host \
+            -configuration Release \
+            -arch "x86" \
+            --cross \
+            /p:UseAppHost=false \
+            /p:SelfContained=false \
+            /p:RunTests=false \
+            /p:BuildTests=false \
+            /p:Test=false \
+            /p:BuildTestProjects=false \
+            /p:BuildInstaller=false \
+            /p:FeatureEventTrace=0 \
+            /p:FeaturePerfTracing=0 \
             /p:ContinuousIntegrationBuild=true \
-            /p:BuildInParallel=false
+            /p:GeneratePackageOnBuild=false
 
       - name: Assemble and Package Custom SDK
         run: |
           set -e
-          mkdir -p ~/custom-sdk
-          BASE_SDK_DIR="$HOME/runtime/.dotnet"
-          if [ -d "$BASE_SDK_DIR" ]; then cp -r "$BASE_SDK_DIR"/* ~/custom-sdk/ 2>/dev/null || true; fi
-          rm -rf ~/custom-sdk/shared/Microsoft.NETCore.App
-          rm -rf ~/custom-sdk/host/fxr
-          rm -f ~/custom-sdk/dotnet
-          rm -f ~/custom-sdk/dotnet-real
-          DOTNET_HOST=$(find ~/runtime/artifacts/bin -type f -name "dotnet" | grep -iE "x86.*release" | head -n 1)
-          HOSTFXR_BIN=$(find ~/runtime/artifacts/bin -type f -name "libhostfxr.so" | grep -iE "x86.*release" | head -n 1)
-          TESTHOST_DIR=$(find ~/runtime/artifacts/bin/testhost -maxdepth 1 -type d | grep -iE "linux.*x86" | grep -i "release" | head -n 1)
-          SHARED_VER_DIR=$(find "$TESTHOST_DIR/shared/Microsoft.NETCore.App" -maxdepth 1 -mindepth 1 -type d | head -n 1)
-          SHARED_VER=$(basename "$SHARED_VER_DIR")
-          cp "$DOTNET_HOST" ~/custom-sdk/dotnet-real
-          chmod +x ~/custom-sdk/dotnet-real
-          cat > ~/custom-sdk/dotnet << 'EOF'
-          #!/bin/bash
-          export DOTNET_gcServer=0
-          export DOTNET_GCHeapCount=1
-          export DOTNET_EnableDiagnostics=0
-          export DOTNET_TieredPGO=0
-          export DOTNET_ReadyToRun=0
-          export DOTNET_DefaultStackSize=262144
-          ulimit -s 256 2>/dev/null
-          DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
-          exec "$DIR/dotnet-real" "$@"
-          EOF
-          chmod +x ~/custom-sdk/dotnet
-          mkdir -p ~/custom-sdk/host/fxr/$SHARED_VER
-          cp "$HOSTFXR_BIN" ~/custom-sdk/host/fxr/$SHARED_VER/libhostfxr.so
-          mkdir -p ~/custom-sdk/shared/Microsoft.NETCore.App/$SHARED_VER
-          cp -r "$SHARED_VER_DIR"/* ~/custom-sdk/shared/Microsoft.NETCore.App/$SHARED_VER/
-          PACKS_DIR=~/custom-sdk/packs/Microsoft.NETCore.App.Host.linux-x86/$SHARED_VER/runtimes/linux-x86/native
-          mkdir -p "$PACKS_DIR"
-          APPHOST=$(find ~/runtime/artifacts/bin -type f -name "apphost" | grep -iE "x86.*release" | head -n 1)
-          cp "$APPHOST" "$PACKS_DIR/apphost" && chmod +x "$PACKS_DIR/apphost"
+          mkdir -p ~/custom-sdk/host/fxr
+          mkdir -p ~/custom-sdk/shared/Microsoft.NETCore.App
+          
+          DOTNET_BIN=$(find ~/runtime/artifacts/bin -type f -name "dotnet" | grep -iE "x86.*release|release.*x86" | head -n 1)
+          APPHOST_BIN=$(find ~/runtime/artifacts/bin -type f -name "apphost" | grep -iE "x86.*release|release.*x86" | head -n 1)
+          SINGLEFILEHOST_BIN=$(find ~/runtime/artifacts/bin -type f -name "singlefilehost" | grep -iE "x86.*release|release.*x86" | head -n 1)
+          HOSTFXR_BIN=$(find ~/runtime/artifacts/bin -type f -name "libhostfxr.so" | grep -iE "x86.*release|release.*x86" | head -n 1)
+          
+          [ -n "$DOTNET_BIN" ] && { cp "$DOTNET_BIN" ~/custom-sdk/dotnet; chmod +x ~/custom-sdk/dotnet; echo "✅ dotnet"; }
+          [ -n "$APPHOST_BIN" ] && { cp "$APPHOST_BIN" ~/custom-sdk/host/apphost; chmod +x ~/custom-sdk/host/apphost; echo "✅ apphost"; }
+          [ -n "$SINGLEFILEHOST_BIN" ] && { cp "$SINGLEFILEHOST_BIN" ~/custom-sdk/host/singlefilehost; chmod +x ~/custom-sdk/host/singlefilehost; echo "✅ singlefilehost"; }
+          
+          if [ -n "$HOSTFXR_BIN" ]; then
+            FXR_VERSION=$(basename "$(dirname "$HOSTFXR_BIN")")
+            mkdir -p ~/custom-sdk/host/fxr/$FXR_VERSION
+            cp "$HOSTFXR_BIN" ~/custom-sdk/host/fxr/$FXR_VERSION/
+            echo "✅ libhostfxr.so → host/fxr/$FXR_VERSION/"
+          else
+            echo "❌ libhostfxr.so NOT FOUND"; exit 1
+          fi
+          
+          SHARED_DIR=$(find ~/runtime/artifacts/bin -type d -path "*/shared/Microsoft.NETCore.App" | grep -iE "x86.*release|release.*x86" | head -n 1)
+          [ -n "$SHARED_DIR" ] && cp -r "$SHARED_DIR"/* ~/custom-sdk/shared/Microsoft.NETCore.App/
+          
           cd ~/custom-sdk && tar -czf ~/dotnet-linux-x86-sdk.tar.gz .
 
-      - name: Upload Custom SDK Artifact
+      - name: Upload Custom SDK
         uses: actions/upload-artifact@v4
         with:
           name: dotnet-linux-x86-sdk
@@ -293,10 +296,10 @@ jobs:
           path: ./Releases/*
 
   build_ubuntu-latest_linux-x86:
-    name: Build Native Linux x86 App (Self-Contained, Hardcoded Memory)
+    name: Build Linux x86 (Self-Contained, Single-File, Low RAM)
     needs: build-runtime-x86
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -327,123 +330,122 @@ jobs:
       - name: Setup Native 64-bit SDK
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '9.0.x'
+          dotnet-version: '9.0.200'
+      - name: Install i386 Native Libraries
+        run: |
+          sudo dpkg --add-architecture i386
+          sudo apt-get update
+          sudo apt-get install -y libvlc-dev:i386 libvlccore-dev:i386 vlc-plugin-base:i386 libmagickcore-6.q16-6:i386 libmagickwand-6.q16-6:i386
+
+      - name: Inject Custom Host Pack to bypass NETSDK1084
+        shell: bash
+        run: |
+          PACK_VERSION="9.0.0"
+          HOST_PACK_DIR="$HOME/.dotnet/packs/Microsoft.NETCore.App.Host.linux-x86/$PACK_VERSION/runtimes/linux-x86/native"
+          mkdir -p "$HOST_PACK_DIR"
+          
+          cp ~/custom-sdk/host/apphost "$HOST_PACK_DIR/apphost"
+          cp ~/custom-sdk/host/singlefilehost "$HOST_PACK_DIR/singlefilehost"
+          
+          echo "✅ Custom linux-x86 hosts injected into SDK pack directory: $HOST_PACK_DIR"
+          ls -la "$HOST_PACK_DIR"
+
       - name: Restore and Publish App
         shell: bash
         run: |
-          # Publish natively as Self-Contained. The SDK will automatically patch the apphost for us.
-          dotnet restore "./sb1 sb2 sb3 xml to Csharp converter.csproj" -r linux-x86 -p:RuntimeIdentifier=linux-x86 -p:ExcludeMagickX64=true
           dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" -c Release -r linux-x86 -o "./publish/linux-x86" \
             -p:SelfContained=true \
+            -p:PublishSingleFile=true \
             -p:UseAppHost=true \
             -p:RuntimeIdentifier=linux-x86 \
-            -p:ExcludeMagickX64=true
+            -p:ExcludeMagickX64=true \
+            -p:DebugType=none \
+            -p:DebugSymbols=false
 
       - name: Inject Custom Patched CoreCLR
         shell: bash
         run: |
-          # Overwrite the OFFICIAL CoreCLR downloaded from NuGet with our CUSTOM memory-patched one
           CUSTOM_SHARED=$(find ~/custom-sdk/shared/Microsoft.NETCore.App -type d | head -n 1)
           if [ -d "$CUSTOM_SHARED" ]; then
-            echo "Injecting custom CoreCLR native libraries..."
             for so_file in "$CUSTOM_SHARED"/*.so; do
-              if [ -f "$so_file" ]; then
-                filename=$(basename "$so_file")
-                # Do not overwrite the apphost (Converter) because the SDK already patched it for us!
-                if [ "$filename" != "Converter" ] && [ "$filename" != "dotnet" ]; then
-                  cp "$so_file" "./publish/linux-x86/$filename"
-                  echo "  Injected $filename"
-                fi
+              filename=$(basename "$so_file")
+              if [ "$filename" != "Converter" ] && [ "$filename" != "dotnet" ]; then
+                cp "$so_file" "./publish/linux-x86/$filename"
               fi
             done
           fi
-
           CUSTOM_HOSTFXR=$(find ~/custom-sdk/host/fxr -name "libhostfxr.so" | head -n 1)
-          if [ -f "$CUSTOM_HOSTFXR" ] && [ -f "./publish/linux-x86/libhostfxr.so" ]; then
-            cp "$CUSTOM_HOSTFXR" "./publish/linux-x86/libhostfxr.so"
-          fi
+          [ -f "$CUSTOM_HOSTFXR" ] && cp "$CUSTOM_HOSTFXR" "./publish/linux-x86/libhostfxr.so"
 
-      - name: Assemble Self-Contained App & Inject Debian i386 Native Libs
+      - name: Assemble Final Package
         shell: bash
         run: |
-          rm -f ./publish/linux-x86/Magick.NET-Q16-x64.dll
-          rm -f ./publish/linux-x86/Magick.NET-Q16-arm64.dll
-          rm -f ./publish/linux-x86/libMagick*x64*.so || true
-          rm -f ./publish/linux-x86/libMagick*arm64*.so || true
-          sed -i '/Magick.NET-Q16-x64/d' ./publish/linux-x86/Converter.deps.json || true
-          sed -i '/Magick.NET-Q16-arm64/d' ./publish/linux-x86/Converter.deps.json || true
-
           mkdir -p ./final-linux-x86
           cp -r ./publish/linux-x86/* ./final-linux-x86/
           
-          NUGET_PACKAGES=$(dotnet nuget locals global-packages -l | cut -d' ' -f2)
-          find "$NUGET_PACKAGES" -type f -name "*.so" -path "*linux-x86*" | while read so_file; do cp "$so_file" ./final-linux-x86/; done
-          
-          sudo dpkg --add-architecture i386
-          sudo apt-get update
-          mkdir -p ~/debs && cd ~/debs
-          sudo apt-get download libvlc5:i386 libvlccore9:i386 vlc-plugin-base:i386 || true
-          for deb in *.deb; do dpkg-deb -x "$deb" . || true; done
-          find . -name "*.so*" -exec cp {} "$GITHUB_WORKSPACE/final-linux-x86"/ \;
-          cd "$GITHUB_WORKSPACE"
-          
+          rm -f ./final-linux-x86/Magick.NET-Q16-x64.dll ./final-linux-x86/Magick.NET-Q16-arm64.dll
+          rm -f ./final-linux-x86/libMagick*x64*.so ./final-linux-x86/libMagick*arm64*.so
+          sed -i '/Magick.NET-Q16-x64/d; /Magick.NET-Q16-arm64/d' ./final-linux-x86/Converter.deps.json || true
+
+          cp /usr/lib/i386-linux-gnu/libvlc.so* ./final-linux-x86/ 2>/dev/null || true
+          cp /usr/lib/i386-linux-gnu/libvlccore.so* ./final-linux-x86/ 2>/dev/null || true
+          cp -r /usr/lib/i386-linux-gnu/vlc/ ./final-linux-x86/ 2>/dev/null || true
+
           cat > ./final-linux-x86/run.sh << 'EOF'
           #!/bin/bash
           DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
           export DOTNET_ROOT="$DIR"
-          export LD_LIBRARY_PATH="$DIR:$LD_LIBRARY_PATH"
-          export DOTNET_GCHeapHardLimit=16000000
-          export DOTNET_GCHeapHardLimitPercent=1
+          export LD_LIBRARY_PATH="$DIR:$DIR/vlc:$LD_LIBRARY_PATH"
+          export DOTNET_BUNDLE_EXTRACT_BASE_DIR=/tmp/dotnet_extract
+          export DOTNET_GCHeapHardLimit=536870912
+          export DOTNET_GCHeapHardLimitPercent=50
           export DOTNET_gcServer=0
           export DOTNET_GCHeapCount=1
           export DOTNET_EnableDiagnostics=0
-          export DOTNET_EnableWriteXorExecute=0
           export DOTNET_TieredCompilation=0
           export DOTNET_ReadyToRun=0
           export DOTNET_DefaultStackSize=262144
           export DOTNET_JitMinOpts=1
-          export DOTNET_EnableAltLoaderAllocator=0
           ulimit -s 256 2>/dev/null || true
+          mkdir -p /tmp/dotnet_extract
           exec "$DIR/Converter" "$@"
           EOF
           chmod +x ./final-linux-x86/run.sh
 
-          mkdir -p ./final-linux-x86/ConverterIcon
-          cp ./ConverterIcon/Converter.ico ./final-linux-x86/ConverterIcon/ || true
-          cp ./ConverterIcon/Converter.png ./final-linux-x86/ConverterIcon/ || true
-          mkdir -p ./final-linux-x86/Scratch-Format-Converter
-          cp ./Scratch-Format-Converter/Convert.js ./final-linux-x86/Scratch-Format-Converter/ || true
-          cp ./Scratch-Format-Converter/package.json ./final-linux-x86/Scratch-Format-Converter/ || true
-          cp ./Scratch-Format-Converter/package-lock.json ./final-linux-x86/Scratch-Format-Converter/ || true
-          mkdir -p ./final-linux-x86/Scratch-To-Snap
-          cp ./Scratch-To-Snap/converter.js ./final-linux-x86/Scratch-To-Snap/ || true
-          cp ./Scratch-To-Snap/package.json ./final-linux-x86/Scratch-To-Snap/ || true
-          cp ./Scratch-To-Snap/package-lock.json ./final-linux-x86/Scratch-To-Snap/ || true
-          mkdir -p ./final-linux-x86/svg_library_ScratchJnr
+          mkdir -p ./final-linux-x86/ConverterIcon ./final-linux-x86/Scratch-Format-Converter ./final-linux-x86/Scratch-To-Snap ./final-linux-x86/svg_library_ScratchJnr ./final-linux-x86/wav_library_ScratchJnr
+          cp ./ConverterIcon/* ./final-linux-x86/ConverterIcon/ 2>/dev/null || true
+          cp ./Scratch-Format-Converter/* ./final-linux-x86/Scratch-Format-Converter/ 2>/dev/null || true
+          cp ./Scratch-To-Snap/* ./final-linux-x86/Scratch-To-Snap/ 2>/dev/null || true
           cp -r ./svg_library_ScratchJnr/* ./final-linux-x86/svg_library_ScratchJnr/ 2>/dev/null || true
-          mkdir -p ./final-linux-x86/wav_library_ScratchJnr
           cp -r ./wav_library_ScratchJnr/* ./final-linux-x86/wav_library_ScratchJnr/ 2>/dev/null || true
-          
-          find ./Translate-Folder -type f -name "*.gz" | while read gz_file; do dir_name=$(basename "$(dirname "$gz_file")"); mkdir -p "./final-linux-x86/Translate-Folder/$dir_name"; out_file=$(basename "$gz_file" .gz); gzip -d -c "$gz_file" > "./final-linux-x86/Translate-Folder/$dir_name/$out_file"; done
-          find ./Translate-Folder -type f -name "*.json" | while read json_file; do dir_name=$(basename "$(dirname "$json_file")"); mkdir -p "./final-linux-x86/Translate-Folder/$dir_name"; cp "$json_file" "./final-linux-x86/Translate-Folder/$dir_name/"; done
-          find ./Translate-Folder -type f -name "*.yml" | while read yml_file; do dir_name=$(basename "$(dirname "$yml_file")"); mkdir -p "./final-linux-x86/Translate-Folder/$dir_name"; cp "$yml_file" "./final-linux-x86/Translate-Folder/$dir_name/"; done
-          cp ./README.md ./final-linux-x86/ || true
+          cp ./README.md ./final-linux-x86/ 2>/dev/null || true
 
-      - name: Create Linux x86 Package
-        shell: bash
+          find ./Translate-Folder -type f -name "*.gz" | while read gz_file; do
+            dir_name=$(basename "$(dirname "$gz_file")")
+            mkdir -p "./final-linux-x86/Translate-Folder/$dir_name"
+            out_file=$(basename "$gz_file" .gz)
+            gzip -d -c "$gz_file" > "./final-linux-x86/Translate-Folder/$dir_name/$out_file"
+          done
+          find ./Translate-Folder -type f \( -name "*.json" -o -name "*.yml" \) | while read file; do
+            dir_name=$(basename "$(dirname "$file")")
+            mkdir -p "./final-linux-x86/Translate-Folder/$dir_name"
+            cp "$file" "./final-linux-x86/Translate-Folder/$dir_name/"
+          done
+
+      - name: Create Linux x86 Archive
         run: tar -cJf Converter-linux-x86.tar.xz -C ./final-linux-x86 .
 
-      - name: Upload Artifact (linux x86)
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: vpk-artifact-linux_x86
           path: ./Converter-linux-x86.tar.xz
 
   release:
-    needs: [build, build-runtime-x86, build_ubuntu-latest_linux-x86]
+    needs: [build, build_ubuntu-latest_linux-x86]
     runs-on: ubuntu-latest
     steps:
-      - name: Download
+      - name: Download Artifacts
         uses: actions/download-artifact@v4
         with:
           path: ./all-assets
