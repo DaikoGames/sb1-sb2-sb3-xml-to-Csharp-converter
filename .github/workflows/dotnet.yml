@@ -107,15 +107,25 @@ jobs:
                   with open(crossgen2_proj, 'w') as f: f.write(content)
                   print("Patched crossgen2_publish.csproj to prevent NETSDK1084")
 
+          # NEUTER crossgen2 sfxproj completely.
+          # Microsoft doesn't support a 32-bit crossgen2 tool. We will use the host's 64-bit 
+          # crossgen2 to cross-compile the app's managed DLLs into 32-bit ReadyToRun images.
+          sfxproj = 'src/installer/pkg/sfx/Microsoft.NETCore.App/Microsoft.NETCore.App.Crossgen2.sfxproj'
+          if os.path.exists(sfxproj):
+              with open(sfxproj, 'w') as f:
+                  f.write('<Project Sdk="Microsoft.NET.Sdk">\n  <Target Name="Build" />\n  <Target Name="Pack" />\n</Project>')
+              print("Neutered Crossgen2 sfxproj to bypass 32-bit packaging errors")
+
           hostmodel_proj = 'src/installer/managed/Microsoft.NET.HostModel/Microsoft.NET.HostModel.csproj'
           if os.path.exists(hostmodel_proj):
               with open(hostmodel_proj, 'r') as f: content = f.read()
               if 'DeleteAssemblyReferenceCache' not in content:
                   patch = '''
-              <Target Name="DeleteAssemblyReferenceCache" BeforeTargets="GenerateAssemblyReferenceCache">
-              <Delete Files="$(IntermediateOutputPath)$(MSBuildProjectName).csproj.AssemblyReference.cache" ContinueOnError="true" />
-              </Target>
-              </Project>'''
+           <Target Name="DeleteAssemblyReferenceCache" BeforeTargets="GenerateAssemblyReferenceCache">
+           <Delete Files="$(IntermediateOutputPath)$(MSBuildProjectName).csproj.AssemblyReference.cache" ContinueOnError="true" />
+          </Target>
+            
+          </Project>'''
                   content = content.replace('</Project>', patch)
                   with open(hostmodel_proj, 'w') as f: f.write(content)
                   print("Patched Microsoft.NET.HostModel.csproj to delete cache (Fixes MSB3101)")
@@ -135,9 +145,6 @@ jobs:
           ~/runtime/.dotnet/dotnet build-server shutdown || true
           rm -rf ~/runtime/artifacts/obj ~/runtime/artifacts/bin ~/runtime/artifacts/packages
           
-          # FIX: Added /p:UseAppHost=false and /p:SelfContained=false back!
-          # UseAppHost=false prevents NETSDK1084 on Build.proj (stops looking for missing linux-x86 pack).
-          # SelfContained=false prevents NETSDK1067 on any remaining test assets.
           ./build.sh -subset clr+libs+host+packs -configuration Release -arch "x86" --cross \
             /p:UseAppHost=false \
             /p:SelfContained=false \
@@ -222,7 +229,7 @@ jobs:
       - name: Build and Publish App
         shell: bash
         run: |
-          dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" -c Release -r ${{ matrix.runtime }} -o "./publish/${{ matrix.runtime }}" -p:SelfContained=true -p:PublishSingleFile=true
+          dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" -c Release -r ${{ matrix.runtime }} -o "./publish/${{ matrix.runtime }}" -p:SelfContained=true -p:PublishSingleFile=true -p:PublishReadyToRun=true
       - name: Install Velopack CLI
         run: dotnet tool install -g vpk
       - name: Add dotnet tools to PATH
@@ -278,7 +285,7 @@ jobs:
           path: ./Releases/*
 
   build_ubuntu-latest_linux-x86:
-    name: Build Linux x86 (Self-Contained, Single-File, Low RAM)
+    name: Build Linux x86 (Self-Contained, Single-File, R2R, Low RAM)
     needs: build-runtime-x86
     runs-on: ubuntu-22.04
     timeout-minutes: 60
@@ -335,9 +342,14 @@ jobs:
       - name: Restore and Publish App
         shell: bash
         run: |
+          # PublishReadyToRun=true uses the host's 64-bit crossgen2 to generate 32-bit R2R images.
+          # IncludeNativeLibrariesForSelfExtract=false keeps native .so files outside the single-file bundle 
+          # so we can swap in our custom memory-patched libcoreclr.so.
           dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" -c Release -r linux-x86 -o "./publish/linux-x86" \
             -p:SelfContained=true \
             -p:PublishSingleFile=true \
+            -p:PublishReadyToRun=true \
+            -p:IncludeNativeLibrariesForSelfExtract=false \
             -p:UseAppHost=true \
             -p:RuntimeIdentifier=linux-x86 \
             -p:ExcludeMagickX64=true \
@@ -385,7 +397,7 @@ jobs:
           export DOTNET_GCHeapCount=1
           export DOTNET_EnableDiagnostics=0
           export DOTNET_TieredCompilation=0
-          export DOTNET_ReadyToRun=0
+          export DOTNET_ReadyToRun=1
           export DOTNET_DefaultStackSize=262144
           export DOTNET_JitMinOpts=1
           ulimit -s 256 2>/dev/null || true
