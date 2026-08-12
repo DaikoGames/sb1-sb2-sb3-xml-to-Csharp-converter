@@ -104,12 +104,12 @@ jobs:
               with open(crossgen2_proj, 'r') as f: content = f.read()
               if '<UseAppHost>false</UseAppHost>' not in content:
                   new_props = '''  <PropertyGroup>
-              <UseAppHost>false</UseAppHost>
-             <PublishReadyToRun>false</PublishReadyToRun>
-             <PublishTrimmed>false</PublishTrimmed>
-             <PublishSingleFile>false</PublishSingleFile>
-             </PropertyGroup>
-             </Project>'''
+    <UseAppHost>false</UseAppHost>
+    <PublishReadyToRun>false</PublishReadyToRun>
+    <PublishTrimmed>false</PublishTrimmed>
+    <PublishSingleFile>false</PublishSingleFile>
+  </PropertyGroup>
+</Project>'''
                   content = content.replace('</Project>', new_props)
                   with open(crossgen2_proj, 'w') as f: f.write(content)
                   print("Patched crossgen2_publish.csproj to prevent NETSDK1084")
@@ -120,10 +120,10 @@ jobs:
               with open(hostmodel_proj, 'r') as f: content = f.read()
               if 'DeleteAssemblyReferenceCache' not in content:
                   patch = '''
-           <Target Name="DeleteAssemblyReferenceCache" BeforeTargets="GenerateAssemblyReferenceCache">
-           <Delete Files="$(IntermediateOutputPath)$(MSBuildProjectName).csproj.AssemblyReference.cache" ContinueOnError="true" />
-           </Target>
-           </Project>'''
+  <Target Name="DeleteAssemblyReferenceCache" BeforeTargets="GenerateAssemblyReferenceCache">
+    <Delete Files="$(IntermediateOutputPath)$(MSBuildProjectName).csproj.AssemblyReference.cache" ContinueOnError="true" />
+  </Target>
+</Project>'''
                   content = content.replace('</Project>', patch)
                   with open(hostmodel_proj, 'w') as f: f.write(content)
                   print("Patched Microsoft.NET.HostModel.csproj to delete cache before generation (Fixes MSB3101)")
@@ -143,19 +143,16 @@ jobs:
           cd ~/runtime
           export ROOTFS_DIR="$HOME/runtime/.tools/rootfs/x86"
           
-          # Aggressive process kill
           pkill -9 -f "VBCSCompiler" || true
           pkill -9 -f "msbuild" || true
           pkill -9 -f "dotnet" || true
           ~/runtime/.dotnet/dotnet build-server shutdown || true
           sleep 5
           
-          # Nuclear wipe of artifacts
           sudo rm -rf ~/runtime/artifacts
           mkdir -p ~/runtime/artifacts
           sudo chmod -R 777 ~/runtime/artifacts
           
-          # Build command with MAXIMUM test suppression
           ./build.sh \
             -subset clr+libs+host \
             -configuration Release \
@@ -351,10 +348,26 @@ jobs:
           sudo dpkg --add-architecture i386
           sudo apt-get update
           sudo apt-get install -y libvlc-dev:i386 libvlccore-dev:i386 vlc-plugin-base:i386 libmagickcore-6.q16-6:i386 libmagickwand-6.q16-6:i386
+
+      - name: Inject Custom Host Pack to bypass NETSDK1084
+        shell: bash
+        run: |
+          # Der SDK sucht nach dem Host-Pack passend zum TargetFramework (net9.0 -> 9.0.0)
+          PACK_VERSION="9.0.0"
+          HOST_PACK_DIR="$HOME/.dotnet/packs/Microsoft.NETCore.App.Host.linux-x86/$PACK_VERSION/runtimes/linux-x86/native"
+          mkdir -p "$HOST_PACK_DIR"
+          
+          # Wir kopieren unsere custom-kompilierten 32-Bit-Hosts in dieses "fake" Pack-Verzeichnis
+          cp ~/custom-sdk/host/apphost "$HOST_PACK_DIR/apphost"
+          cp ~/custom-sdk/host/singlefilehost "$HOST_PACK_DIR/singlefilehost"
+          
+          echo "✅ Custom linux-x86 hosts injected into SDK pack directory: $HOST_PACK_DIR"
+          ls -la "$HOST_PACK_DIR"
+
       - name: Restore and Publish App
         shell: bash
         run: |
-          dotnet restore "./sb1 sb2 sb3 xml to Csharp converter.csproj" -r linux-x86
+          # Jetzt findet der offizielle SDK das "Pack" und nutzt unsere custom 32-Bit-Binaries!
           dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" -c Release -r linux-x86 -o "./publish/linux-x86" \
             -p:SelfContained=true \
             -p:PublishSingleFile=true \
