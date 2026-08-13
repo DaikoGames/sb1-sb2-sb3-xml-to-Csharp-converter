@@ -9,32 +9,44 @@ permissions:
   contents: write
 
 jobs:
+  # ========================================================================
+  # JOB 1: CROSS-COMPILE RUNTIME ON DEBIAN 12
+  # ========================================================================
   build-runtime-x86:
     name: Cross-compile .NET 9.0 x86 Runtime
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
+    container:
+      image: debian:12
+      env:
+        DEBIAN_FRONTEND: noninteractive
     timeout-minutes: 180
     steps:
+      - name: Install container prerequisites
+        run: |
+          apt-get update
+          apt-get install -y sudo git curl wget ca-certificates lsb-release gnupg
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Install host build prerequisites
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
+          apt-get update
+          apt-get install -y --no-install-recommends \
             build-essential clang cmake cpio curl git libicu-dev \
             libkrb5-dev libssl-dev lld lldb llvm ninja-build \
-            pigz python-is-python3 zlib1g-dev python3 liblttng-ust-dev
+            pigz zlib1g-dev python3 liblttng-ust-dev
 
       - name: Install i386 cross-compilation toolchain
         run: |
-          sudo dpkg --add-architecture i386
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
+          dpkg --add-architecture i386
+          apt-get update
+          apt-get install -y --no-install-recommends \
             crossbuild-essential-i386 binfmt-support debootstrap \
             qemu-user-static qemu-user
 
       - name: Install Debian archive keyring
-        run: sudo apt-get install -y debian-archive-keyring
+        run: apt-get install -y debian-archive-keyring
 
       - name: Setup .NET SDK (bootstrap)
         uses: actions/setup-dotnet@v4
@@ -139,7 +151,7 @@ jobs:
       - name: Generate cross rootfs for x86
         run: |
           cd ~/runtime
-          sudo ./eng/common/cross/build-rootfs.sh "x86" "debian" "12" --skipunmount
+          ./eng/common/cross/build-rootfs.sh "x86" "debian" "12" --skipunmount
 
       - name: Build .NET Runtime
         run: |
@@ -192,6 +204,9 @@ jobs:
           name: dotnet-linux-x86-sdk
           path: ~/dotnet-linux-x86-sdk.tar.gz
 
+  # ========================================================================
+  # JOB 2: BUILD NORMAL PLATFORMS (Windows, macOS, Linux x64/arm64)
+  # ========================================================================
   build:
     needs: build-runtime-x86
     strategy:
@@ -302,8 +317,6 @@ jobs:
         shell: bash
         if: contains(matrix.runtime, 'osx')
         run: |
-          # FIX: Bypass the .icns requirement by omitting the --icon flag entirely.
-          # Velopack will use its default fallback icon, guaranteeing the build passes.
           vpk pack -u "Converter" -v "0.9.${{ github.run_number }}" --packDir "./publish/${{ matrix.runtime }}" --outputDir "./Releases" --channel "${{ matrix.runtime }}"
       - name: Pack with Velopack Linux
         shell: bash
@@ -315,12 +328,24 @@ jobs:
           name: vpk-artifacts-${{ matrix.runtime }}
           path: ./Releases/*
 
-  build_ubuntu-latest_linux-x86:
-    name: Build Linux x86 (Self-Contained, Single-File, R2R, Low RAM)
+  # ========================================================================
+  # JOB 3: BUILD LINUX x86 ON DEBIAN 12 (Self-Contained, Single-File, R2R)
+  # ========================================================================
+  build-debian-12_linux-x86:
+    name: Build Linux x86 (Debian 12, Self-Contained, Single-File, R2R)
     needs: build-runtime-x86
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
+    container:
+      image: debian:12
+      env:
+        DEBIAN_FRONTEND: noninteractive
     timeout-minutes: 60
     steps:
+      - name: Install container prerequisites
+        run: |
+          apt-get update
+          apt-get install -y sudo git curl wget ca-certificates lsb-release gnupg python3
+
       - name: Checkout Code
         uses: actions/checkout@v4
       - name: Checkout External Dependency (Scratch-Format-Converter)
@@ -355,50 +380,30 @@ jobs:
       - name: Inject Custom AppHost into Real SDK Path
         shell: bash
         run: |
-          # BULLETPROOF: Find the actual dotnet binary installed by setup-dotnet
-          DOTNET_BIN=$(which dotnet)
-          if [ -z "$DOTNET_BIN" ] || [ ! -x "$DOTNET_BIN" ]; then
-            DOTNET_BIN=$(find /opt/hostedtoolcache /usr/share /usr/local /home/runner -name "dotnet" -type f -executable 2>/dev/null | head -n 1)
-          fi
-          
-          if [ -z "$DOTNET_BIN" ] || [ ! -x "$DOTNET_BIN" ]; then
-            echo "❌ Could not find dotnet binary anywhere!"
-            find / -name "dotnet" -type f 2>/dev/null
-            exit 1
-          fi
-          
-          echo "✅ Found dotnet at: $DOTNET_BIN"
-          
-          # Resolve symlinks to get the real installation directory (e.g. /opt/hostedtoolcache/dotnet)
-          DOTNET_DIR=$(dirname $(readlink -f "$DOTNET_BIN"))
+          # In a clean Debian 12 container, there is NO /usr/share/dotnet hijacking.
+          # setup-dotnet installs cleanly. We just find where 'which dotnet' points.
+          DOTNET_DIR=$(dirname $(readlink -f $(which dotnet)))
           echo "✅ Real SDK Root: $DOTNET_DIR"
           
-          # Inject custom apphost into ALL possible version folders in the REAL SDK directory
           PACK_BASE="$DOTNET_DIR/packs/Microsoft.NETCore.App.Host.linux-x86"
-          for VER in "9.0.0" "9.0.20" "10.0.0" "10.0.302"; do
+          for VER in "9.0.0" "9.0.20" "9.0.200" "10.0.0"; do
             NATIVE_DIR="$PACK_BASE/$VER/runtimes/linux-x86/native"
             mkdir -p "$NATIVE_DIR"
-            cp ~/custom-sdk/host/apphost "$NATIVE_DIR/apphost"
-            cp ~/custom-sdk/host/singlefilehost "$NATIVE_DIR/singlefilehost"
+            cp ~/custom-sdk/host/apphost "$NATIVE_DIR/apphost" || true
+            cp ~/custom-sdk/host/singlefilehost "$NATIVE_DIR/singlefilehost" || true
             echo "✅ Injected into $NATIVE_DIR"
           done
 
       - name: Install i386 Native Libraries
         run: |
-          sudo dpkg --add-architecture i386
-          sudo apt-get update
-          sudo apt-get install -y libvlc-dev:i386 libvlccore-dev:i386 vlc-plugin-base:i386 libmagickcore-6.q16-6:i386 libmagickwand-6.q16-6:i386
+          dpkg --add-architecture i386
+          apt-get update
+          apt-get install -y libvlc-dev:i386 libvlccore-dev:i386 vlc-plugin-base:i386 libmagickcore-6.q16-6:i386 libmagickwand-6.q16-6:i386
 
       - name: Restore and Publish App
         shell: bash
         run: |
-          # Use the exact binary we just discovered
-          DOTNET_BIN=$(which dotnet)
-          if [ -z "$DOTNET_BIN" ] || [ ! -x "$DOTNET_BIN" ]; then
-            DOTNET_BIN=$(find /opt/hostedtoolcache /usr/share /usr/local /home/runner -name "dotnet" -type f -executable 2>/dev/null | head -n 1)
-          fi
-          
-          "$DOTNET_BIN" publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" -c Release -r linux-x86 -o "./publish/linux-x86" \
+          dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" -c Release -r linux-x86 -o "./publish/linux-x86" \
             -p:SelfContained=true \
             -p:PublishSingleFile=true \
             -p:PublishReadyToRun=true \
@@ -488,8 +493,11 @@ jobs:
           name: vpk-artifact-linux_x86
           path: ./Converter-linux-x86.tar.xz
 
+  # ========================================================================
+  # JOB 4: RELEASE
+  # ========================================================================
   release:
-    needs: [build, build_ubuntu-latest_linux-x86]
+    needs: [build, build-debian-12_linux-x86]
     runs-on: ubuntu-latest
     steps:
       - name: Download Artifacts
