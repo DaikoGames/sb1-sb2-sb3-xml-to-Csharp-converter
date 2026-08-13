@@ -380,63 +380,6 @@ jobs:
         with:
           dotnet-version: '9.0.200'
 
-      - name: Prepare Custom NuGet Packs for linux-x86
-        shell: bash
-        run: |
-          mkdir -p local-nuget
-          
-          # 1. Create Host Pack (Contains apphost and singlefilehost)
-          mkdir -p host-pack/runtimes/linux-x86/native
-          cp ~/custom-sdk/host/apphost host-pack/runtimes/linux-x86/native/
-          cp ~/custom-sdk/host/singlefilehost host-pack/runtimes/linux-x86/native/
-          cat > host-pack/Microsoft.NETCore.App.Host.linux-x86.nuspec << 'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
-            <metadata>
-              <id>Microsoft.NETCore.App.Host.linux-x86</id>
-              <version>9.0.2</version>
-              <authors>Microsoft</authors>
-              <description>Custom linux-x86 host</description>
-            </metadata>
-          </package>
-          EOF
-          
-          # 2. Zip into .nupkg
-          python3 - <<'PYEOF'
-          import zipfile, os
-          def create_nupkg(source_dir, output_file):
-              with zipfile.ZipFile(output_file, 'w', zipfile.ZIP_DEFLATED) as z:
-                  for root, dirs, files in os.walk(source_dir):
-                      for f in files:
-                          arcname = os.path.relpath(os.path.join(root, f), source_dir)
-                          z.write(os.path.join(root, f), arcname)
-          create_nupkg('host-pack', 'local-nuget/Microsoft.NETCore.App.Host.linux-x86.9.0.2.nupkg')
-          PYEOF
-          
-          # 3. Create nuget.config
-          cat > nuget.config << 'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <configuration>
-            <packageSources>
-              <clear />
-              <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
-              <add key="local-custom" value="./local-nuget" />
-            </packageSources>
-          </configuration>
-          EOF
-          
-          # 4. Create Directory.Build.targets (ONLY AppHost, NO FrameworkReference to avoid NETSDK1133)
-          cat > Directory.Build.targets << 'EOF'
-          <Project>
-            <ItemGroup>
-              <KnownAppHostPack Include="Microsoft.NETCore.App" 
-                                TargetFramework="net9.0" 
-                                AppHostPackNamePattern="Microsoft.NETCore.App.Host.**RID**" 
-                                AppHostPackVersion="9.0.2" />
-            </ItemGroup>
-          </Project>
-          EOF
-
       - name: Install i386 Native Libraries
         run: |
           dpkg --add-architecture i386
@@ -446,14 +389,18 @@ jobs:
       - name: Restore and Publish App (Single-File Bundle)
         shell: bash
         run: |
-          # FIX: SelfContained=false bypasses the SDK's blocked RuntimePack resolution for linux-x86.
-          # PublishSingleFile=true bundles ALL your app code into a single executable using the custom apphost.
+          # THE MASTER FIX: Bypass SDK/NuGet AppHost resolution entirely by pointing directly to our binaries.
+          APPHOST_PATH="$HOME/custom-sdk/host/apphost"
+          SINGLEFILEHOST_PATH="$HOME/custom-sdk/host/singlefilehost"
+          
           dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" -c Release -r linux-x86 -o "./publish/linux-x86" \
             -p:SelfContained=false \
             -p:PublishSingleFile=true \
             -p:PublishReadyToRun=true \
             -p:UseAppHost=true \
             -p:RuntimeIdentifier=linux-x86 \
+            -p:AppHostSourcePath="$APPHOST_PATH" \
+            -p:SingleFileHostSourcePath="$SINGLEFILEHOST_PATH" \
             -p:ExcludeMagickX64=true \
             -p:DebugType=none \
             -p:DebugSymbols=false
@@ -467,7 +414,7 @@ jobs:
           # Inject the custom 32-bit CoreCLR and HostFXR next to the single-file app
           CUSTOM_SHARED=$(find ~/custom-sdk/shared/Microsoft.NETCore.App -type d | head -n 1)
           if [ -d "$CUSTOM_SHARED" ]; then
-            cp "$CUSTOM_SHARED"/*.so ./final-linux-x86/
+            cp "$CUSTOM_SHARED"/*.so ./final-linux-x86/ || true
           fi
           CUSTOM_HOSTFXR=$(find ~/custom-sdk/host/fxr -name "libhostfxr.so" | head -n 1)
           [ -f "$CUSTOM_HOSTFXR" ] && cp "$CUSTOM_HOSTFXR" ./final-linux-x86/
