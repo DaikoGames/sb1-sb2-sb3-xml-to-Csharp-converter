@@ -24,7 +24,7 @@ jobs:
       - name: Install container prerequisites
         run: |
           apt-get update
-          apt-get install -y sudo git curl wget ca-certificates lsb-release gnupg
+          apt-get install -y sudo git curl wget ca-certificates lsb-release gnupg coreutils which
 
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -151,16 +151,9 @@ jobs:
       - name: Generate cross rootfs for x86
         run: |
           cd ~/runtime
-          
-          # BULLETPROOF FIX: The dotnet/runtime build-rootfs.sh script has hardcoded Ubuntu logic
-          # that breaks Debian bootstrapping (wrong repo URL, 'universe' component, and 'security' suite).
-          # We patch the script to force it to use the official Debian mirror and correct Debian apt configuration.
           sed -i 's|__UbuntuRepo="http://archive.ubuntu.com/ubuntu/"|__UbuntuRepo="http://ftp.debian.org/debian/"|g' eng/common/cross/build-rootfs.sh
           sed -i 's|__UbuntuSuites="updates security backports"|__UbuntuSuites="updates"|g' eng/common/cross/build-rootfs.sh
           sed -i 's|Components: main universe|Components: main|g' eng/common/cross/build-rootfs.sh
-          
-          # FIX: Pass 'no-lldb' to skip installing liblldb-3.9-dev, which doesn't exist in Debian 12.
-          # LLDB is only needed for debugging the runtime, not for cross-compiling it.
           ./eng/common/cross/build-rootfs.sh "x86" "bookworm" "no-lldb" --skipunmount
 
       - name: Build .NET Runtime
@@ -354,7 +347,7 @@ jobs:
       - name: Install container prerequisites
         run: |
           apt-get update
-          apt-get install -y sudo git curl wget ca-certificates lsb-release gnupg python3
+          apt-get install -y sudo git curl wget ca-certificates lsb-release gnupg python3 coreutils which
 
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -390,16 +383,31 @@ jobs:
       - name: Inject Custom AppHost into Real SDK Path
         shell: bash
         run: |
-          DOTNET_DIR=$(dirname $(readlink -f $(which dotnet)))
-          echo "✅ Real SDK Root: $DOTNET_DIR"
+          # setup-dotnet reliably sets the DOTNET_ROOT environment variable.
+          if [ -z "$DOTNET_ROOT" ]; then
+            DOTNET_ROOT="/usr/share/dotnet"
+          fi
           
-          PACK_BASE="$DOTNET_DIR/packs/Microsoft.NETCore.App.Host.linux-x86"
-          for VER in "9.0.0" "9.0.20" "9.0.200" "10.0.0"; do
+          echo "✅ Using DOTNET_ROOT: $DOTNET_ROOT"
+          
+          # 1. Inject into SDK packs folder
+          PACK_BASE="$DOTNET_ROOT/packs/Microsoft.NETCore.App.Host.linux-x86"
+          for VER in "9.0.0" "9.0.1" "9.0.2" "9.0.20" "9.0.200" "10.0.0"; do
             NATIVE_DIR="$PACK_BASE/$VER/runtimes/linux-x86/native"
             mkdir -p "$NATIVE_DIR"
-            cp ~/custom-sdk/host/apphost "$NATIVE_DIR/apphost" || true
-            cp ~/custom-sdk/host/singlefilehost "$NATIVE_DIR/singlefilehost" || true
+            cp ~/custom-sdk/host/apphost "$NATIVE_DIR/apphost"
+            cp ~/custom-sdk/host/singlefilehost "$NATIVE_DIR/singlefilehost"
             echo "✅ Injected into $NATIVE_DIR"
+          done
+          
+          # 2. Bulletproof fallback: Inject into NuGet global packages cache
+          NUGET_PACKAGES="$HOME/.nuget/packages/microsoft.netcore.app.host.linux-x86"
+          for VER in "9.0.0" "9.0.1" "9.0.2" "9.0.20" "9.0.200" "10.0.0"; do
+            NUGET_NATIVE_DIR="$NUGET_PACKAGES/$VER/runtimes/linux-x86/native"
+            mkdir -p "$NUGET_NATIVE_DIR"
+            cp ~/custom-sdk/host/apphost "$NUGET_NATIVE_DIR/apphost"
+            cp ~/custom-sdk/host/singlefilehost "$NUGET_NATIVE_DIR/singlefilehost"
+            echo "✅ Injected into NuGet cache: $NUGET_NATIVE_DIR"
           done
 
       - name: Install i386 Native Libraries
