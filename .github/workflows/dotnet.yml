@@ -291,7 +291,8 @@ jobs:
     steps:
       - name: Install container prerequisites
         run: |
-          apt-get update && apt-get install -y sudo git curl wget ca-certificates lsb-release gnupg python3 coreutils which
+          # FIX: Added xz-utils to allow tar -cJf to work
+          apt-get update && apt-get install -y sudo git curl wget ca-certificates lsb-release gnupg python3 coreutils which xz-utils
 
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -330,7 +331,6 @@ jobs:
       - name: Setup Native 64-bit SDK
         uses: actions/setup-dotnet@v4
         with:
-          # FIX: Changed from 9.0.200 to 9.0.x to get the latest compiler (4.14.0.0) required by Avalonia 12.1.1
           dotnet-version: '9.0.x'
 
       - name: Install i386 Native Libraries
