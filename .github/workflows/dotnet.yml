@@ -380,35 +380,91 @@ jobs:
         with:
           dotnet-version: '9.0.200'
 
-      - name: Inject Custom AppHost into Real SDK Path
+      - name: Prepare Custom NuGet Packs for linux-x86
         shell: bash
         run: |
-          # setup-dotnet reliably sets the DOTNET_ROOT environment variable.
-          if [ -z "$DOTNET_ROOT" ]; then
-            DOTNET_ROOT="/usr/share/dotnet"
-          fi
+          mkdir -p local-nuget
           
-          echo "✅ Using DOTNET_ROOT: $DOTNET_ROOT"
+          # 1. Create Host Pack
+          mkdir -p host-pack/runtimes/linux-x86/native
+          cp ~/custom-sdk/host/apphost host-pack/runtimes/linux-x86/native/
+          cp ~/custom-sdk/host/singlefilehost host-pack/runtimes/linux-x86/native/
+          cat > host-pack/Microsoft.NETCore.App.Host.linux-x86.nuspec << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
+            <metadata>
+              <id>Microsoft.NETCore.App.Host.linux-x86</id>
+              <version>9.0.2</version>
+              <authors>Microsoft</authors>
+              <description>Custom linux-x86 host</description>
+            </metadata>
+          </package>
+          EOF
           
-          # 1. Inject into SDK packs folder
-          PACK_BASE="$DOTNET_ROOT/packs/Microsoft.NETCore.App.Host.linux-x86"
-          for VER in "9.0.0" "9.0.1" "9.0.2" "9.0.20" "9.0.200" "10.0.0"; do
-            NATIVE_DIR="$PACK_BASE/$VER/runtimes/linux-x86/native"
-            mkdir -p "$NATIVE_DIR"
-            cp ~/custom-sdk/host/apphost "$NATIVE_DIR/apphost"
-            cp ~/custom-sdk/host/singlefilehost "$NATIVE_DIR/singlefilehost"
-            echo "✅ Injected into $NATIVE_DIR"
-          done
+          # 2. Create Runtime Pack
+          mkdir -p runtime-pack/runtimes/linux-x86/native
+          mkdir -p runtime-pack/runtimes/linux-x86/lib/net9.0
+          cp ~/custom-sdk/shared/Microsoft.NETCore.App/* runtime-pack/runtimes/linux-x86/native/ || true
+          cat > runtime-pack/Microsoft.NETCore.App.Runtime.linux-x86.nuspec << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
+            <metadata>
+              <id>Microsoft.NETCore.App.Runtime.linux-x86</id>
+              <version>9.0.2</version>
+              <authors>Microsoft</authors>
+              <description>Custom linux-x86 runtime</description>
+            </metadata>
+          </package>
+          EOF
           
-          # 2. Bulletproof fallback: Inject into NuGet global packages cache
-          NUGET_PACKAGES="$HOME/.nuget/packages/microsoft.netcore.app.host.linux-x86"
-          for VER in "9.0.0" "9.0.1" "9.0.2" "9.0.20" "9.0.200" "10.0.0"; do
-            NUGET_NATIVE_DIR="$NUGET_PACKAGES/$VER/runtimes/linux-x86/native"
-            mkdir -p "$NUGET_NATIVE_DIR"
-            cp ~/custom-sdk/host/apphost "$NUGET_NATIVE_DIR/apphost"
-            cp ~/custom-sdk/host/singlefilehost "$NUGET_NATIVE_DIR/singlefilehost"
-            echo "✅ Injected into NuGet cache: $NUGET_NATIVE_DIR"
-          done
+          # 3. Zip them into .nupkg files
+          python3 - <<'PYEOF'
+          import zipfile, os
+          
+          def create_nupkg(source_dir, output_file):
+              with zipfile.ZipFile(output_file, 'w', zipfile.ZIP_DEFLATED) as z:
+                  for root, dirs, files in os.walk(source_dir):
+                      for f in files:
+                          arcname = os.path.relpath(os.path.join(root, f), source_dir)
+                          z.write(os.path.join(root, f), arcname)
+                          
+          create_nupkg('host-pack', 'local-nuget/Microsoft.NETCore.App.Host.linux-x86.9.0.2.nupkg')
+          create_nupkg('runtime-pack', 'local-nuget/Microsoft.NETCore.App.Runtime.linux-x86.9.0.2.nupkg')
+          PYEOF
+          
+          # 4. Create nuget.config to use the local feed
+          cat > nuget.config << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <configuration>
+            <packageSources>
+              <clear />
+              <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
+              <add key="local-custom" value="./local-nuget" />
+            </packageSources>
+          </configuration>
+          EOF
+          
+          # 5. Create Directory.Build.targets to tell the SDK about linux-x86
+          cat > Directory.Build.targets << 'EOF'
+          <Project>
+            <ItemGroup>
+              <KnownAppHostPack Include="Microsoft.NETCore.App" 
+                                TargetFramework="net9.0" 
+                                AppHostPackNamePattern="Microsoft.NETCore.App.Host.**RID**" 
+                                AppHostPackVersion="9.0.2" 
+                                Condition="'$(RuntimeIdentifier)' == 'linux-x86'" />
+              
+              <KnownFrameworkReference Update="Microsoft.NETCore.App" 
+                                       TargetFramework="net9.0" 
+                                       Condition="'$(RuntimeIdentifier)' == 'linux-x86'">
+                <RuntimePackNamePatterns>Microsoft.NETCore.App.Runtime.**RID**</RuntimePackNamePatterns>
+                <RuntimePackVersioningScheme>Exact</RuntimePackVersioningScheme>
+                <DefaultRuntimeFrameworkVersion>9.0.2</DefaultRuntimeFrameworkVersion>
+                <LatestRuntimeFrameworkVersion>9.0.2</LatestRuntimeFrameworkVersion>
+              </KnownFrameworkReference>
+            </ItemGroup>
+          </Project>
+          EOF
 
       - name: Install i386 Native Libraries
         run: |
