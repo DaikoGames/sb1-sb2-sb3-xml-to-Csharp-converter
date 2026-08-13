@@ -332,10 +332,10 @@ jobs:
           path: ./Releases/*
 
   # ========================================================================
-  # JOB 3: BUILD LINUX x86 ON DEBIAN 12 (Self-Contained, Single-File, R2R)
+  # JOB 3: BUILD LINUX x86 ON DEBIAN 12 (Single-File App + Custom Runtime)
   # ========================================================================
   build-debian-12_linux-x86:
-    name: Build Linux x86 (Debian 12, Self-Contained, Single-File, R2R)
+    name: Build Linux x86 (Debian 12, Single-File App + Custom Runtime)
     needs: build-runtime-x86
     runs-on: ubuntu-latest
     container:
@@ -385,7 +385,7 @@ jobs:
         run: |
           mkdir -p local-nuget
           
-          # 1. Create Host Pack
+          # 1. Create Host Pack (Contains apphost and singlefilehost)
           mkdir -p host-pack/runtimes/linux-x86/native
           cp ~/custom-sdk/host/apphost host-pack/runtimes/linux-x86/native/
           cp ~/custom-sdk/host/singlefilehost host-pack/runtimes/linux-x86/native/
@@ -401,38 +401,19 @@ jobs:
           </package>
           EOF
           
-          # 2. Create Runtime Pack
-          mkdir -p runtime-pack/runtimes/linux-x86/native
-          mkdir -p runtime-pack/runtimes/linux-x86/lib/net9.0
-          cp ~/custom-sdk/shared/Microsoft.NETCore.App/* runtime-pack/runtimes/linux-x86/native/ || true
-          cat > runtime-pack/Microsoft.NETCore.App.Runtime.linux-x86.nuspec << 'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
-            <metadata>
-              <id>Microsoft.NETCore.App.Runtime.linux-x86</id>
-              <version>9.0.2</version>
-              <authors>Microsoft</authors>
-              <description>Custom linux-x86 runtime</description>
-            </metadata>
-          </package>
-          EOF
-          
-          # 3. Zip them into .nupkg files
+          # 2. Zip into .nupkg
           python3 - <<'PYEOF'
           import zipfile, os
-          
           def create_nupkg(source_dir, output_file):
               with zipfile.ZipFile(output_file, 'w', zipfile.ZIP_DEFLATED) as z:
                   for root, dirs, files in os.walk(source_dir):
                       for f in files:
                           arcname = os.path.relpath(os.path.join(root, f), source_dir)
                           z.write(os.path.join(root, f), arcname)
-                          
           create_nupkg('host-pack', 'local-nuget/Microsoft.NETCore.App.Host.linux-x86.9.0.2.nupkg')
-          create_nupkg('runtime-pack', 'local-nuget/Microsoft.NETCore.App.Runtime.linux-x86.9.0.2.nupkg')
           PYEOF
           
-          # 4. Create nuget.config to use the local feed
+          # 3. Create nuget.config
           cat > nuget.config << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <configuration>
@@ -444,24 +425,14 @@ jobs:
           </configuration>
           EOF
           
-          # 5. Create Directory.Build.targets to tell the SDK about linux-x86
+          # 4. Create Directory.Build.targets (ONLY AppHost, NO FrameworkReference to avoid NETSDK1133)
           cat > Directory.Build.targets << 'EOF'
           <Project>
             <ItemGroup>
               <KnownAppHostPack Include="Microsoft.NETCore.App" 
                                 TargetFramework="net9.0" 
                                 AppHostPackNamePattern="Microsoft.NETCore.App.Host.**RID**" 
-                                AppHostPackVersion="9.0.2" 
-                                Condition="'$(RuntimeIdentifier)' == 'linux-x86'" />
-              
-              <KnownFrameworkReference Update="Microsoft.NETCore.App" 
-                                       TargetFramework="net9.0" 
-                                       Condition="'$(RuntimeIdentifier)' == 'linux-x86'">
-                <RuntimePackNamePatterns>Microsoft.NETCore.App.Runtime.**RID**</RuntimePackNamePatterns>
-                <RuntimePackVersioningScheme>Exact</RuntimePackVersioningScheme>
-                <DefaultRuntimeFrameworkVersion>9.0.2</DefaultRuntimeFrameworkVersion>
-                <LatestRuntimeFrameworkVersion>9.0.2</LatestRuntimeFrameworkVersion>
-              </KnownFrameworkReference>
+                                AppHostPackVersion="9.0.2" />
             </ItemGroup>
           </Project>
           EOF
@@ -472,40 +443,34 @@ jobs:
           apt-get update
           apt-get install -y libvlc-dev:i386 libvlccore-dev:i386 vlc-plugin-base:i386 libmagickcore-6.q16-6:i386 libmagickwand-6.q16-6:i386
 
-      - name: Restore and Publish App
+      - name: Restore and Publish App (Single-File Bundle)
         shell: bash
         run: |
+          # FIX: SelfContained=false bypasses the SDK's blocked RuntimePack resolution for linux-x86.
+          # PublishSingleFile=true bundles ALL your app code into a single executable using the custom apphost.
           dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" -c Release -r linux-x86 -o "./publish/linux-x86" \
-            -p:SelfContained=true \
+            -p:SelfContained=false \
             -p:PublishSingleFile=true \
             -p:PublishReadyToRun=true \
-            -p:IncludeNativeLibrariesForSelfExtract=false \
             -p:UseAppHost=true \
             -p:RuntimeIdentifier=linux-x86 \
             -p:ExcludeMagickX64=true \
             -p:DebugType=none \
             -p:DebugSymbols=false
 
-      - name: Inject Custom Patched CoreCLR
-        shell: bash
-        run: |
-          CUSTOM_SHARED=$(find ~/custom-sdk/shared/Microsoft.NETCore.App -type d | head -n 1)
-          if [ -d "$CUSTOM_SHARED" ]; then
-            for so_file in "$CUSTOM_SHARED"/*.so; do
-              filename=$(basename "$so_file")
-              if [ "$filename" != "Converter" ] && [ "$filename" != "dotnet" ]; then
-                cp "$so_file" "./publish/linux-x86/$filename"
-              fi
-            done
-          fi
-          CUSTOM_HOSTFXR=$(find ~/custom-sdk/host/fxr -name "libhostfxr.so" | head -n 1)
-          [ -f "$CUSTOM_HOSTFXR" ] && cp "$CUSTOM_HOSTFXR" "./publish/linux-x86/libhostfxr.so"
-
-      - name: Assemble Final Package
+      - name: Assemble Final Self-Contained Package
         shell: bash
         run: |
           mkdir -p ./final-linux-x86
           cp -r ./publish/linux-x86/* ./final-linux-x86/
+          
+          # Inject the custom 32-bit CoreCLR and HostFXR next to the single-file app
+          CUSTOM_SHARED=$(find ~/custom-sdk/shared/Microsoft.NETCore.App -type d | head -n 1)
+          if [ -d "$CUSTOM_SHARED" ]; then
+            cp "$CUSTOM_SHARED"/*.so ./final-linux-x86/
+          fi
+          CUSTOM_HOSTFXR=$(find ~/custom-sdk/host/fxr -name "libhostfxr.so" | head -n 1)
+          [ -f "$CUSTOM_HOSTFXR" ] && cp "$CUSTOM_HOSTFXR" ./final-linux-x86/
           
           rm -f ./final-linux-x86/Magick.NET-Q16-x64.dll ./final-linux-x86/Magick.NET-Q16-arm64.dll
           rm -f ./final-linux-x86/libMagick*x64*.so ./final-linux-x86/libMagick*arm64*.so
