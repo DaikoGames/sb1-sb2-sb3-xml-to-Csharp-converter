@@ -60,3 +60,4 @@ On MacOS: use the CompileMacOS.sh
 
 For more infos you can join my [Discord](https://discord.gg/dvJwx5Mzzj) Server
 
+The app is programmed with the Help of AI if used - mostly Qwen AI
