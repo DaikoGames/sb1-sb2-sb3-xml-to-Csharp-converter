@@ -151,7 +151,8 @@ jobs:
       - name: Generate cross rootfs for x86
         run: |
           cd ~/runtime
-          ./eng/common/cross/build-rootfs.sh "x86" "debian" "12" --skipunmount
+          # FIX: "debian" and "12" are invalid. Debian 12 codename is "bookworm".
+          ./eng/common/cross/build-rootfs.sh "x86" "bookworm" --skipunmount
 
       - name: Build .NET Runtime
         run: |
@@ -380,8 +381,6 @@ jobs:
       - name: Inject Custom AppHost into Real SDK Path
         shell: bash
         run: |
-          # In a clean Debian 12 container, there is NO /usr/share/dotnet hijacking.
-          # setup-dotnet installs cleanly. We just find where 'which dotnet' points.
           DOTNET_DIR=$(dirname $(readlink -f $(which dotnet)))
           echo "✅ Real SDK Root: $DOTNET_DIR"
           
