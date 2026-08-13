@@ -330,7 +330,8 @@ jobs:
       - name: Setup Native 64-bit SDK
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '9.0.200'
+          # FIX: Changed from 9.0.200 to 9.0.x to get the latest compiler (4.14.0.0) required by Avalonia 12.1.1
+          dotnet-version: '9.0.x'
 
       - name: Install i386 Native Libraries
         run: |
@@ -339,7 +340,6 @@ jobs:
       - name: Build App (Framework-Dependent, Bypasses NETSDK1084)
         shell: bash
         run: |
-          # FAST BUILD: Just compile the DLLs. No SDK validation hell.
           dotnet build "./sb1 sb2 sb3 xml to Csharp converter.csproj" -c Release -r linux-x86 -o "./publish/linux-x86" \
             -p:SelfContained=false \
             -p:UseAppHost=false \
@@ -350,7 +350,6 @@ jobs:
       - name: Inject Custom AppHost and CoreCLR
         shell: bash
         run: |
-          # 1. Copy the custom 32-bit apphost and patch it to point to Converter.dll
           cp ~/custom-sdk/host/apphost ./publish/linux-x86/Converter
           chmod +x ./publish/linux-x86/Converter
           
@@ -370,7 +369,6 @@ jobs:
               print("ERROR: Could not find placeholder in apphost!")
           PYEOF
 
-          # 2. Inject the custom 32-bit CoreCLR and HostFXR
           CUSTOM_SHARED=$(find ~/custom-sdk/shared/Microsoft.NETCore.App -type d | head -n 1)
           if [ -d "$CUSTOM_SHARED" ]; then
             cp "$CUSTOM_SHARED"/*.so ./publish/linux-x86/ || true
