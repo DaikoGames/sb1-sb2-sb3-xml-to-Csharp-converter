@@ -23,25 +23,23 @@ jobs:
     steps:
       - name: Install container prerequisites
         run: |
-          apt-get update
-          apt-get install -y sudo git curl wget ca-certificates lsb-release gnupg coreutils which
+          apt-get update && apt-get install -y sudo git curl wget ca-certificates lsb-release gnupg coreutils which
 
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
       - name: Install host build prerequisites
         run: |
-          apt-get update
-          apt-get install -y --no-install-recommends \
+          apt-get update && apt-get install -y --no-install-recommends \
             build-essential clang cmake cpio curl git libicu-dev \
             libkrb5-dev libssl-dev lld lldb llvm ninja-build \
             pigz zlib1g-dev python3 liblttng-ust-dev
 
       - name: Install i386 cross-compilation toolchain
         run: |
-          dpkg --add-architecture i386
-          apt-get update
-          apt-get install -y --no-install-recommends \
+          dpkg --add-architecture i386 && apt-get update && apt-get install -y --no-install-recommends \
             crossbuild-essential-i386 binfmt-support debootstrap \
             qemu-user-static qemu-user
 
@@ -61,14 +59,11 @@ jobs:
           cd ~/runtime
           cat > /tmp/patch.py << 'PYEOF'
           import os, re
-
           def replace(filepath, old, new):
               if os.path.exists(filepath):
                   with open(filepath, 'r') as f: content = f.read()
                   if old in content:
                       with open(filepath, 'w') as f: f.write(content.replace(old, new))
-                      print(f"Patched: {filepath}")
-
           replace('src/coreclr/vm/vars.hpp', 'CORProfilerDisableOptimizations()', 'false')
           replace('src/coreclr/vm/ceemain.cpp', 'BEGIN_PROFILER_CALLBACK(CORProfilerPresent());', 'if (false) {')
           replace('src/coreclr/vm/ceemain.cpp', 'END_PROFILER_CALLBACK();', '}')
@@ -81,13 +76,11 @@ jobs:
           replace('src/coreclr/vm/eeprofinterfaces.inl', 'CORProfilerTrackLargeAllocations()', 'FALSE')
           replace('src/coreclr/vm/eeprofinterfaces.inl', 'CORProfilerTrackPinnedAllocations()', 'FALSE')
           replace('src/coreclr/vm/eetoprofinterfaceimpl.inl', 'CORProfilerPresent()', 'FALSE')
-
           filepath = 'src/coreclr/inc/profilepriv.inl'
           if os.path.exists(filepath):
               with open(filepath, 'r') as f: content = f.read()
               if not content.lstrip().startswith('#if FEATURE_PERFTRACING'):
-                  with open(filepath, 'w') as f: f.write('#if FEATURE_PERFTRACING\n' + content + '\n#endif // FEATURE_PERFTRACING\n')
-
+                  with open(filepath, 'w') as f: f.write('#if FEATURE_PERFTRACING\n' + content + '\n#endif\n')
           for host in ['corerun', 'apphost', 'singlefilehost']:
               filepath = f'src/coreclr/hosts/{host}/CMakeLists.txt'
               if os.path.exists(filepath):
@@ -96,55 +89,34 @@ jobs:
                   if re.search(pattern, content):
                       content = re.sub(pattern, r'\1\n    -Wl,--start-group\n    dl\n    c\n    -Wl,--end-group', content)
                       with open(filepath, 'w') as f: f.write(content)
-
           test_proj = 'src/installer/tests/Assets/Projects/HelloWorld/SelfContained.csproj'
           if os.path.exists(test_proj):
               with open(test_proj, 'r') as f: content = f.read()
               content = content.replace('<SelfContained>true</SelfContained>', '<SelfContained>false</SelfContained>')
               content = content.replace('<UseAppHost>true</UseAppHost>', '<UseAppHost>false</UseAppHost>')
               with open(test_proj, 'w') as f: f.write(content)
-
           crossgen2_proj = 'src/coreclr/tools/aot/crossgen2/crossgen2_publish.csproj'
           if os.path.exists(crossgen2_proj):
               with open(crossgen2_proj, 'r') as f: content = f.read()
               if '<UseAppHost>false</UseAppHost>' not in content:
-                  new_props = '''  <PropertyGroup>
-              <UseAppHost>false</UseAppHost>
-              <PublishReadyToRun>false</PublishReadyToRun>
-              <PublishTrimmed>false</PublishTrimmed>
-              <PublishSingleFile>false</PublishSingleFile>
-              </PropertyGroup>
-              </Project>'''
+                  new_props = '  <PropertyGroup>\n    <UseAppHost>false</UseAppHost>\n    <PublishReadyToRun>false</PublishReadyToRun>\n    <PublishTrimmed>false</PublishTrimmed>\n    <PublishSingleFile>false</PublishSingleFile>\n  </PropertyGroup>\n</Project>'
                   content = content.replace('</Project>', new_props)
                   with open(crossgen2_proj, 'w') as f: f.write(content)
-                  print("Patched crossgen2_publish.csproj to prevent NETSDK1084")
-
           sfxproj = 'src/installer/pkg/sfx/Microsoft.NETCore.App/Microsoft.NETCore.App.Crossgen2.sfxproj'
           if os.path.exists(sfxproj):
               with open(sfxproj, 'r') as f: content = f.read()
               if 'Name="Build" />' not in content:
-                  patch = '''
-              <Target Name="Build" />
-              <Target Name="Pack" />
-              <Target Name="CreateManifestResourceNames" />
-              <Target Name="VerifySharedFrameworkDependencies" />
-              </Project>'''
+                  patch = '\n  <Target Name="Build" />\n  <Target Name="Pack" />\n  <Target Name="CreateManifestResourceNames" />\n  <Target Name="VerifySharedFrameworkDependencies" />\n</Project>'
                   content = content.replace('</Project>', patch)
                   with open(sfxproj, 'w') as f: f.write(content)
-                  print("Patched Crossgen2 sfxproj to bypass build/pack targets safely")
-
           hostmodel_proj = 'src/installer/managed/Microsoft.NET.HostModel/Microsoft.NET.HostModel.csproj'
           if os.path.exists(hostmodel_proj):
               with open(hostmodel_proj, 'r') as f: content = f.read()
               if 'DeleteAssemblyReferenceCache' not in content:
-                  patch = '''
-              <Target Name="DeleteAssemblyReferenceCache" BeforeTargets="GenerateAssemblyReferenceCache">
-              <Delete Files="$(IntermediateOutputPath)$(MSBuildProjectName).csproj.AssemblyReference.cache" ContinueOnError="true" />
-              </Target>
-              </Project>'''
+                  patch = '\n  <Target Name="DeleteAssemblyReferenceCache" BeforeTargets="GenerateAssemblyReferenceCache">\n    <Delete Files="$(IntermediateOutputPath)$(MSBuildProjectName).csproj.AssemblyReference.cache" ContinueOnError="true" />\n  </Target>\n</Project>'
                   content = content.replace('</Project>', patch)
                   with open(hostmodel_proj, 'w') as f: f.write(content)
-                  print("Patched Microsoft.NET.HostModel.csproj to delete cache (Fixes MSB3101)")
+          print("Patches applied.")
           PYEOF
           python3 /tmp/patch.py
 
@@ -163,42 +135,29 @@ jobs:
           pkill -9 -f dotnet || true
           ~/runtime/.dotnet/dotnet build-server shutdown || true
           rm -rf ~/runtime/artifacts/obj ~/runtime/artifacts/bin ~/runtime/artifacts/packages
-          
           ./build.sh -subset clr+libs+host+packs -configuration Release -arch "x86" --cross \
-            /p:UseAppHost=false \
-            /p:SelfContained=false \
-            /p:RunTests=false /p:BuildTests=false \
+            /p:UseAppHost=false /p:SelfContained=false /p:RunTests=false /p:BuildTests=false \
             /p:BuildInstaller=false /p:FeatureEventTrace=0 /p:FeaturePerfTracing=0 \
-            /p:ContinuousIntegrationBuild=true \
-            /p:BuildInParallel=false
+            /p:ContinuousIntegrationBuild=true /p:BuildInParallel=false
             
       - name: Assemble and Package Custom SDK
         run: |
           set -e
-          mkdir -p ~/custom-sdk/host/fxr
-          mkdir -p ~/custom-sdk/shared/Microsoft.NETCore.App
-          
-          DOTNET_BIN=$(find ~/runtime/artifacts/bin -type f -name "dotnet" | grep -iE "x86.*release|release.*x86" | head -n 1)
-          APPHOST_BIN=$(find ~/runtime/artifacts/bin -type f -name "apphost" | grep -iE "x86.*release|release.*x86" | head -n 1)
-          SINGLEFILEHOST_BIN=$(find ~/runtime/artifacts/bin -type f -name "singlefilehost" | grep -iE "x86.*release|release.*x86" | head -n 1)
-          HOSTFXR_BIN=$(find ~/runtime/artifacts/bin -type f -name "libhostfxr.so" | grep -iE "x86.*release|release.*x86" | head -n 1)
-          
-          [ -n "$DOTNET_BIN" ] && { cp "$DOTNET_BIN" ~/custom-sdk/dotnet; chmod +x ~/custom-sdk/dotnet; echo "✅ dotnet"; }
-          [ -n "$APPHOST_BIN" ] && { cp "$APPHOST_BIN" ~/custom-sdk/host/apphost; chmod +x ~/custom-sdk/host/apphost; echo "✅ apphost"; }
-          [ -n "$SINGLEFILEHOST_BIN" ] && { cp "$SINGLEFILEHOST_BIN" ~/custom-sdk/host/singlefilehost; chmod +x ~/custom-sdk/host/singlefilehost; echo "✅ singlefilehost"; }
-          
+          mkdir -p ~/custom-sdk/host/fxr ~/custom-sdk/shared/Microsoft.NETCore.App
+          DOTNET_BIN=$(find ~/runtime/artifacts/bin -type f -name "dotnet" | grep -iE "x86.*release" | head -n 1)
+          APPHOST_BIN=$(find ~/runtime/artifacts/bin -type f -name "apphost" | grep -iE "x86.*release" | head -n 1)
+          SINGLEFILEHOST_BIN=$(find ~/runtime/artifacts/bin -type f -name "singlefilehost" | grep -iE "x86.*release" | head -n 1)
+          HOSTFXR_BIN=$(find ~/runtime/artifacts/bin -type f -name "libhostfxr.so" | grep -iE "x86.*release" | head -n 1)
+          [ -n "$DOTNET_BIN" ] && { cp "$DOTNET_BIN" ~/custom-sdk/dotnet; chmod +x ~/custom-sdk/dotnet; }
+          [ -n "$APPHOST_BIN" ] && { cp "$APPHOST_BIN" ~/custom-sdk/host/apphost; chmod +x ~/custom-sdk/host/apphost; }
+          [ -n "$SINGLEFILEHOST_BIN" ] && { cp "$SINGLEFILEHOST_BIN" ~/custom-sdk/host/singlefilehost; chmod +x ~/custom-sdk/host/singlefilehost; }
           if [ -n "$HOSTFXR_BIN" ]; then
             FXR_VERSION=$(basename "$(dirname "$HOSTFXR_BIN")")
             mkdir -p ~/custom-sdk/host/fxr/$FXR_VERSION
             cp "$HOSTFXR_BIN" ~/custom-sdk/host/fxr/$FXR_VERSION/
-            echo "✅ libhostfxr.so → host/fxr/$FXR_VERSION/"
-          else
-            echo "❌ libhostfxr.so NOT FOUND"; exit 1
           fi
-          
-          SHARED_DIR=$(find ~/runtime/artifacts/bin -type d -path "*/shared/Microsoft.NETCore.App" | grep -iE "x86.*release|release.*x86" | head -n 1)
+          SHARED_DIR=$(find ~/runtime/artifacts/bin -type d -path "*/shared/Microsoft.NETCore.App" | grep -iE "x86.*release" | head -n 1)
           [ -n "$SHARED_DIR" ] && cp -r "$SHARED_DIR"/* ~/custom-sdk/shared/Microsoft.NETCore.App/
-          
           cd ~/custom-sdk && tar -czf ~/dotnet-linux-x86-sdk.tar.gz .
 
       - name: Upload Custom SDK
@@ -233,21 +192,26 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-      - name: Checkout External Dependency (Scratch-Format-Converter)
+        with:
+          fetch-depth: 1
+      - name: Checkout External Dependencies
         uses: actions/checkout@v4
         with:
           repository: 'DaikoGames/Scratch-Format-Converter'
           path: Scratch-Format-Converter
-      - name: Checkout External Dependency (Scratch-To-Snap)
+          fetch-depth: 1
+      - name: Checkout Scratch-To-Snap
         uses: actions/checkout@v4
         with:
           repository: 'DaikoGames/Scratch-To-Snap-'
           path: Scratch-To-Snap
-      - name: Checkout External Dependency (Translator)
+          fetch-depth: 1
+      - name: Checkout Translator
         uses: actions/checkout@v4
         with:
           repository: 'DaikoGames/Translate-Folder'
           path: Translate-Folder
+          fetch-depth: 1
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
@@ -261,7 +225,7 @@ jobs:
       - name: Add dotnet tools to PATH
         shell: bash
         run: echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
-      - name: Add files (Windows)
+      - name: Add files and Pack (Windows)
         shell: pwsh
         if: contains(matrix.runtime, 'win')
         run: |
@@ -277,54 +241,35 @@ jobs:
           Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.json" | ForEach-Object { $dn = $_.Directory.Name; Copy-Item $_.FullName "$baseDir/Translate-Folder/$dn/" -Force }
           Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.yml" | ForEach-Object { $dn = $_.Directory.Name; Copy-Item $_.FullName "$baseDir/Translate-Folder/$dn/" -Force }
           Copy-Item "./README.md" "$baseDir/"
-      - name: Add Files (macOS)
-        shell: pwsh
-        if: contains(matrix.runtime, 'osx')
-        run: |
-          $baseDir = "./publish/${{ matrix.runtime }}"
-          New-Item -ItemType Directory -Force -Path "$baseDir/ConverterIcon", "$baseDir/Scratch-Format-Converter", "$baseDir/Scratch-To-Snap", "$baseDir/Install", "$baseDir/svg_library_ScratchJnr", "$baseDir/wav_library_ScratchJnr"
-          Copy-Item "./ConverterIcon/Converter.ico", "./ConverterIcon/Converter.png" "$baseDir/ConverterIcon/"
-          Copy-Item "./Scratch-Format-Converter/Convert.js", "./Scratch-Format-Converter/package.json", "./Scratch-Format-Converter/package-lock.json" "$baseDir/Scratch-Format-Converter/"
-          Copy-Item "./Scratch-To-Snap/converter.js", "./Scratch-To-Snap/package.json", "./Scratch-To-Snap/package-lock.json" "$baseDir/Scratch-To-Snap/"
-          Copy-Item "./Install/dotnet-install.sh" "$baseDir/Install/"
-          Copy-Item -Path "./svg_library_ScratchJnr/*" "$baseDir/svg_library_ScratchJnr/"
-          Copy-Item "./wav_library_ScratchJnr/*" "$baseDir/wav_library_ScratchJnr/"
-          Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.gz" | ForEach-Object { $dn = $_.Directory.Name; New-Item -ItemType Directory -Force -Path "$baseDir/Translate-Folder/$dn" | Out-Null; gzip -d -c $_.FullName > "$baseDir/Translate-Folder/$dn/$($_.Name -replace '\.gz$', '')"; Remove-Item $_.FullName -Force }
-          Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.json" | ForEach-Object { $dn = $_.Directory.Name; Copy-Item $_.FullName "$baseDir/Translate-Folder/$dn/" -Force }
-          Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.yml" | ForEach-Object { $dn = $_.Directory.Name; Copy-Item $_.FullName "$baseDir/Translate-Folder/$dn/" -Force }
-          Copy-Item "./README.md" "$baseDir/"
-      - name: Add Files (Linux)
-        shell: pwsh
-        if: contains(matrix.runtime, 'linux')
-        run: |
-          $baseDir = "./publish/${{ matrix.runtime }}"
-          New-Item -ItemType Directory -Force -Path "$baseDir/ConverterIcon", "$baseDir/Scratch-Format-Converter", "$baseDir/Scratch-To-Snap", "$baseDir/Install", "$baseDir/svg_library_ScratchJnr", "$baseDir/wav_library_ScratchJnr"
-          Copy-Item "./ConverterIcon/Converter.ico", "./ConverterIcon/Converter.png" "$baseDir/ConverterIcon/"
-          Copy-Item "./Scratch-Format-Converter/Convert.js", "./Scratch-Format-Converter/package.json", "./Scratch-Format-Converter/package-lock.json" "$baseDir/Scratch-Format-Converter/"
-          Copy-Item "./Scratch-To-Snap/converter.js", "./Scratch-To-Snap/package.json", "./Scratch-To-Snap/package-lock.json" "$baseDir/Scratch-To-Snap/"
-          Copy-Item "./Install/dotnet-install.sh" "$baseDir/Install/"
-          Copy-Item -Path "./svg_library_ScratchJnr/*" "$baseDir/svg_library_ScratchJnr/"
-          Copy-Item "./wav_library_ScratchJnr/*" "$baseDir/wav_library_ScratchJnr/"
-          Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.gz" | ForEach-Object { $dn = $_.Directory.Name; New-Item -ItemType Directory -Force -Path "$baseDir/Translate-Folder/$dn" | Out-Null; gzip -d -c $_.FullName > "$baseDir/Translate-Folder/$dn/$($_.Name -replace '\.gz$', '')"; Remove-Item $_.FullName -Force }
-          Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.json" | ForEach-Object { $dn = $_.Directory.Name; Copy-Item $_.FullName "$baseDir/Translate-Folder/$dn/" -Force }
-          Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.yml" | ForEach-Object { $dn = $_.Directory.Name; Copy-Item $_.FullName "$baseDir/Translate-Folder/$dn/" -Force }
-          Copy-Item "./README.md" "$baseDir/"
-      - name: Check Help
-        shell: bash
-        run: vpk pack --help
-      - name: Pack with Velopack Windows
-        shell: bash
-        if: contains(matrix.runtime, 'win')
-        run: vpk pack -u "Converter" -v "0.9.${{ github.run_number }}" --packDir "./publish/${{ matrix.runtime }}" --outputDir "./Releases" --icon "./ConverterIcon/Converter.ico" --channel "${{ matrix.runtime }}"
-      - name: Pack with Velopack macOS
+          vpk pack -u "Converter" -v "0.9.${{ github.run_number }}" --packDir "$baseDir" --outputDir "./Releases" --icon "./ConverterIcon/Converter.ico" --channel "${{ matrix.runtime }}"
+      - name: Add files and Pack (macOS)
         shell: bash
         if: contains(matrix.runtime, 'osx')
         run: |
-          vpk pack -u "Converter" -v "0.9.${{ github.run_number }}" --packDir "./publish/${{ matrix.runtime }}" --outputDir "./Releases" --channel "${{ matrix.runtime }}"
-      - name: Pack with Velopack Linux
+          baseDir="./publish/${{ matrix.runtime }}"
+          mkdir -p "$baseDir/ConverterIcon" "$baseDir/Scratch-Format-Converter" "$baseDir/Scratch-To-Snap" "$baseDir/Install" "$baseDir/svg_library_ScratchJnr" "$baseDir/wav_library_ScratchJnr"
+          cp ./ConverterIcon/Converter.ico ./ConverterIcon/Converter.png "$baseDir/ConverterIcon/"
+          cp ./Scratch-Format-Converter/Convert.js ./Scratch-Format-Converter/package.json ./Scratch-Format-Converter/package-lock.json "$baseDir/Scratch-Format-Converter/"
+          cp ./Scratch-To-Snap/converter.js ./Scratch-To-Snap/package.json ./Scratch-To-Snap/package-lock.json "$baseDir/Scratch-To-Snap/"
+          cp ./Install/dotnet-install.sh "$baseDir/Install/"
+          cp -r ./svg_library_ScratchJnr/* "$baseDir/svg_library_ScratchJnr/"
+          cp -r ./wav_library_ScratchJnr/* "$baseDir/wav_library_ScratchJnr/"
+          cp ./README.md "$baseDir/"
+          vpk pack -u "Converter" -v "0.9.${{ github.run_number }}" --packDir "$baseDir" --outputDir "./Releases" --channel "${{ matrix.runtime }}"
+      - name: Add files and Pack (Linux)
         shell: bash
         if: contains(matrix.runtime, 'linux')
-        run: vpk pack -u "Converter" -v "0.9.${{ github.run_number }}" --packDir "./publish/${{ matrix.runtime }}" --outputDir "./Releases" --icon "./ConverterIcon/Converter.png" --channel "${{ matrix.runtime }}"
+        run: |
+          baseDir="./publish/${{ matrix.runtime }}"
+          mkdir -p "$baseDir/ConverterIcon" "$baseDir/Scratch-Format-Converter" "$baseDir/Scratch-To-Snap" "$baseDir/Install" "$baseDir/svg_library_ScratchJnr" "$baseDir/wav_library_ScratchJnr"
+          cp ./ConverterIcon/Converter.ico ./ConverterIcon/Converter.png "$baseDir/ConverterIcon/"
+          cp ./Scratch-Format-Converter/Convert.js ./Scratch-Format-Converter/package.json ./Scratch-Format-Converter/package-lock.json "$baseDir/Scratch-Format-Converter/"
+          cp ./Scratch-To-Snap/converter.js ./Scratch-To-Snap/package.json ./Scratch-To-Snap/package-lock.json "$baseDir/Scratch-To-Snap/"
+          cp ./Install/dotnet-install.sh "$baseDir/Install/"
+          cp -r ./svg_library_ScratchJnr/* "$baseDir/svg_library_ScratchJnr/"
+          cp -r ./wav_library_ScratchJnr/* "$baseDir/wav_library_ScratchJnr/"
+          cp ./README.md "$baseDir/"
+          vpk pack -u "Converter" -v "0.9.${{ github.run_number }}" --packDir "$baseDir" --outputDir "./Releases" --icon "./ConverterIcon/Converter.png" --channel "${{ matrix.runtime }}"
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -332,10 +277,10 @@ jobs:
           path: ./Releases/*
 
   # ========================================================================
-  # JOB 3: BUILD LINUX x86 ON DEBIAN 12 (Single-File App + Custom Runtime)
+  # JOB 3: BUILD LINUX x86 ON DEBIAN 12 (Manual AppHost + Fast Build)
   # ========================================================================
   build-debian-12_linux-x86:
-    name: Build Linux x86 (Debian 12, Single-File App + Custom Runtime)
+    name: Build Linux x86 (Debian 12, Manual AppHost)
     needs: build-runtime-x86
     runs-on: ubuntu-latest
     container:
@@ -346,35 +291,42 @@ jobs:
     steps:
       - name: Install container prerequisites
         run: |
-          apt-get update
-          apt-get install -y sudo git curl wget ca-certificates lsb-release gnupg python3 coreutils which
+          apt-get update && apt-get install -y sudo git curl wget ca-certificates lsb-release gnupg python3 coreutils which
 
       - name: Checkout Code
         uses: actions/checkout@v4
-      - name: Checkout External Dependency (Scratch-Format-Converter)
+        with:
+          fetch-depth: 1
+      - name: Checkout External Dependencies
         uses: actions/checkout@v4
         with:
           repository: 'DaikoGames/Scratch-Format-Converter'
           path: Scratch-Format-Converter
-      - name: Checkout External Dependency (Scratch-To-Snap)
+          fetch-depth: 1
+      - name: Checkout Scratch-To-Snap
         uses: actions/checkout@v4
         with:
           repository: 'DaikoGames/Scratch-To-Snap-'
           path: Scratch-To-Snap
-      - name: Checkout External Dependency (Translator)
+          fetch-depth: 1
+      - name: Checkout Translator
         uses: actions/checkout@v4
         with:
           repository: 'DaikoGames/Translate-Folder'
           path: Translate-Folder
+          fetch-depth: 1
+          
       - name: Download Custom x86 Runtime
         uses: actions/download-artifact@v4
         with:
           name: dotnet-linux-x86-sdk
           path: ~/custom-sdk-tar
+          
       - name: Extract Custom x86 Runtime
         run: |
           mkdir -p ~/custom-sdk
           tar -xzf ~/custom-sdk-tar/dotnet-linux-x86-sdk.tar.gz -C ~/custom-sdk
+          
       - name: Setup Native 64-bit SDK
         uses: actions/setup-dotnet@v4
         with:
@@ -382,42 +334,55 @@ jobs:
 
       - name: Install i386 Native Libraries
         run: |
-          dpkg --add-architecture i386
-          apt-get update
-          apt-get install -y libvlc-dev:i386 libvlccore-dev:i386 vlc-plugin-base:i386 libmagickcore-6.q16-6:i386 libmagickwand-6.q16-6:i386
+          dpkg --add-architecture i386 && apt-get update && apt-get install -y libvlc-dev:i386 libvlccore-dev:i386 vlc-plugin-base:i386 libmagickcore-6.q16-6:i386 libmagickwand-6.q16-6:i386
 
-      - name: Restore and Publish App (Single-File Bundle)
+      - name: Build App (Framework-Dependent, Bypasses NETSDK1084)
         shell: bash
         run: |
-          # THE MASTER FIX: Bypass SDK/NuGet AppHost resolution entirely by pointing directly to our binaries.
-          APPHOST_PATH="$HOME/custom-sdk/host/apphost"
-          SINGLEFILEHOST_PATH="$HOME/custom-sdk/host/singlefilehost"
-          
-          dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" -c Release -r linux-x86 -o "./publish/linux-x86" \
+          # FAST BUILD: Just compile the DLLs. No SDK validation hell.
+          dotnet build "./sb1 sb2 sb3 xml to Csharp converter.csproj" -c Release -r linux-x86 -o "./publish/linux-x86" \
             -p:SelfContained=false \
-            -p:PublishSingleFile=true \
-            -p:PublishReadyToRun=true \
-            -p:UseAppHost=true \
-            -p:RuntimeIdentifier=linux-x86 \
-            -p:AppHostSourcePath="$APPHOST_PATH" \
-            -p:SingleFileHostSourcePath="$SINGLEFILEHOST_PATH" \
+            -p:UseAppHost=false \
             -p:ExcludeMagickX64=true \
             -p:DebugType=none \
             -p:DebugSymbols=false
 
-      - name: Assemble Final Self-Contained Package
+      - name: Inject Custom AppHost and CoreCLR
+        shell: bash
+        run: |
+          # 1. Copy the custom 32-bit apphost and patch it to point to Converter.dll
+          cp ~/custom-sdk/host/apphost ./publish/linux-x86/Converter
+          chmod +x ./publish/linux-x86/Converter
+          
+          python3 - <<'PYEOF'
+          import os
+          apphost_path = "./publish/linux-x86/Converter"
+          placeholder = b"c3ab8ff13720e8ad9047dd39466b3c8974e592c2fa383d4a3960714caef0c4f2"
+          dll_name = b"Converter.dll"
+          with open(apphost_path, 'rb') as f: data = bytearray(f.read())
+          idx = data.find(placeholder)
+          if idx != -1:
+              replacement = dll_name + b"\x00" * (len(placeholder) - len(dll_name))
+              data[idx:idx+len(placeholder)] = replacement
+              with open(apphost_path, 'wb') as f: f.write(data)
+              print("SUCCESS: Patched apphost to point to Converter.dll")
+          else:
+              print("ERROR: Could not find placeholder in apphost!")
+          PYEOF
+
+          # 2. Inject the custom 32-bit CoreCLR and HostFXR
+          CUSTOM_SHARED=$(find ~/custom-sdk/shared/Microsoft.NETCore.App -type d | head -n 1)
+          if [ -d "$CUSTOM_SHARED" ]; then
+            cp "$CUSTOM_SHARED"/*.so ./publish/linux-x86/ || true
+          fi
+          CUSTOM_HOSTFXR=$(find ~/custom-sdk/host/fxr -name "libhostfxr.so" | head -n 1)
+          [ -f "$CUSTOM_HOSTFXR" ] && cp "$CUSTOM_HOSTFXR" ./publish/linux-x86/
+
+      - name: Assemble Final Package
         shell: bash
         run: |
           mkdir -p ./final-linux-x86
           cp -r ./publish/linux-x86/* ./final-linux-x86/
-          
-          # Inject the custom 32-bit CoreCLR and HostFXR next to the single-file app
-          CUSTOM_SHARED=$(find ~/custom-sdk/shared/Microsoft.NETCore.App -type d | head -n 1)
-          if [ -d "$CUSTOM_SHARED" ]; then
-            cp "$CUSTOM_SHARED"/*.so ./final-linux-x86/ || true
-          fi
-          CUSTOM_HOSTFXR=$(find ~/custom-sdk/host/fxr -name "libhostfxr.so" | head -n 1)
-          [ -f "$CUSTOM_HOSTFXR" ] && cp "$CUSTOM_HOSTFXR" ./final-linux-x86/
           
           rm -f ./final-linux-x86/Magick.NET-Q16-x64.dll ./final-linux-x86/Magick.NET-Q16-arm64.dll
           rm -f ./final-linux-x86/libMagick*x64*.so ./final-linux-x86/libMagick*arm64*.so
@@ -432,18 +397,16 @@ jobs:
           DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
           export DOTNET_ROOT="$DIR"
           export LD_LIBRARY_PATH="$DIR:$DIR/vlc:$LD_LIBRARY_PATH"
-          export DOTNET_BUNDLE_EXTRACT_BASE_DIR=/tmp/dotnet_extract
           export DOTNET_GCHeapHardLimit=536870912
           export DOTNET_GCHeapHardLimitPercent=50
           export DOTNET_gcServer=0
           export DOTNET_GCHeapCount=1
           export DOTNET_EnableDiagnostics=0
           export DOTNET_TieredCompilation=0
-          export DOTNET_ReadyToRun=1
+          export DOTNET_ReadyToRun=0
           export DOTNET_DefaultStackSize=262144
           export DOTNET_JitMinOpts=1
           ulimit -s 256 2>/dev/null || true
-          mkdir -p /tmp/dotnet_extract
           exec "$DIR/Converter" "$@"
           EOF
           chmod +x ./final-linux-x86/run.sh
