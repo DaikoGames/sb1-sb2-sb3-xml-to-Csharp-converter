@@ -301,7 +301,25 @@ jobs:
       - name: Pack with Velopack macOS
         shell: bash
         if: contains(matrix.runtime, 'osx')
-        run: vpk pack -u "Converter" -v "0.9.${{ github.run_number }}" --packDir "./publish/${{ matrix.runtime }}" --outputDir "./Releases" --icon "./ConverterIcon/Converter.png" --channel "${{ matrix.runtime }}"
+        run: |
+          # Convert PNG to ICNS for macOS
+          mkdir -p icon.iconset
+          sips -z 16 16 ./ConverterIcon/Converter.png --out icon.iconset/icon_16x16.png 2>/dev/null || true
+          sips -z 32 32 ./ConverterIcon/Converter.png --out icon.iconset/icon_16x16@2x.png 2>/dev/null || true
+          sips -z 32 32 ./ConverterIcon/Converter.png --out icon.iconset/icon_32x32.png 2>/dev/null || true
+          sips -z 64 64 ./ConverterIcon/Converter.png --out icon.iconset/icon_32x32@2x.png 2>/dev/null || true
+          sips -z 128 128 ./ConverterIcon/Converter.png --out icon.iconset/icon_128x128.png 2>/dev/null || true
+          sips -z 256 256 ./ConverterIcon/Converter.png --out icon.iconset/icon_128x128@2x.png 2>/dev/null || true
+          sips -z 256 256 ./ConverterIcon/Converter.png --out icon.iconset/icon_256x256.png 2>/dev/null || true
+          sips -z 512 512 ./ConverterIcon/Converter.png --out icon.iconset/icon_256x256@2x.png 2>/dev/null || true
+          iconutil -c icns icon.iconset -o Converter.icns || true
+          
+          if [ -f "Converter.icns" ]; then
+            vpk pack -u "Converter" -v "0.9.${{ github.run_number }}" --packDir "./publish/${{ matrix.runtime }}" --outputDir "./Releases" --icon "./Converter.icns" --channel "${{ matrix.runtime }}"
+          else
+            # Fallback: pack without icon if conversion failed
+            vpk pack -u "Converter" -v "0.9.${{ github.run_number }}" --packDir "./publish/${{ matrix.runtime }}" --outputDir "./Releases" --channel "${{ matrix.runtime }}"
+          fi
       - name: Pack with Velopack Linux
         shell: bash
         if: contains(matrix.runtime, 'linux')
@@ -380,11 +398,18 @@ jobs:
 
       - name: Restore and Publish App
         shell: bash
-        env:
-          DOTNET_ROOT: /home/runner/.dotnet
         run: |
-          # BULLETPROOF: Call dotnet using its absolute path to completely bypass PATH resolution issues
-          /home/runner/.dotnet/dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" -c Release -r linux-x86 -o "./publish/linux-x86" \
+          # Find the actual dotnet binary dynamically
+          DOTNET_BIN=$(which dotnet)
+          if [ ! -f "$DOTNET_BIN" ]; then
+            DOTNET_BIN="$HOME/.dotnet/dotnet"
+          fi
+          if [ ! -f "$DOTNET_BIN" ]; then
+            DOTNET_BIN=$(find /usr/share /usr/local /home -name "dotnet" -type f 2>/dev/null | head -n 1)
+          fi
+          
+          echo "Using dotnet at: $DOTNET_BIN"
+          "$DOTNET_BIN" publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" -c Release -r linux-x86 -o "./publish/linux-x86" \
             -p:SelfContained=true \
             -p:PublishSingleFile=true \
             -p:PublishReadyToRun=true \
