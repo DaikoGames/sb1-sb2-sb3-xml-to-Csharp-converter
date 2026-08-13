@@ -151,7 +151,12 @@ jobs:
       - name: Generate cross rootfs for x86
         run: |
           cd ~/runtime
-          # FIX: "debian" and "12" are invalid. Debian 12 codename is "bookworm".
+          
+          # BULLETPROOF FIX: The dotnet/runtime build-rootfs.sh script has a hardcoded bug
+          # where the 'x86' argument sets the repo to Ubuntu's archive, which breaks Debian bootstrapping.
+          # We patch the script to force it to use the official Debian mirror instead.
+          sed -i 's|__UbuntuRepo="http://archive.ubuntu.com/ubuntu/"|__UbuntuRepo="http://ftp.debian.org/debian/"|g' eng/common/cross/build-rootfs.sh
+          
           ./eng/common/cross/build-rootfs.sh "x86" "bookworm" --skipunmount
 
       - name: Build .NET Runtime
