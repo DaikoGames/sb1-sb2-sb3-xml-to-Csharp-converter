@@ -159,7 +159,9 @@ jobs:
           sed -i 's|__UbuntuSuites="updates security backports"|__UbuntuSuites="updates"|g' eng/common/cross/build-rootfs.sh
           sed -i 's|Components: main universe|Components: main|g' eng/common/cross/build-rootfs.sh
           
-          ./eng/common/cross/build-rootfs.sh "x86" "bookworm" --skipunmount
+          # FIX: Pass 'no-lldb' to skip installing liblldb-3.9-dev, which doesn't exist in Debian 12.
+          # LLDB is only needed for debugging the runtime, not for cross-compiling it.
+          ./eng/common/cross/build-rootfs.sh "x86" "bookworm" "no-lldb" --skipunmount
 
       - name: Build .NET Runtime
         run: |
