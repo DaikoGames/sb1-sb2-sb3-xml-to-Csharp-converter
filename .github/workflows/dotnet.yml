@@ -167,7 +167,7 @@ jobs:
           path: ~/dotnet-linux-x86-sdk.tar.gz
 
   # ========================================================================
-  # JOB 2: BUILD NORMAL PLATFORMS (Windows, macOS, Linux x64/arm64/arm32)
+  # JOB 2: BUILD NORMAL PLATFORMS (Windows, macOS, Linux x64/arm64)
   # ========================================================================
   build:
     needs: build-runtime-x86
@@ -188,8 +188,6 @@ jobs:
             runtime: linux-x64
           - os: ubuntu-latest
             runtime: linux-arm64
-          - os: ubuntu-latest
-            runtime: linux-arm # <-- ARM32 (armhf) für Linux
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout Code
@@ -222,55 +220,6 @@ jobs:
         shell: bash
         run: |
           dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" -c Release -r ${{ matrix.runtime }} -o "./publish/${{ matrix.runtime }}" -p:SelfContained=true -p:PublishSingleFile=true -p:PublishReadyToRun=true -p:IncludeAllContentForSelfExtract=true
-
-      # >>> HIER KOMMT DER ARM32 NATIVE CROSS-COMPILE MAGIC STEP (FIXED) <<<
-      - name: Compile & Fetch ARM32 Native Libraries
-        if: matrix.runtime == 'linux-arm'
-        shell: bash
-        run: |
-          echo "Setting up ARM32 (armhf) cross-compilation environment..."
-          sudo dpkg --add-architecture armhf
-          
-          # Ubuntu Ports Repository für ARM32 (armhf) - KEINE Sicherheitsupdates, da diese dort nicht existieren!
-          CODENAME=$(lsb_release -cs)
-          echo "deb [arch=armhf] http://ports.ubuntu.com/ubuntu-ports/ $CODENAME main universe" | sudo tee /etc/apt/sources.list.d/armhf.list
-          echo "deb [arch=armhf] http://ports.ubuntu.com/ubuntu-ports/ $CODENAME-updates main universe" | sudo tee -a /etc/apt/sources.list.d/armhf.list
-          
-          # apt-get update nur auf die armhf.list beschränken, um 404 Fehler bei security.ubuntu.com zu vermeiden
-          sudo apt-get update -o Dir::Etc::sourcelist="sources.list.d/armhf.list" -o Dir::Etc::sourceparts="-" -o APT::Get::List-Cleanup="0" || true
-          
-          # Native ARM32 Libraries installieren (LibVLC, ImageMagick)
-          sudo apt-get install -y --no-install-recommends --allow-unauthenticated \
-            libvlc5:armhf libvlccore9:armhf vlc-plugin-base:armhf \
-            libmagickcore-6.q16-6:armhf libmagickwand-6.q16-6:armhf \
-            gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf || {
-              echo "FALLBACK: Versuche Pakete ohne spezifische Versionen zu installieren..."
-              sudo apt-get install -y --no-install-recommends --allow-unauthenticated \
-                libvlc-dev:armhf libvlccore-dev:armhf \
-                libmagickcore-dev:armhf libmagickwand-dev:armhf \
-                gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf
-            }
-          
-          # Eigene C/C++ Libraries kompilieren (falls Ordner 'native-src' existiert)
-          if [ -d "./native-src" ]; then
-             echo "Compiling custom C/C++ libraries for ARM32..."
-             cd ./native-src
-             make CC=arm-linux-gnueabihf-gcc CXX=arm-linux-gnueabihf-g++ || echo "Makefile nicht gefunden oder Fehler beim Kompilieren."
-             cd ..
-             cp ./native-src/*.so ./publish/linux-arm/ || true
-          fi
-          
-          # Die nativen ARM32 Libraries in den Publish-Ordner kopieren
-          cp /usr/lib/arm-linux-gnueabihf/libvlc.so* ./publish/linux-arm/ || true
-          cp /usr/lib/arm-linux-gnueabihf/libvlccore.so* ./publish/linux-arm/ || true
-          cp -r /usr/lib/arm-linux-gnueabihf/vlc/ ./publish/linux-arm/ || true
-          cp /usr/lib/arm-linux-gnueabihf/libMagickCore-6.Q16.so* ./publish/linux-arm/ || true
-          cp /usr/lib/arm-linux-gnueabihf/libMagickWand-6.Q16.so* ./publish/linux-arm/ || true
-          
-          # Falsche Architekturen aus dem Publish-Ordner entfernen (NuGet lädt oft x64/arm64)
-          rm -f ./publish/linux-arm/libMagick*x64*.so ./publish/linux-arm/libMagick*arm64*.so
-          rm -f ./publish/linux-arm/Magick.NET-Q16-x64.dll ./publish/linux-arm/Magick.NET-Q16-arm64.dll
-          sed -i '/Magick.NET-Q16-x64/d; /Magick.NET-Q16-arm64/d' ./publish/linux-arm/Converter.deps.json || true
 
       - name: Install Velopack CLI
         run: dotnet tool install -g vpk
@@ -329,7 +278,143 @@ jobs:
           path: ./Releases/*
 
   # ========================================================================
-  # JOB 3: BUILD LINUX x86 ON DEBIAN 12 (Manual AppHost + Fast Build)
+  # JOB 3: BUILD LINUX ARM32 ON DEBIAN 12 (Debian hat bessere ARM32-Unterstützung!)
+  # ========================================================================
+  build-debian-12_linux-arm32:
+    name: Build Linux ARM32 (Debian 12, Native Libraries)
+    needs: build-runtime-x86
+    runs-on: ubuntu-latest
+    container:
+      image: debian:12
+      env:
+        DEBIAN_FRONTEND: noninteractive
+    timeout-minutes: 60
+    steps:
+      - name: Install container prerequisites
+        run: |
+          apt-get update && apt-get install -y sudo git curl wget ca-certificates lsb-release gnupg python3 coreutils which xz-utils
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Checkout External Dependencies
+        uses: actions/checkout@v4
+        with:
+          repository: 'DaikoGames/Scratch-Format-Converter'
+          path: Scratch-Format-Converter
+          fetch-depth: 1
+      - name: Checkout Scratch-To-Snap
+        uses: actions/checkout@v4
+        with:
+          repository: 'DaikoGames/Scratch-To-Snap-'
+          path: Scratch-To-Snap
+          fetch-depth: 1
+      - name: Checkout Translator
+        uses: actions/checkout@v4
+        with:
+          repository: 'DaikoGames/Translate-Folder'
+          path: Translate-Folder
+          fetch-depth: 1
+          
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Install ARM32 (armhf) Native Libraries
+        run: |
+          dpkg --add-architecture armhf
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf \
+            libvlc-dev:armhf libvlccore-dev:armhf vlc-plugin-base:armhf \
+            libmagickcore-6.q16-6:armhf libmagickwand-6.q16-6:armhf
+
+      - name: Build App (Framework-Dependent)
+        shell: bash
+        run: |
+          dotnet build "./sb1 sb2 sb3 xml to Csharp converter.csproj" -c Release -r linux-arm -o "./publish/linux-arm" \
+            -p:SelfContained=true \
+            -p:PublishSingleFile=true \
+            -p:PublishReadyToRun=true \
+            -p:IncludeAllContentForSelfExtract=true \
+            -p:ExcludeMagickX64=true \
+            -p:ExcludeMagickArm64=true \
+            -p:DebugType=none \
+            -p:DebugSymbols=false
+
+      - name: Inject ARM32 Native Libraries
+        shell: bash
+        run: |
+          # Native ARM32 Libraries kopieren
+          cp /usr/lib/arm-linux-gnueabihf/libvlc.so* ./publish/linux-arm/ || true
+          cp /usr/lib/arm-linux-gnueabihf/libvlccore.so* ./publish/linux-arm/ || true
+          cp -r /usr/lib/arm-linux-gnueabihf/vlc/ ./publish/linux-arm/ || true
+          cp /usr/lib/arm-linux-gnueabihf/libMagickCore-6.Q16.so* ./publish/linux-arm/ || true
+          cp /usr/lib/arm-linux-gnueabihf/libMagickWand-6.Q16.so* ./publish/linux-arm/ || true
+          
+          # Falsche Architekturen entfernen
+          rm -f ./publish/linux-arm/Magick.NET-Q16-x64.dll ./publish/linux-arm/Magick.NET-Q16-arm64.dll
+          rm -f ./publish/linux-arm/libMagick*x64*.so ./publish/linux-arm/libMagick*arm64*.so
+          sed -i '/Magick.NET-Q16-x64/d; /Magick.NET-Q16-arm64/d' ./publish/linux-arm/Converter.deps.json || true
+
+      - name: Assemble Final Package
+        shell: bash
+        run: |
+          mkdir -p ./final-linux-arm
+          cp -r ./publish/linux-arm/* ./final-linux-arm/
+
+          cat > ./final-linux-arm/run.sh << 'EOF'
+          #!/bin/bash
+          DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
+          export DOTNET_ROOT="$DIR"
+          export LD_LIBRARY_PATH="$DIR:$DIR/vlc:$LD_LIBRARY_PATH"
+          export DOTNET_GCHeapHardLimit=536870912
+          export DOTNET_GCHeapHardLimitPercent=50
+          export DOTNET_gcServer=0
+          export DOTNET_GCHeapCount=1
+          export DOTNET_EnableDiagnostics=0
+          export DOTNET_TieredCompilation=0
+          export DOTNET_ReadyToRun=0
+          export DOTNET_DefaultStackSize=262144
+          export DOTNET_JitMinOpts=1
+          ulimit -s 256 2>/dev/null || true
+          exec "$DIR/Converter" "$@"
+          EOF
+          chmod +x ./final-linux-arm/run.sh
+
+          mkdir -p ./final-linux-arm/ConverterIcon ./final-linux-arm/Scratch-Format-Converter ./final-linux-arm/Scratch-To-Snap ./final-linux-arm/svg_library_ScratchJnr ./final-linux-arm/wav_library_ScratchJnr
+          cp ./ConverterIcon/* ./final-linux-arm/ConverterIcon/ 2>/dev/null || true
+          cp ./Scratch-Format-Converter/* ./final-linux-arm/Scratch-Format-Converter/ 2>/dev/null || true
+          cp ./Scratch-To-Snap/* ./final-linux-arm/Scratch-To-Snap/ 2>/dev/null || true
+          cp -r ./svg_library_ScratchJnr/* ./final-linux-arm/svg_library_ScratchJnr/ 2>/dev/null || true
+          cp -r ./wav_library_ScratchJnr/* ./final-linux-arm/wav_library_ScratchJnr/ 2>/dev/null || true
+          cp ./README.md ./final-linux-arm/ 2>/dev/null || true
+
+          find ./Translate-Folder -type f -name "*.gz" | while read gz_file; do
+            dir_name=$(basename "$(dirname "$gz_file")")
+            mkdir -p "./final-linux-arm/Translate-Folder/$dir_name"
+            out_file=$(basename "$gz_file" .gz)
+            gzip -d -c "$gz_file" > "./final-linux-arm/Translate-Folder/$dir_name/$out_file"
+          done
+          find ./Translate-Folder -type f \( -name "*.json" -o -name "*.yml" \) | while read file; do
+            dir_name=$(basename "$(dirname "$file")")
+            mkdir -p "./final-linux-arm/Translate-Folder/$dir_name"
+            cp "$file" "./final-linux-arm/Translate-Folder/$dir_name/"
+          done
+
+      - name: Create Linux ARM32 Archive
+        run: tar -cJf Converter-linux-arm.tar.xz -C ./final-linux-arm .
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vpk-artifact-linux_arm32
+          path: ./Converter-linux-arm.tar.xz
+
+  # ========================================================================
+  # JOB 4: BUILD LINUX x86 ON DEBIAN 12 (Manual AppHost + Fast Build)
   # ========================================================================
   build-debian-12_linux-x86:
     name: Build Linux x86 (Debian 12, Manual AppHost)
@@ -490,10 +575,10 @@ jobs:
           path: ./Converter-linux-x86.tar.xz
 
   # ========================================================================
-  # JOB 4: RELEASE
+  # JOB 5: RELEASE
   # ========================================================================
   release:
-    needs: [build, build-debian-12_linux-x86]
+    needs: [build, build-debian-12_linux-arm32, build-debian-12_linux-x86]
     runs-on: ubuntu-latest
     steps:
       - name: Download Artifacts
