@@ -493,7 +493,7 @@ jobs:
         run: |
           # Versionsnummer aus dem Custom SDK auslesen
           FXR_VERSION=$(find ~/custom-sdk/host/fxr -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | head -n 1)
-          if [ -z "$FXR_VERSION" ]; then
+          if [ -z "$FXR_VERSION" ] || [ "$FXR_VERSION" = "native" ]; then
             FXR_VERSION="9.0.0"
           fi
           echo "Using Runtime Version: $FXR_VERSION"
@@ -502,22 +502,25 @@ jobs:
           cp ~/custom-sdk/host/apphost ./publish/linux-x86/Converter
           chmod +x ./publish/linux-x86/Converter
           
-          # 2. AppHost patchen, damit er Converter.dll lädt
-          python3 - <<'PYEOF'
+          # 2. AppHost patchen, damit er Converter.dll lädt (KORREKTE EINRÜCKUNG!)
+          cat > /tmp/patch_apphost.py << 'PYEOF'
           import os
           apphost_path = "./publish/linux-x86/Converter"
           placeholder = b"c3ab8ff13720e8ad9047dd39466b3c8974e592c2fa383d4a3960714caef0c4f2"
           dll_name = b"Converter.dll"
-          with open(apphost_path, 'rb') as f: data = bytearray(f.read())
+          with open(apphost_path, 'rb') as f:
+              data = bytearray(f.read())
           idx = data.find(placeholder)
           if idx != -1:
-          replacement = dll_name + b"\x00" * (len(placeholder) - len(dll_name))
-          data[idx:idx+len(placeholder)] = replacement
-          with open(apphost_path, 'wb') as f: f.write(data)
-          print("SUCCESS: Patched apphost to point to Converter.dll")
+              replacement = dll_name + b"\x00" * (len(placeholder) - len(dll_name))
+              data[idx:idx+len(placeholder)] = replacement
+              with open(apphost_path, 'wb') as f:
+                  f.write(data)
+              print("SUCCESS: Patched apphost to point to Converter.dll")
           else:
-          print("ERROR: Could not find placeholder in apphost!")
+              print("ERROR: Could not find placeholder in apphost!")
           PYEOF
+          python3 /tmp/patch_apphost.py
 
           # 3. WICHTIG: Korrekte Ordnerstruktur für den AppHost aufbauen!
           mkdir -p "./publish/linux-x86/host/fxr/$FXR_VERSION"
