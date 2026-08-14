@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   # ========================================================================
-  # JOB 1: CROSS-COMPILE RUNTIME ON DEBIAN 12 (MIT DEBUG-OUTPUT!)
+  # JOB 1: CROSS-COMPILE RUNTIME ON DEBIAN 12 (VERBESSERTE DATEI-SUCHE)
   # ========================================================================
   build-runtime-x86:
     name: Cross-compile .NET 9.0 x86 Runtime
@@ -23,7 +23,7 @@ jobs:
     steps:
       - name: Install container prerequisites
         run: |
-          apt-get update && apt-get install -y sudo git curl wget ca-certificates lsb-release gnupg coreutils which
+          apt-get update && apt-get install -y sudo git curl wget ca-certificates lsb-release gnupg coreutils which tree
 
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -140,20 +140,29 @@ jobs:
             /p:BuildInstaller=false /p:FeatureEventTrace=0 /p:FeaturePerfTracing=0 \
             /p:ContinuousIntegrationBuild=true /p:BuildInParallel=false
             
-      - name: Assemble and Package Custom SDK (WITH DEBUG!)
+      - name: Debug Build Output
+        run: |
+          echo "=== KOMPLETTER BUILD OUTPUT ==="
+          find ~/runtime/artifacts/bin -type f -name "*.so" 2>/dev/null | head -50
+          echo ""
+          echo "=== EXECUTABLES ==="
+          find ~/runtime/artifacts/bin -type f -executable -name "dotnet" -o -name "corerun" -o -name "apphost" 2>/dev/null | head -20
+          echo ""
+          echo "=== SHARED FRAMEWORK ==="
+          find ~/runtime/artifacts/bin -path "*/shared/Microsoft.NETCore.App/*" -type f 2>/dev/null | head -30
+
+      - name: Assemble Custom SDK (KORREKTE STRUKTUR)
         run: |
           set -e
-          mkdir -p ~/custom-sdk/host/fxr ~/custom-sdk/shared/Microsoft.NETCore.App
           
-          echo "=== SUCHEN DER BINÄRDATEIEN IN ~/runtime/artifacts/bin ==="
-          find ~/runtime/artifacts/bin -type f \( -name "dotnet" -o -name "corerun" -o -name "apphost" -o -name "libhostfxr.so" -o -name "libhostpolicy.so" \) 2>/dev/null | head -20
+          echo "=== ERSTELLE KORREKTE SDK STRUKTUR ==="
           
-          echo ""
-          echo "=== SUCHEN DES SHARED FRAMEWORK ORDERS ==="
-          find ~/runtime/artifacts/bin -type d -name "Microsoft.NETCore.App" 2>/dev/null | head -10
+          # Basis-Struktur erstellen
+          mkdir -p ~/custom-sdk/host/fxr
+          mkdir -p ~/custom-sdk/shared/Microsoft.NETCore.App
           
-          # DOTNET CLI
-          DOTNET_BIN=$(find ~/runtime/artifacts/bin -type f -name "dotnet" 2>/dev/null | grep -iE "x86.*release|linux-x86" | head -n 1)
+          # 1. DOTNET EXECUTABLE finden und kopieren
+          DOTNET_BIN=$(find ~/runtime/artifacts/bin -type f -name "dotnet" -executable 2>/dev/null | head -n 1)
           if [ -n "$DOTNET_BIN" ]; then
             echo "✓ dotnet gefunden: $DOTNET_BIN"
             cp "$DOTNET_BIN" ~/custom-sdk/dotnet
@@ -162,67 +171,72 @@ jobs:
             echo "✗ dotnet NICHT gefunden!"
           fi
           
-          # CORERUN (wichtiger Fallback!)
-          CORERUN_BIN=$(find ~/runtime/artifacts/bin -type f -name "corerun" 2>/dev/null | grep -iE "x86.*release|linux-x86" | head -n 1)
-          if [ -n "$CORERUN_BIN" ]; then
-            echo "✓ corerun gefunden: $CORERUN_BIN"
-            cp "$CORERUN_BIN" ~/custom-sdk/corerun
-            chmod +x ~/custom-sdk/corerun
+          # 2. LIBHOSTFXR.SO finden und in korrekte Struktur kopieren
+          LIBHOSTFXR=$(find ~/runtime/artifacts/bin -name "libhostfxr.so" 2>/dev/null | head -n 1)
+          if [ -n "$LIBHOSTFXR" ]; then
+            echo "✓ libhostfxr.so gefunden: $LIBHOSTFXR"
+            # Versionsnummer aus dem Pfad extrahieren
+            FXR_VERSION=$(basename "$(dirname "$LIBHOSTFXR")")
+            echo "  Version: $FXR_VERSION"
+            mkdir -p ~/custom-sdk/host/fxr/"$FXR_VERSION"
+            cp "$LIBHOSTFXR" ~/custom-sdk/host/fxr/"$FXR_VERSION"/
           else
-            echo "✗ corerun NICHT gefunden!"
+            echo "✗ libhostfxr.so NICHT gefunden!"
           fi
           
-          # APPHOST
-          APPHOST_BIN=$(find ~/runtime/artifacts/bin -type f -name "apphost" 2>/dev/null | grep -iE "x86.*release|linux-x86" | head -n 1)
-          if [ -n "$APPHOST_BIN" ]; then
-            echo "✓ apphost gefunden: $APPHOST_BIN"
-            cp "$APPHOST_BIN" ~/custom-sdk/host/apphost
+          # 3. LIBHOSTPOLICY.SO finden
+          LIBHOSTPOLICY=$(find ~/runtime/artifacts/bin -name "libhostpolicy.so" 2>/dev/null | head -n 1)
+          if [ -n "$LIBHOSTPOLICY" ]; then
+            echo "✓ libhostpolicy.so gefunden: $LIBHOSTPOLICY"
+            cp "$LIBHOSTPOLICY" ~/custom-sdk/host/fxr/"$FXR_VERSION"/
+          else
+            echo "✗ libhostpolicy.so NICHT gefunden!"
+          fi
+          
+          # 4. SHARED FRAMEWORK finden und kopieren (MIT ALLEN DLLs!)
+          SHARED_FRAMEWORK_DIR=$(find ~/runtime/artifacts/bin -type d -name "Microsoft.NETCore.App" 2>/dev/null | grep -i "x86.*release" | head -n 1)
+          if [ -n "$SHARED_FRAMEWORK_DIR" ]; then
+            echo "✓ Shared Framework Ordner gefunden: $SHARED_FRAMEWORK_DIR"
+            # Versions-Unterverzeichnis finden
+            SHARED_VERSION_DIR=$(find "$SHARED_FRAMEWORK_DIR" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | head -n 1)
+            if [ -n "$SHARED_VERSION_DIR" ]; then
+              SHARED_VERSION=$(basename "$SHARED_VERSION_DIR")
+              echo "  Version: $SHARED_VERSION"
+              mkdir -p ~/custom-sdk/shared/Microsoft.NETCore.App/"$SHARED_VERSION"
+              # ALLE Dateien kopieren (DLLs, SOs, etc.)
+              cp -r "$SHARED_VERSION_DIR"/* ~/custom-sdk/shared/Microsoft.NETCore.App/"$SHARED_VERSION"/
+              echo "  Dateien kopiert:"
+              ls ~/custom-sdk/shared/Microsoft.NETCore.App/"$SHARED_VERSION" | head -10
+            fi
+          else
+            echo "✗ Shared Framework NICHT gefunden!"
+          fi
+          
+          # 5. APPHOST finden (optional, aber nützlich)
+          APPHOST=$(find ~/runtime/artifacts/bin -type f -name "apphost" -executable 2>/dev/null | head -n 1)
+          if [ -n "$APPHOST" ]; then
+            echo "✓ apphost gefunden: $APPHOST"
+            cp "$APPHOST" ~/custom-sdk/host/apphost
             chmod +x ~/custom-sdk/host/apphost
           else
             echo "✗ apphost NICHT gefunden!"
           fi
           
-          # HOSTFXR
-          HOSTFXR_BIN=$(find ~/runtime/artifacts/bin -type f -name "libhostfxr.so" 2>/dev/null | head -n 1)
-          if [ -n "$HOSTFXR_BIN" ]; then
-            echo "✓ libhostfxr.so gefunden: $HOSTFXR_BIN"
-            FXR_VERSION=$(basename "$(dirname "$HOSTFXR_BIN")")
-            mkdir -p ~/custom-sdk/host/fxr/$FXR_VERSION
-            cp "$HOSTFXR_BIN" ~/custom-sdk/host/fxr/$FXR_VERSION/
+          # 6. CORERUN finden (Fallback)
+          CORERUN=$(find ~/runtime/artifacts/bin -type f -name "corerun" -executable 2>/dev/null | head -n 1)
+          if [ -n "$CORERUN" ]; then
+            echo "✓ corerun gefunden: $CORERUN"
+            cp "$CORERUN" ~/custom-sdk/corerun
+            chmod +x ~/custom-sdk/corerun
           else
-            echo "✗ libhostfxr.so NICHT gefunden!"
-          fi
-          
-          # HOSTPOLICY
-          HOSTPOLICY_BIN=$(find ~/runtime/artifacts/bin -type f -name "libhostpolicy.so" 2>/dev/null | head -n 1)
-          if [ -n "$HOSTPOLICY_BIN" ]; then
-            echo "✓ libhostpolicy.so gefunden: $HOSTPOLICY_BIN"
-            cp "$HOSTPOLICY_BIN" ~/custom-sdk/host/fxr/$FXR_VERSION/
-          else
-            echo "✗ libhostpolicy.so NICHT gefunden!"
-          fi
-          
-          # SHARED FRAMEWORK (sehr wichtig!)
-          SHARED_DIR=$(find ~/runtime/artifacts/bin -type d -path "*/shared/Microsoft.NETCore.App/*" 2>/dev/null | head -n 1)
-          if [ -n "$SHARED_DIR" ]; then
-            echo "✓ Shared Framework gefunden: $SHARED_DIR"
-            echo "Dateien darin:"
-            ls -la "$SHARED_DIR" | head -20
-            cp -r "$SHARED_DIR"/* ~/custom-sdk/shared/Microsoft.NETCore.App/
-          else
-            echo "✗ Shared Framework NICHT gefunden! Versuche Alternativen..."
-            # Fallback: Suche nach libcoreclr.so
-            CORECLR_DIR=$(find ~/runtime/artifacts/bin -name "libcoreclr.so" 2>/dev/null | head -n 1 | xargs dirname)
-            if [ -n "$CORECLR_DIR" ]; then
-              echo "✓ libcoreclr.so gefunden in: $CORECLR_DIR"
-              cp -r "$CORECLR_DIR"/* ~/custom-sdk/shared/Microsoft.NETCore.App/ 2>/dev/null || true
-            fi
+            echo "✗ corerun NICHT gefunden!"
           fi
           
           echo ""
-          echo "=== FINALE CUSTOM SDK STRUKTUR ==="
-          find ~/custom-sdk -type f | sort
+          echo "=== FINALE SDK STRUKTUR ==="
+          tree ~/custom-sdk -L 4 2>/dev/null || find ~/custom-sdk -type f | sort
           
+          # Tarball erstellen
           cd ~/custom-sdk && tar -czf ~/dotnet-linux-x86-sdk.tar.gz .
 
       - name: Upload Custom SDK
@@ -476,10 +490,10 @@ jobs:
           path: ./Converter-linux-arm.tar.xz
 
   # ========================================================================
-  # JOB 4: BUILD LINUX x86 - INTELLIGENTER STARTER MIT FALLBACKS!
+  # JOB 4: BUILD LINUX x86 (KORREKTE .NET SDK STRUKTUR)
   # ========================================================================
   build-debian-12_linux-x86:
-    name: Build Linux x86 (Debian 12, Smart Launcher)
+    name: Build Linux x86 (Debian 12, Correct SDK Structure)
     needs: build-runtime-x86
     runs-on: ubuntu-latest
     container:
@@ -525,8 +539,8 @@ jobs:
         run: |
           mkdir -p ~/custom-sdk
           tar -xzf ~/custom-sdk-tar/dotnet-linux-x86-sdk.tar.gz -C ~/custom-sdk
-          echo "=== Custom SDK Contents ==="
-          find ~/custom-sdk -type f | sort
+          echo "=== Custom SDK Structure ==="
+          tree ~/custom-sdk -L 4 2>/dev/null || find ~/custom-sdk -type f | sort
           
       - name: Setup Native 64-bit SDK
         uses: actions/setup-dotnet@v4
@@ -537,76 +551,112 @@ jobs:
         run: |
           dpkg --add-architecture i386 && apt-get update && apt-get install -y libvlc-dev:i386 libvlccore-dev:i386 vlc-plugin-base:i386 libmagickcore-6.q16-6:i386 libmagickwand-6.q16-6:i386
 
-      - name: Build App (Framework-Dependent)
+      - name: Build App (Framework-Dependent, WITH AppHost)
         shell: bash
         run: |
-          dotnet build "./sb1 sb2 sb3 xml to Csharp converter.csproj" -c Release -r linux-x86 -o "./publish/linux-x86" \
+          # Baue MIT AppHost (UseAppHost=true)
+          dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" -c Release -r linux-x86 -o "./publish/linux-x86" \
             -p:SelfContained=false \
-            -p:UseAppHost=false \
+            -p:UseAppHost=true \
             -p:ExcludeMagickX64=true \
             -p:ExcludeMagickArm64=true \
             -p:DebugType=none \
             -p:DebugSymbols=false
+            
+          echo "=== Build Output ==="
+          ls -la ./publish/linux-x86/Converter 2>/dev/null || echo "Converter AppHost nicht gefunden"
+          ls -la ./publish/linux-x86/*.dll | head -10
 
-      - name: Inject Runtime Components
+      - name: Inject Custom Runtime (EXACT .NET SDK STRUCTURE)
         shell: bash
         run: |
           set -e
-          echo "=== Kopiere Runtime-Komponenten ==="
+          echo "=== Erstelle exakte .NET SDK Struktur ==="
           
-          # 1. dotnet CLI kopieren (primärer Starter)
+          # 1. Custom AppHost ersetzen (falls vorhanden)
+          if [ -f ~/custom-sdk/host/apphost ]; then
+            echo "Ersetze AppHost mit Custom Version..."
+            cp ~/custom-sdk/host/apphost ./publish/linux-x86/Converter
+            chmod +x ./publish/linux-x86/Converter
+            
+            # AppHost patchen
+            python3 - <<'PYEOF'
+          import os
+          apphost_path = "./publish/linux-x86/Converter"
+          placeholder = b"c3ab8ff13720e8ad9047dd39466b3c8974e592c2fa383d4a3960714caef0c4f2"
+          dll_name = b"Converter.dll"
+          with open(apphost_path, 'rb') as f:
+              data = bytearray(f.read())
+          idx = data.find(placeholder)
+          if idx != -1:
+              replacement = dll_name + b"\x00" * (len(placeholder) - len(dll_name))
+              data[idx:idx+len(placeholder)] = replacement
+              with open(apphost_path, 'wb') as f:
+                  f.write(data)
+              print("✓ AppHost gepatcht")
+          else:
+              print("✗ Placeholder nicht gefunden")
+          PYEOF
+          fi
+          
+          # 2. EXAKTE .NET SDK STRUKTUR aufbauen
+          # host/fxr/<version>/libhostfxr.so
+          FXR_VERSION=$(find ~/custom-sdk/host/fxr -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | head -n 1)
+          if [ -n "$FXR_VERSION" ]; then
+            echo "FXR Version: $FXR_VERSION"
+            mkdir -p "./publish/linux-x86/host/fxr/$FXR_VERSION"
+            cp -r ~/custom-sdk/host/fxr/"$FXR_VERSION"/* "./publish/linux-x86/host/fxr/$FXR_VERSION/"
+          else
+            echo "✗ FXR Version nicht gefunden!"
+          fi
+          
+          # shared/Microsoft.NETCore.App/<version>/
+          SHARED_VERSION=$(find ~/custom-sdk/shared/Microsoft.NETCore.App -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | head -n 1)
+          if [ -n "$SHARED_VERSION" ]; then
+            echo "Shared Framework Version: $SHARED_VERSION"
+            mkdir -p "./publish/linux-x86/shared/Microsoft.NETCore.App/$SHARED_VERSION"
+            cp -r ~/custom-sdk/shared/Microsoft.NETCore.App/"$SHARED_VERSION"/* "./publish/linux-x86/shared/Microsoft.NETCore.App/$SHARED_VERSION/"
+          else
+            echo "✗ Shared Framework Version nicht gefunden!"
+          fi
+          
+          # 3. dotnet CLI kopieren (für Fallback)
           if [ -f ~/custom-sdk/dotnet ]; then
             cp ~/custom-sdk/dotnet ./publish/linux-x86/dotnet
             chmod +x ./publish/linux-x86/dotnet
-            echo "✓ dotnet CLI kopiert"
           fi
           
-          # 2. corerun kopieren (Fallback-Starter)
+          # 4. corerun kopieren (für Fallback)
           if [ -f ~/custom-sdk/corerun ]; then
             cp ~/custom-sdk/corerun ./publish/linux-x86/corerun
             chmod +x ./publish/linux-x86/corerun
-            echo "✓ corerun kopiert"
           fi
           
-          # 3. Runtime DLLs kopieren (ALLES flach in den Ordner)
-          if [ -d ~/custom-sdk/shared/Microsoft.NETCore.App ]; then
-            cp -r ~/custom-sdk/shared/Microsoft.NETCore.App/* ./publish/linux-x86/ 2>/dev/null || true
-            echo "✓ Runtime DLLs kopiert"
+          # 5. runtimeconfig.json patchen
+          if [ -f ./publish/linux-x86/Converter.runtimeconfig.json ]; then
+            python3 - <<'PYEOF'
+          import json
+          with open("./publish/linux-x86/Converter.runtimeconfig.json", "r") as f:
+              config = json.load(f)
+          
+          if "runtimeOptions" not in config:
+              config["runtimeOptions"] = {}
+          config["runtimeOptions"]["rollForward"] = "LatestMajor"
+          
+          if "framework" in config["runtimeOptions"]:
+              config["runtimeOptions"]["framework"]["rollForward"] = "LatestMajor"
+          
+          with open("./publish/linux-x86/Converter.runtimeconfig.json", "w") as f:
+              json.dump(config, f, indent=2)
+          print("✓ runtimeconfig.json gepatcht")
+          PYEOF
           fi
-          
-          # 4. libcoreclr.so und andere native libs kopieren
-          find ~/custom-sdk -name "libcoreclr*.so" -exec cp {} ./publish/linux-x86/ \; 2>/dev/null || true
-          find ~/custom-sdk -name "libclrjit*.so" -exec cp {} ./publish/linux-x86/ \; 2>/dev/null || true
-          
-          # 5. HostFXR und HostPolicy
-          find ~/custom-sdk -name "libhostfxr.so" -exec cp {} ./publish/linux-x86/ \; 2>/dev/null || true
-          find ~/custom-sdk -name "libhostpolicy.so" -exec cp {} ./publish/linux-x86/ \; 2>/dev/null || true
-          
-          # 6. runtimeconfig.json mit rollForward
-          cat > "./publish/linux-x86/Converter.runtimeconfig.json" << 'JSONEOF'
-          {
-            "runtimeOptions": {
-              "tfm": "net9.0",
-              "rollForward": "LatestMajor",
-              "framework": {
-                "name": "Microsoft.NETCore.App",
-                "version": "9.0.0",
-                "rollForward": "LatestMajor"
-              }
-            }
-          }
-          JSONEOF
-          echo "✓ runtimeconfig.json erstellt"
           
           echo ""
-          echo "=== Finale Dateien im publish Ordner ==="
-          ls -la ./publish/linux-x86/*.dll 2>/dev/null | wc -l
-          ls -la ./publish/linux-x86/*.so 2>/dev/null | wc -l
-          ls -la ./publish/linux-x86/dotnet 2>/dev/null || echo "Keine dotnet binary"
-          ls -la ./publish/linux-x86/corerun 2>/dev/null || echo "Keine corerun binary"
-          ls -la ./publish/linux-x86/libcoreclr.so 2>/dev/null || echo "Keine libcoreclr.so"
+          echo "=== Finale Struktur ==="
+          tree ./publish/linux-x86 -L 4 2>/dev/null | head -40
 
-      - name: Assemble Final Package with Smart Launcher
+      - name: Assemble Final Package
         shell: bash
         run: |
           mkdir -p ./final-linux-x86
@@ -622,7 +672,7 @@ jobs:
           cp /usr/lib/i386-linux-gnu/libvlccore.so* ./final-linux-x86/ 2>/dev/null || true
           cp -r /usr/lib/i386-linux-gnu/vlc/ ./final-linux-x86/ 2>/dev/null || true
 
-          # INTELLIGENTER run.sh mit Fallback-Kette
+          # INTELLIGENTER run.sh
           cat > ./final-linux-x86/run.sh << 'EOF'
           #!/bin/bash
           DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
@@ -640,41 +690,24 @@ jobs:
           export DOTNET_DefaultStackSize=262144
           export DOTNET_JitMinOpts=1
           export DOTNET_ROLL_FORWARD=LatestMajor
-          export COREHOST_TRACE=0
           ulimit -s 256 2>/dev/null || true
           
-          echo "Starting Converter..."
-          echo "Working directory: $DIR"
-          
-          # FALLBACK-KETTE: Probiere verschiedene Starter
-          
-          # 1. Versuche dotnet CLI
-          if [ -x "$DIR/dotnet" ] && [ -f "$DIR/Converter.dll" ]; then
-            echo "Using: dotnet CLI"
-            exec "$DIR/dotnet" exec "$DIR/Converter.dll" "$@"
-          fi
-          
-          # 2. Versuche corerun
-          if [ -x "$DIR/corerun" ] && [ -f "$DIR/Converter.dll" ]; then
-            echo "Using: corerun"
-            exec "$DIR/corerun" "$DIR/Converter.dll" "$@"
-          fi
-          
-          # 3. Versuche AppHost
+          # FALLBACK-KETTE
           if [ -x "$DIR/Converter" ]; then
-            echo "Using: AppHost"
             exec "$DIR/Converter" "$@"
+          elif [ -x "$DIR/dotnet" ] && [ -f "$DIR/Converter.dll" ]; then
+            exec "$DIR/dotnet" exec "$DIR/Converter.dll" "$@"
+          elif [ -x "$DIR/corerun" ] && [ -f "$DIR/Converter.dll" ]; then
+            exec "$DIR/corerun" "$DIR/Converter.dll" "$@"
+          else
+            echo "ERROR: No launcher found!"
+            exit 1
           fi
-          
-          echo "ERROR: No valid launcher found!"
-          echo "Available files:"
-          ls -la "$DIR" | grep -E "dotnet|corerun|Converter"
-          exit 1
           EOF
           chmod +x ./final-linux-x86/run.sh
+          [ -f ./final-linux-x86/Converter ] && chmod +x ./final-linux-x86/Converter
           [ -f ./final-linux-x86/dotnet ] && chmod +x ./final-linux-x86/dotnet
           [ -f ./final-linux-x86/corerun ] && chmod +x ./final-linux-x86/corerun
-          [ -f ./final-linux-x86/Converter ] && chmod +x ./final-linux-x86/Converter
 
           mkdir -p ./final-linux-x86/ConverterIcon ./final-linux-x86/Scratch-Format-Converter ./final-linux-x86/Scratch-To-Snap ./final-linux-x86/svg_library_ScratchJnr ./final-linux-x86/wav_library_ScratchJnr
           cp ./ConverterIcon/* ./final-linux-x86/ConverterIcon/ 2>/dev/null || true
