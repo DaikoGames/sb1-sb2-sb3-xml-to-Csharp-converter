@@ -158,8 +158,9 @@ jobs:
             cp "$HOSTFXR_BIN" ~/custom-sdk/host/fxr/$FXR_VERSION/
           fi
           if [ -n "$HOSTPOLICY_BIN" ]; then
-            mkdir -p ~/custom-sdk/host/fxr/$FXR_VERSION
-            cp "$HOSTPOLICY_BIN" ~/custom-sdk/host/fxr/$FXR_VERSION/
+            POLICY_VERSION=$(basename "$(dirname "$HOSTPOLICY_BIN")")
+            mkdir -p ~/custom-sdk/host/fxr/$POLICY_VERSION
+            cp "$HOSTPOLICY_BIN" ~/custom-sdk/host/fxr/$POLICY_VERSION/
           fi
           SHARED_DIR=$(find ~/runtime/artifacts/bin -type d -path "*/shared/Microsoft.NETCore.App" | grep -iE "x86.*release" | head -n 1)
           [ -n "$SHARED_DIR" ] && cp -r "$SHARED_DIR"/* ~/custom-sdk/shared/Microsoft.NETCore.App/
@@ -417,10 +418,10 @@ jobs:
           path: ./Converter-linux-arm.tar.xz
 
   # ========================================================================
-  # JOB 4: BUILD LINUX x86 ON DEBIAN 12 (SelfContained, Offline-Ready)
+  # JOB 4: BUILD LINUX x86 ON DEBIAN 12 (Manual AppHost + Offline Runtime)
   # ========================================================================
   build-debian-12_linux-x86:
-    name: Build Linux x86 (Debian 12, SelfContained Offline)
+    name: Build Linux x86 (Debian 12, Manual AppHost)
     needs: build-runtime-x86
     runs-on: ubuntu-latest
     container:
@@ -476,79 +477,55 @@ jobs:
         run: |
           dpkg --add-architecture i386 && apt-get update && apt-get install -y libvlc-dev:i386 libvlccore-dev:i386 vlc-plugin-base:i386 libmagickcore-6.q16-6:i386 libmagickwand-6.q16-6:i386
 
-      - name: Build App (SelfContained, Offline-Ready)
+      # WICHTIG: UseAppHost=false und SelfContained=false umgeht den NETSDK1084 Fehler!
+      # Das SDK kompiliert nur die DLLs. Der AppHost und die Runtime werden manuell injiziert.
+      - name: Build App (Framework-Dependent, Bypasses NETSDK1084)
         shell: bash
         run: |
-          dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" -c Release -r linux-x86 -o "./publish/linux-x86" \
-            -p:SelfContained=true \
-            -p:UseAppHost=true \
+          dotnet build "./sb1 sb2 sb3 xml to Csharp converter.csproj" -c Release -r linux-x86 -o "./publish/linux-x86" \
+            -p:SelfContained=false \
+            -p:UseAppHost=false \
             -p:ExcludeMagickX64=true \
             -p:ExcludeMagickArm64=true \
             -p:DebugType=none \
             -p:DebugSymbols=false
 
-      - name: Patch AppHost for Local Runtime Only
+      - name: Inject Custom AppHost and Runtime (Offline Bundle)
         shell: bash
         run: |
+          # 1. Custom AppHost aus Job 1 in den Ordner kopieren
+          cp ~/custom-sdk/host/apphost ./publish/linux-x86/Converter
+          chmod +x ./publish/linux-x86/Converter
+          
+          # 2. AppHost patchen, damit er Converter.dll lädt
           python3 - <<'PYEOF'
           import os
           apphost_path = "./publish/linux-x86/Converter"
-          if os.path.exists(apphost_path):
-              with open(apphost_path, 'rb') as f:
-                  data = bytearray(f.read())
-              
-              placeholder = b"c3ab8ff13720e8ad9047dd39466b3c8974e592c2fa383d4a3960714caef0c4f2"
-              dll_name = b"Converter.dll"
-              idx = data.find(placeholder)
-              if idx != -1:
-                  replacement = dll_name + b"\x00" * (len(placeholder) - len(dll_name))
-                  data[idx:idx+len(placeholder)] = replacement
-                  with open(apphost_path, 'wb') as f: f.write(data)
-                  print("SUCCESS: AppHost gepatcht für lokale Runtime")
-              else:
-                  print("WARNING: Placeholder nicht gefunden")
+          placeholder = b"c3ab8ff13720e8ad9047dd39466b3c8974e592c2fa383d4a3960714caef0c4f2"
+          dll_name = b"Converter.dll"
+          with open(apphost_path, 'rb') as f: data = bytearray(f.read())
+          idx = data.find(placeholder)
+          if idx != -1:
+              replacement = dll_name + b"\x00" * (len(placeholder) - len(dll_name))
+              data[idx:idx+len(placeholder)] = replacement
+              with open(apphost_path, 'wb') as f: f.write(data)
+              print("SUCCESS: Patched apphost to point to Converter.dll")
           else:
-              print("ERROR: Converter binary nicht gefunden!")
+              print("ERROR: Could not find placeholder in apphost!")
           PYEOF
 
-      - name: Replace with Custom Runtime (Complete Offline Bundle)
-        shell: bash
-        run: |
-          # Custom AppHost ersetzen
-          CUSTOM_APPHOST=$(find ~/custom-sdk/host -name "apphost" -type f | head -n 1)
-          if [ -f "$CUSTOM_APPHOST" ]; then
-            cp "$CUSTOM_APPHOST" ./publish/linux-x86/Converter
-            chmod +x ./publish/linux-x86/Converter
-            echo "Custom AppHost ersetzt"
-          fi
-          
-          # Custom Runtime Libraries kopieren (ALLE Dateien!)
+          # 3. Komplette Runtime (libcoreclr.so etc.) in den Ordner kopieren
           CUSTOM_SHARED=$(find ~/custom-sdk/shared/Microsoft.NETCore.App -type d | head -n 1)
           if [ -d "$CUSTOM_SHARED" ]; then
-            echo "Kopiere Runtime aus: $CUSTOM_SHARED"
-            cp "$CUSTOM_SHARED"/* ./publish/linux-x86/ 2>/dev/null || true
+            cp "$CUSTOM_SHARED"/*.so ./publish/linux-x86/ || true
+            cp "$CUSTOM_SHARED"/*.dll ./publish/linux-x86/ || true
           fi
           
-          # Custom HostFXR kopieren
+          # 4. HostFXR und HostPolicy kopieren
           CUSTOM_HOSTFXR=$(find ~/custom-sdk/host/fxr -name "libhostfxr.so" | head -n 1)
-          if [ -f "$CUSTOM_HOSTFXR" ]; then
-            cp "$CUSTOM_HOSTFXR" ./publish/linux-x86/
-            echo "Custom HostFXR kopiert"
-          fi
-          
-          # Custom HostPolicy kopieren
+          [ -f "$CUSTOM_HOSTFXR" ] && cp "$CUSTOM_HOSTFXR" ./publish/linux-x86/
           CUSTOM_HOSTPOLICY=$(find ~/custom-sdk/host/fxr -name "libhostpolicy.so" | head -n 1)
-          if [ -f "$CUSTOM_HOSTPOLICY" ]; then
-            cp "$CUSTOM_HOSTPOLICY" ./publish/linux-x86/
-            echo "Custom HostPolicy kopiert"
-          fi
-          
-          # Custom dotnet binary kopieren
-          if [ -f ~/custom-sdk/dotnet ]; then
-            cp ~/custom-sdk/dotnet ./publish/linux-x86/dotnet
-            chmod +x ./publish/linux-x86/dotnet
-            echo "Custom dotnet binary kopiert"
-          fi
+          [ -f "$CUSTOM_HOSTPOLICY" ] && cp "$CUSTOM_HOSTPOLICY" ./publish/linux-x86/
 
       - name: Assemble Final Package
         shell: bash
