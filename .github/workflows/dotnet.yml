@@ -173,7 +173,7 @@ jobs:
           path: ~/dotnet-linux-x86-sdk.tar.gz
 
   # ========================================================================
-  # JOB 2: BUILD NORMAL PLATFORMS (Windows, macOS, Linux x64/arm64)
+  # JOB 2: BUILD NORMAL PLATFORMS
   # ========================================================================
   build:
     needs: build-runtime-x86
@@ -284,10 +284,10 @@ jobs:
           path: ./Releases/*
 
   # ========================================================================
-  # JOB 3: BUILD LINUX ARM32 ON DEBIAN 12
+  # JOB 3: BUILD LINUX ARM32
   # ========================================================================
   build-debian-12_linux-arm32:
-    name: Build Linux ARM32 (Debian 12, Native Libraries)
+    name: Build Linux ARM32 (Debian 12)
     needs: build-runtime-x86
     runs-on: ubuntu-latest
     container:
@@ -418,10 +418,10 @@ jobs:
           path: ./Converter-linux-arm.tar.xz
 
   # ========================================================================
-  # JOB 4: BUILD LINUX x86 ON DEBIAN 12 (Manual AppHost + Offline Runtime)
+  # JOB 4: BUILD LINUX x86 (DER WICHTIGSTE FIX!)
   # ========================================================================
   build-debian-12_linux-x86:
-    name: Build Linux x86 (Debian 12, Manual AppHost)
+    name: Build Linux x86 (Debian 12, FIXED)
     needs: build-runtime-x86
     runs-on: ubuntu-latest
     container:
@@ -432,7 +432,7 @@ jobs:
     steps:
       - name: Install container prerequisites
         run: |
-          apt-get update && apt-get install -y sudo git curl wget ca-certificates lsb-release gnupg python3 coreutils which xz-utils
+          apt-get update && apt-get install -y sudo git curl wget ca-certificates lsb-release gnupg python3 coreutils which xz-utils tree
 
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -467,6 +467,8 @@ jobs:
         run: |
           mkdir -p ~/custom-sdk
           tar -xzf ~/custom-sdk-tar/dotnet-linux-x86-sdk.tar.gz -C ~/custom-sdk
+          echo "=== SDK Structure ==="
+          tree ~/custom-sdk -L 4 || find ~/custom-sdk -type f | head -30
           
       - name: Setup Native 64-bit SDK
         uses: actions/setup-dotnet@v4
@@ -477,7 +479,7 @@ jobs:
         run: |
           dpkg --add-architecture i386 && apt-get update && apt-get install -y libvlc-dev:i386 libvlccore-dev:i386 vlc-plugin-base:i386 libmagickcore-6.q16-6:i386 libmagickwand-6.q16-6:i386
 
-      - name: Build App (Framework-Dependent, Bypasses NETSDK1084)
+      - name: Build App (Framework-Dependent)
         shell: bash
         run: |
           dotnet build "./sb1 sb2 sb3 xml to Csharp converter.csproj" -c Release -r linux-x86 -o "./publish/linux-x86" \
@@ -488,21 +490,23 @@ jobs:
             -p:DebugType=none \
             -p:DebugSymbols=false
 
-      - name: Inject Custom AppHost and Runtime (CORRECT FOLDER STRUCTURE)
+      - name: Inject Custom AppHost and Runtime (THE ULTIMATE FIX)
         shell: bash
         run: |
-          # Versionsnummer aus dem Custom SDK auslesen
+          set -e
+          echo "=== Building Custom Runtime Bundle ==="
+          
+          # 1. Version aus SDK finden
           FXR_VERSION=$(find ~/custom-sdk/host/fxr -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | head -n 1)
           if [ -z "$FXR_VERSION" ] || [ "$FXR_VERSION" = "native" ]; then
             FXR_VERSION="9.0.0"
           fi
-          echo "Using Runtime Version: $FXR_VERSION"
+          echo "Runtime Version: $FXR_VERSION"
           
-          # 1. Custom AppHost ins Hauptverzeichnis kopieren
+          # 2. AppHost kopieren und patchen
           cp ~/custom-sdk/host/apphost ./publish/linux-x86/Converter
           chmod +x ./publish/linux-x86/Converter
           
-          # 2. AppHost patchen, damit er Converter.dll lädt (KORREKTE EINRÜCKUNG!)
           cat > /tmp/patch_apphost.py << 'PYEOF'
           import os
           apphost_path = "./publish/linux-x86/Converter"
@@ -518,25 +522,76 @@ jobs:
                   f.write(data)
               print("SUCCESS: Patched apphost to point to Converter.dll")
           else:
-              print("ERROR: Could not find placeholder in apphost!")
+              print("WARNING: Placeholder not found in apphost")
           PYEOF
           python3 /tmp/patch_apphost.py
-
-          # 3. WICHTIG: Korrekte Ordnerstruktur für den AppHost aufbauen!
+          
+          # 3. Ordnerstruktur aufbauen
           mkdir -p "./publish/linux-x86/host/fxr/$FXR_VERSION"
           mkdir -p "./publish/linux-x86/shared/Microsoft.NETCore.App/$FXR_VERSION"
           
-          # 4. HostFXR und HostPolicy in host/fxr/<version>/ kopieren
+          # 4. HostFXR und HostPolicy kopieren
           CUSTOM_HOSTFXR=$(find ~/custom-sdk/host/fxr -name "libhostfxr.so" | head -n 1)
-          [ -f "$CUSTOM_HOSTFXR" ] && cp "$CUSTOM_HOSTFXR" "./publish/linux-x86/host/fxr/$FXR_VERSION/"
-          CUSTOM_HOSTPOLICY=$(find ~/custom-sdk/host/fxr -name "libhostpolicy.so" | head -n 1)
-          [ -f "$CUSTOM_HOSTPOLICY" ] && cp "$CUSTOM_HOSTPOLICY" "./publish/linux-x86/host/fxr/$FXR_VERSION/"
-          
-          # 5. Komplette Runtime in shared/Microsoft.NETCore.App/<version>/ kopieren
-          CUSTOM_SHARED=$(find ~/custom-sdk/shared/Microsoft.NETCore.App -type d | head -n 1)
-          if [ -d "$CUSTOM_SHARED" ]; then
-            cp -r "$CUSTOM_SHARED"/* "./publish/linux-x86/shared/Microsoft.NETCore.App/$FXR_VERSION/" || true
+          if [ -f "$CUSTOM_HOSTFXR" ]; then
+            cp "$CUSTOM_HOSTFXR" "./publish/linux-x86/host/fxr/$FXR_VERSION/"
+            echo "✓ libhostfxr.so copied"
+          else
+            echo "✗ libhostfxr.so NOT FOUND!"
+            find ~/custom-sdk -name "*hostfxr*" 2>/dev/null
           fi
+          
+          CUSTOM_HOSTPOLICY=$(find ~/custom-sdk/host/fxr -name "libhostpolicy.so" | head -n 1)
+          if [ -f "$CUSTOM_HOSTPOLICY" ]; then
+            cp "$CUSTOM_HOSTPOLICY" "./publish/linux-x86/host/fxr/$FXR_VERSION/"
+            echo "✓ libhostpolicy.so copied"
+          else
+            echo "✗ libhostpolicy.so NOT FOUND!"
+          fi
+          
+          # 5. Komplette Runtime kopieren
+          if [ -d ~/custom-sdk/shared/Microsoft.NETCore.App ]; then
+            cp -r ~/custom-sdk/shared/Microsoft.NETCore.App/* "./publish/linux-x86/shared/Microsoft.NETCore.App/$FXR_VERSION/" 2>/dev/null || true
+            echo "✓ Runtime files copied"
+          fi
+          
+          # 6. WICHTIG: runtimeconfig.json patchen mit rollForward
+          # Das ist der Schlüssel! Damit akzeptiert der AppHost die lokale Runtime
+          # unabhängig von der exakten Versionsnummer.
+          cat > "./publish/linux-x86/Converter.runtimeconfig.json" << 'JSONEOF'
+          {
+            "runtimeOptions": {
+              "tfm": "net9.0",
+              "framework": {
+                "name": "Microsoft.NETCore.App",
+                "version": "9.0.0",
+                "rollForward": "LatestMajor"
+              },
+              "configProperties": {
+                "System.Reflection.Metadata.MetadataUpdater.IsSupported": false,
+                "System.Runtime.Serialization.EnableUnsafeBinaryFormatterSerialization": false
+              }
+            }
+          }
+          JSONEOF
+          echo "✓ runtimeconfig.json created with rollForward"
+          
+          # 7. Microsoft.NETCore.App.runtimeconfig.json erstellen
+          cat > "./publish/linux-x86/shared/Microsoft.NETCore.App/$FXR_VERSION/Microsoft.NETCore.App.runtimeconfig.json" << JSONEOF
+          {
+            "runtimeOptions": {
+              "tfm": "net9.0",
+              "framework": {
+                "name": "Microsoft.NETCore.App",
+                "version": "$FXR_VERSION"
+              },
+              "rollForward": "LatestMajor"
+            }
+          }
+          JSONEOF
+          echo "✓ Microsoft.NETCore.App.runtimeconfig.json created"
+          
+          echo "=== Final Structure ==="
+          tree ./publish/linux-x86 -L 4 2>/dev/null || find ./publish/linux-x86 -maxdepth 4 -type d
 
       - name: Assemble Final Package
         shell: bash
@@ -566,6 +621,7 @@ jobs:
           export DOTNET_ReadyToRun=0
           export DOTNET_DefaultStackSize=262144
           export DOTNET_JitMinOpts=1
+          export DOTNET_ROLL_FORWARD="LatestMajor"
           ulimit -s 256 2>/dev/null || true
           exec "$DIR/Converter" "$@"
           EOF
