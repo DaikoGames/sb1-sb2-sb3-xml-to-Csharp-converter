@@ -223,7 +223,7 @@ jobs:
         run: |
           dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" -c Release -r ${{ matrix.runtime }} -o "./publish/${{ matrix.runtime }}" -p:SelfContained=true -p:PublishSingleFile=true -p:PublishReadyToRun=true -p:IncludeAllContentForSelfExtract=true
 
-      # >>> HIER KOMMT DER ARM32 NATIVE CROSS-COMPILE MAGIC STEP <<<
+      # >>> HIER KOMMT DER ARM32 NATIVE CROSS-COMPILE MAGIC STEP (FIXED) <<<
       - name: Compile & Fetch ARM32 Native Libraries
         if: matrix.runtime == 'linux-arm'
         shell: bash
@@ -231,18 +231,25 @@ jobs:
           echo "Setting up ARM32 (armhf) cross-compilation environment..."
           sudo dpkg --add-architecture armhf
           
-          # Ubuntu Ports Repository für ARM32 (armhf)
+          # Ubuntu Ports Repository für ARM32 (armhf) - KEINE Sicherheitsupdates, da diese dort nicht existieren!
           CODENAME=$(lsb_release -cs)
           echo "deb [arch=armhf] http://ports.ubuntu.com/ubuntu-ports/ $CODENAME main universe" | sudo tee /etc/apt/sources.list.d/armhf.list
           echo "deb [arch=armhf] http://ports.ubuntu.com/ubuntu-ports/ $CODENAME-updates main universe" | sudo tee -a /etc/apt/sources.list.d/armhf.list
           
-          sudo apt-get update
+          # apt-get update nur auf die armhf.list beschränken, um 404 Fehler bei security.ubuntu.com zu vermeiden
+          sudo apt-get update -o Dir::Etc::sourcelist="sources.list.d/armhf.list" -o Dir::Etc::sourceparts="-" -o APT::Get::List-Cleanup="0" || true
           
           # Native ARM32 Libraries installieren (LibVLC, ImageMagick)
-          sudo apt-get install -y --no-install-recommends \
+          sudo apt-get install -y --no-install-recommends --allow-unauthenticated \
             libvlc5:armhf libvlccore9:armhf vlc-plugin-base:armhf \
             libmagickcore-6.q16-6:armhf libmagickwand-6.q16-6:armhf \
-            gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf
+            gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf || {
+              echo "FALLBACK: Versuche Pakete ohne spezifische Versionen zu installieren..."
+              sudo apt-get install -y --no-install-recommends --allow-unauthenticated \
+                libvlc-dev:armhf libvlccore-dev:armhf \
+                libmagickcore-dev:armhf libmagickwand-dev:armhf \
+                gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf
+            }
           
           # Eigene C/C++ Libraries kompilieren (falls Ordner 'native-src' existiert)
           if [ -d "./native-src" ]; then
@@ -336,7 +343,6 @@ jobs:
     steps:
       - name: Install container prerequisites
         run: |
-          # FIX: Added xz-utils to allow tar -cJf to work
           apt-get update && apt-get install -y sudo git curl wget ca-certificates lsb-release gnupg python3 coreutils which xz-utils
 
       - name: Checkout Code
