@@ -477,8 +477,6 @@ jobs:
         run: |
           dpkg --add-architecture i386 && apt-get update && apt-get install -y libvlc-dev:i386 libvlccore-dev:i386 vlc-plugin-base:i386 libmagickcore-6.q16-6:i386 libmagickwand-6.q16-6:i386
 
-      # WICHTIG: UseAppHost=false und SelfContained=false umgeht den NETSDK1084 Fehler!
-      # Das SDK kompiliert nur die DLLs. Der AppHost und die Runtime werden manuell injiziert.
       - name: Build App (Framework-Dependent, Bypasses NETSDK1084)
         shell: bash
         run: |
@@ -490,10 +488,17 @@ jobs:
             -p:DebugType=none \
             -p:DebugSymbols=false
 
-      - name: Inject Custom AppHost and Runtime (Offline Bundle)
+      - name: Inject Custom AppHost and Runtime (CORRECT FOLDER STRUCTURE)
         shell: bash
         run: |
-          # 1. Custom AppHost aus Job 1 in den Ordner kopieren
+          # Versionsnummer aus dem Custom SDK auslesen
+          FXR_VERSION=$(find ~/custom-sdk/host/fxr -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | head -n 1)
+          if [ -z "$FXR_VERSION" ]; then
+            FXR_VERSION="9.0.0"
+          fi
+          echo "Using Runtime Version: $FXR_VERSION"
+          
+          # 1. Custom AppHost ins Hauptverzeichnis kopieren
           cp ~/custom-sdk/host/apphost ./publish/linux-x86/Converter
           chmod +x ./publish/linux-x86/Converter
           
@@ -506,26 +511,29 @@ jobs:
           with open(apphost_path, 'rb') as f: data = bytearray(f.read())
           idx = data.find(placeholder)
           if idx != -1:
-              replacement = dll_name + b"\x00" * (len(placeholder) - len(dll_name))
-              data[idx:idx+len(placeholder)] = replacement
-              with open(apphost_path, 'wb') as f: f.write(data)
-              print("SUCCESS: Patched apphost to point to Converter.dll")
+          replacement = dll_name + b"\x00" * (len(placeholder) - len(dll_name))
+          data[idx:idx+len(placeholder)] = replacement
+          with open(apphost_path, 'wb') as f: f.write(data)
+          print("SUCCESS: Patched apphost to point to Converter.dll")
           else:
-              print("ERROR: Could not find placeholder in apphost!")
+          print("ERROR: Could not find placeholder in apphost!")
           PYEOF
 
-          # 3. Komplette Runtime (libcoreclr.so etc.) in den Ordner kopieren
+          # 3. WICHTIG: Korrekte Ordnerstruktur für den AppHost aufbauen!
+          mkdir -p "./publish/linux-x86/host/fxr/$FXR_VERSION"
+          mkdir -p "./publish/linux-x86/shared/Microsoft.NETCore.App/$FXR_VERSION"
+          
+          # 4. HostFXR und HostPolicy in host/fxr/<version>/ kopieren
+          CUSTOM_HOSTFXR=$(find ~/custom-sdk/host/fxr -name "libhostfxr.so" | head -n 1)
+          [ -f "$CUSTOM_HOSTFXR" ] && cp "$CUSTOM_HOSTFXR" "./publish/linux-x86/host/fxr/$FXR_VERSION/"
+          CUSTOM_HOSTPOLICY=$(find ~/custom-sdk/host/fxr -name "libhostpolicy.so" | head -n 1)
+          [ -f "$CUSTOM_HOSTPOLICY" ] && cp "$CUSTOM_HOSTPOLICY" "./publish/linux-x86/host/fxr/$FXR_VERSION/"
+          
+          # 5. Komplette Runtime in shared/Microsoft.NETCore.App/<version>/ kopieren
           CUSTOM_SHARED=$(find ~/custom-sdk/shared/Microsoft.NETCore.App -type d | head -n 1)
           if [ -d "$CUSTOM_SHARED" ]; then
-            cp "$CUSTOM_SHARED"/*.so ./publish/linux-x86/ || true
-            cp "$CUSTOM_SHARED"/*.dll ./publish/linux-x86/ || true
+            cp -r "$CUSTOM_SHARED"/* "./publish/linux-x86/shared/Microsoft.NETCore.App/$FXR_VERSION/" || true
           fi
-          
-          # 4. HostFXR und HostPolicy kopieren
-          CUSTOM_HOSTFXR=$(find ~/custom-sdk/host/fxr -name "libhostfxr.so" | head -n 1)
-          [ -f "$CUSTOM_HOSTFXR" ] && cp "$CUSTOM_HOSTFXR" ./publish/linux-x86/
-          CUSTOM_HOSTPOLICY=$(find ~/custom-sdk/host/fxr -name "libhostpolicy.so" | head -n 1)
-          [ -f "$CUSTOM_HOSTPOLICY" ] && cp "$CUSTOM_HOSTPOLICY" ./publish/linux-x86/
 
       - name: Assemble Final Package
         shell: bash
