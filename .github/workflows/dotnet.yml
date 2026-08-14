@@ -59,11 +59,15 @@ jobs:
           cd ~/runtime
           cat > /tmp/patch.py << 'PYEOF'
           import os, re
+
           def replace(filepath, old, new):
               if os.path.exists(filepath):
-                  with open(filepath, 'r') as f: content = f.read()
+                  with open(filepath, 'r') as f:
+                      content = f.read()
                   if old in content:
-                      with open(filepath, 'w') as f: f.write(content.replace(old, new))
+                      with open(filepath, 'w') as f:
+                          f.write(content.replace(old, new))
+
           replace('src/coreclr/vm/vars.hpp', 'CORProfilerDisableOptimizations()', 'false')
           replace('src/coreclr/vm/ceemain.cpp', 'BEGIN_PROFILER_CALLBACK(CORProfilerPresent());', 'if (false) {')
           replace('src/coreclr/vm/ceemain.cpp', 'END_PROFILER_CALLBACK();', '}')
@@ -76,46 +80,65 @@ jobs:
           replace('src/coreclr/vm/eeprofinterfaces.inl', 'CORProfilerTrackLargeAllocations()', 'FALSE')
           replace('src/coreclr/vm/eeprofinterfaces.inl', 'CORProfilerTrackPinnedAllocations()', 'FALSE')
           replace('src/coreclr/vm/eetoprofinterfaceimpl.inl', 'CORProfilerPresent()', 'FALSE')
+
           filepath = 'src/coreclr/inc/profilepriv.inl'
           if os.path.exists(filepath):
-              with open(filepath, 'r') as f: content = f.read()
+              with open(filepath, 'r') as f:
+                  content = f.read()
               if not content.lstrip().startswith('#if FEATURE_PERFTRACING'):
-                  with open(filepath, 'w') as f: f.write('#if FEATURE_PERFTRACING\n' + content + '\n#endif\n')
+                  with open(filepath, 'w') as f:
+                      f.write('#if FEATURE_PERFTRACING\n' + content + '\n#endif\n')
+
           for host in ['corerun', 'apphost', 'singlefilehost']:
               filepath = f'src/coreclr/hosts/{host}/CMakeLists.txt'
               if os.path.exists(filepath):
-                  with open(filepath, 'r') as f: content = f.read()
+                  with open(filepath, 'r') as f:
+                      content = f.read()
                   pattern = r'(target_link_libraries\s*\(\s*' + host + r'\s+PRIVATE\s+coreclr_pal)'
                   if re.search(pattern, content):
                       content = re.sub(pattern, r'\1\n    -Wl,--start-group\n    dl\n    c\n    -Wl,--end-group', content)
-                      with open(filepath, 'w') as f: f.write(content)
+                      with open(filepath, 'w') as f:
+                          f.write(content)
+
           test_proj = 'src/installer/tests/Assets/Projects/HelloWorld/SelfContained.csproj'
           if os.path.exists(test_proj):
-              with open(test_proj, 'r') as f: content = f.read()
+              with open(test_proj, 'r') as f:
+                  content = f.read()
               content = content.replace('<SelfContained>true</SelfContained>', '<SelfContained>false</SelfContained>')
               content = content.replace('<UseAppHost>true</UseAppHost>', '<UseAppHost>false</UseAppHost>')
-              with open(test_proj, 'w') as f: f.write(content)
+              with open(test_proj, 'w') as f:
+                  f.write(content)
+
           crossgen2_proj = 'src/coreclr/tools/aot/crossgen2/crossgen2_publish.csproj'
           if os.path.exists(crossgen2_proj):
-              with open(crossgen2_proj, 'r') as f: content = f.read()
+              with open(crossgen2_proj, 'r') as f:
+                  content = f.read()
               if '<UseAppHost>false</UseAppHost>' not in content:
                   new_props = '  <PropertyGroup>\n    <UseAppHost>false</UseAppHost>\n    <PublishReadyToRun>false</PublishReadyToRun>\n    <PublishTrimmed>false</PublishTrimmed>\n    <PublishSingleFile>false</PublishSingleFile>\n  </PropertyGroup>\n</Project>'
                   content = content.replace('</Project>', new_props)
-                  with open(crossgen2_proj, 'w') as f: f.write(content)
+                  with open(crossgen2_proj, 'w') as f:
+                      f.write(content)
+
           sfxproj = 'src/installer/pkg/sfx/Microsoft.NETCore.App/Microsoft.NETCore.App.Crossgen2.sfxproj'
           if os.path.exists(sfxproj):
-              with open(sfxproj, 'r') as f: content = f.read()
+              with open(sfxproj, 'r') as f:
+                  content = f.read()
               if 'Name="Build" />' not in content:
                   patch = '\n  <Target Name="Build" />\n  <Target Name="Pack" />\n  <Target Name="CreateManifestResourceNames" />\n  <Target Name="VerifySharedFrameworkDependencies" />\n</Project>'
                   content = content.replace('</Project>', patch)
-                  with open(sfxproj, 'w') as f: f.write(content)
+                  with open(sfxproj, 'w') as f:
+                      f.write(content)
+
           hostmodel_proj = 'src/installer/managed/Microsoft.NET.HostModel/Microsoft.NET.HostModel.csproj'
           if os.path.exists(hostmodel_proj):
-              with open(hostmodel_proj, 'r') as f: content = f.read()
+              with open(hostmodel_proj, 'r') as f:
+                  content = f.read()
               if 'DeleteAssemblyReferenceCache' not in content:
                   patch = '\n  <Target Name="DeleteAssemblyReferenceCache" BeforeTargets="GenerateAssemblyReferenceCache">\n    <Delete Files="$(IntermediateOutputPath)$(MSBuildProjectName).csproj.AssemblyReference.cache" ContinueOnError="true" />\n  </Target>\n</Project>'
                   content = content.replace('</Project>', patch)
-                  with open(hostmodel_proj, 'w') as f: f.write(content)
+                  with open(hostmodel_proj, 'w') as f:
+                      f.write(content)
+
           print("Patches applied.")
           PYEOF
           python3 /tmp/patch.py
@@ -139,32 +162,16 @@ jobs:
             /p:UseAppHost=false /p:SelfContained=false /p:RunTests=false /p:BuildTests=false \
             /p:BuildInstaller=false /p:FeatureEventTrace=0 /p:FeaturePerfTracing=0 \
             /p:ContinuousIntegrationBuild=true /p:BuildInParallel=false
-            
-      - name: Debug Build Output (ERWEITERT)
-        run: |
-          echo "=== KOMPLETTER BUILD OUTPUT ==="
-          find ~/runtime/artifacts/bin -type f -name "*.so" 2>/dev/null | head -50
-          echo ""
-          echo "=== EXECUTABLES ==="
-          find ~/runtime/artifacts/bin -type f -executable 2>/dev/null | grep -E "(dotnet|corerun|apphost)" | head -20
-          echo ""
-          echo "=== SHARED FRAMEWORK SUCHE (ALLE MÖGLICHEN ORTE) ==="
-          find ~/runtime/artifacts/bin -name "libcoreclr.so" 2>/dev/null
-          find ~/runtime/artifacts/bin -name "System.Private.CoreLib.dll" 2>/dev/null
-          find ~/runtime/artifacts/bin -path "*/Microsoft.NETCore.App/*" -type d 2>/dev/null
-          echo ""
-          echo "=== RUNTIMES ORDNER ==="
-          find ~/runtime/artifacts/bin -type d -name "runtimes" 2>/dev/null
 
-      - name: Assemble Custom SDK (VERBESSERT)
+      - name: Assemble Custom SDK
         run: |
           set -e
-          
+
           echo "=== ERSTELLE KORREKTE SDK STRUKTUR ==="
-          
+
           mkdir -p ~/custom-sdk/host/fxr
           mkdir -p ~/custom-sdk/shared/Microsoft.NETCore.App
-          
+
           # 1. DOTNET EXECUTABLE
           DOTNET_BIN=$(find ~/runtime/artifacts/bin -type f -name "dotnet" -executable 2>/dev/null | head -n 1)
           if [ -n "$DOTNET_BIN" ]; then
@@ -174,7 +181,7 @@ jobs:
           else
             echo "✗ dotnet NICHT gefunden!"
           fi
-          
+
           # 2. LIBHOSTFXR.SO (mit Version 9.0.0 statt native)
           LIBHOSTFXR=$(find ~/runtime/artifacts/bin -name "libhostfxr.so" 2>/dev/null | head -n 1)
           if [ -n "$LIBHOSTFXR" ]; then
@@ -184,7 +191,7 @@ jobs:
           else
             echo "✗ libhostfxr.so NICHT gefunden!"
           fi
-          
+
           # 3. LIBHOSTPOLICY.SO
           LIBHOSTPOLICY=$(find ~/runtime/artifacts/bin -name "libhostpolicy.so" 2>/dev/null | head -n 1)
           if [ -n "$LIBHOSTPOLICY" ]; then
@@ -193,46 +200,30 @@ jobs:
           else
             echo "✗ libhostpolicy.so NICHT gefunden!"
           fi
-          
-          # 4. SHARED FRAMEWORK (VERBESSERT - mehrere Suchstrategien)
+
+          # 4. SHARED FRAMEWORK (mehrere Suchstrategien)
           SHARED_FOUND=false
-          
-          # Strategie 1: Suche nach libcoreclr.so
+
           LIBCORECLR=$(find ~/runtime/artifacts/bin -name "libcoreclr.so" 2>/dev/null | head -n 1)
           if [ -n "$LIBCORECLR" ]; then
             echo "✓ libcoreclr.so gefunden: $LIBCORECLR"
             CORECLR_DIR=$(dirname "$LIBCORECLR")
-            echo "  Verzeichnis: $CORECLR_DIR"
             mkdir -p ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0
             cp -r "$CORECLR_DIR"/* ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/ 2>/dev/null || true
             SHARED_FOUND=true
           fi
-          
-          # Strategie 2: Suche nach System.Private.CoreLib.dll
+
           if [ "$SHARED_FOUND" = false ]; then
             SYSPRIVATECORELIB=$(find ~/runtime/artifacts/bin -name "System.Private.CoreLib.dll" 2>/dev/null | head -n 1)
             if [ -n "$SYSPRIVATECORELIB" ]; then
               echo "✓ System.Private.CoreLib.dll gefunden: $SYSPRIVATECORELIB"
               SYSPRIVATE_DIR=$(dirname "$SYSPRIVATECORELIB")
-              echo "  Verzeichnis: $SYSPRIVATE_DIR"
               mkdir -p ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0
               cp -r "$SYSPRIVATE_DIR"/* ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/ 2>/dev/null || true
               SHARED_FOUND=true
             fi
           fi
-          
-          # Strategie 3: Suche in shared/Microsoft.NETCore.App
-          if [ "$SHARED_FOUND" = false ]; then
-            SHARED_DIR=$(find ~/runtime/artifacts/bin -type d -path "*/shared/Microsoft.NETCore.App/*" 2>/dev/null | head -n 1)
-            if [ -n "$SHARED_DIR" ]; then
-              echo "✓ Shared Framework Ordner gefunden: $SHARED_DIR"
-              mkdir -p ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0
-              cp -r "$SHARED_DIR"/* ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/ 2>/dev/null || true
-              SHARED_FOUND=true
-            fi
-          fi
-          
-          # Strategie 4: Suche in runtimes/linux-x86/native
+
           if [ "$SHARED_FOUND" = false ]; then
             RUNTIMES_DIR=$(find ~/runtime/artifacts/bin -type d -name "native" -path "*/runtimes/linux-x86/*" 2>/dev/null | head -n 1)
             if [ -n "$RUNTIMES_DIR" ]; then
@@ -242,17 +233,11 @@ jobs:
               SHARED_FOUND=true
             fi
           fi
-          
+
           if [ "$SHARED_FOUND" = false ]; then
-            echo "✗ Shared Framework NICHT gefunden! Versuche manuelle Suche..."
-            # Letzte Chance: Suche alle DLLs und SOs in artifacts/bin
-            find ~/runtime/artifacts/bin -name "*.dll" -o -name "*.so" 2>/dev/null | while read file; do
-              if [[ "$file" == *"libcoreclr"* ]] || [[ "$file" == *"System.Private.CoreLib"* ]] || [[ "$file" == *"System.Runtime.dll"* ]]; then
-                echo "  Mögliche Runtime-Datei: $file"
-              fi
-            done
+            echo "✗ Shared Framework NICHT gefunden!"
           fi
-          
+
           # 5. APPHOST
           APPHOST=$(find ~/runtime/artifacts/bin -type f -name "apphost" -executable 2>/dev/null | head -n 1)
           if [ -n "$APPHOST" ]; then
@@ -262,7 +247,7 @@ jobs:
           else
             echo "✗ apphost NICHT gefunden!"
           fi
-          
+
           # 6. CORERUN
           CORERUN=$(find ~/runtime/artifacts/bin -type f -name "corerun" -executable 2>/dev/null | head -n 1)
           if [ -n "$CORERUN" ]; then
@@ -272,15 +257,15 @@ jobs:
           else
             echo "✗ corerun NICHT gefunden!"
           fi
-          
+
           echo ""
           echo "=== FINALE SDK STRUKTUR ==="
-          tree ~/custom-sdk -L 4 2>/dev/null || find ~/custom-sdk -type f | sort
-          
+          find ~/custom-sdk -type f | sort
+
           echo ""
           echo "=== Shared Framework Inhalt ==="
           ls ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/ 2>/dev/null | head -20 || echo "Kein Shared Framework!"
-          
+
           cd ~/custom-sdk && tar -czf ~/dotnet-linux-x86-sdk.tar.gz .
 
       - name: Upload Custom SDK
@@ -439,7 +424,7 @@ jobs:
           repository: 'DaikoGames/Translate-Folder'
           path: Translate-Folder
           fetch-depth: 1
-          
+
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v4
         with:
@@ -475,7 +460,7 @@ jobs:
           cp -r /usr/lib/arm-linux-gnueabihf/vlc/ ./publish/linux-arm/ || true
           cp /usr/lib/arm-linux-gnueabihf/libMagickCore-6.Q16.so* ./publish/linux-arm/ || true
           cp /usr/lib/arm-linux-gnueabihf/libMagickWand-6.Q16.so* ./publish/linux-arm/ || true
-          
+
           rm -f ./publish/linux-arm/Magick.NET-Q16-x64.dll ./publish/linux-arm/Magick.NET-Q16-arm64.dll
           rm -f ./publish/linux-arm/libMagick*x64*.so ./publish/linux-arm/libMagick*arm64*.so
           sed -i '/Magick.NET-Q16-x64/d; /Magick.NET-Q16-arm64/d' ./publish/linux-arm/Converter.deps.json || true
@@ -534,7 +519,7 @@ jobs:
           path: ./Converter-linux-arm.tar.xz
 
   # ========================================================================
-  # JOB 4: BUILD LINUX x86
+  # JOB 4: BUILD LINUX x86 (KORREKT EINGERÜCKT!)
   # ========================================================================
   build-debian-12_linux-x86:
     name: Build Linux x86 (Debian 12, Custom AppHost)
@@ -548,7 +533,7 @@ jobs:
     steps:
       - name: Install container prerequisites
         run: |
-          apt-get update && apt-get install -y sudo git curl wget ca-certificates lsb-release gnupg python3 coreutils which xz-utils
+          apt-get update && apt-get install -y sudo git curl wget ca-certificates lsb-release gnupg python3 coreutils which xz-utils tree
 
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -572,20 +557,20 @@ jobs:
           repository: 'DaikoGames/Translate-Folder'
           path: Translate-Folder
           fetch-depth: 1
-          
+
       - name: Download Custom x86 Runtime
         uses: actions/download-artifact@v4
         with:
           name: dotnet-linux-x86-sdk
           path: ~/custom-sdk-tar
-          
+
       - name: Extract Custom x86 Runtime
         run: |
           mkdir -p ~/custom-sdk
           tar -xzf ~/custom-sdk-tar/dotnet-linux-x86-sdk.tar.gz -C ~/custom-sdk
           echo "=== Custom SDK Structure ==="
-          tree ~/custom-sdk -L 4 2>/dev/null || find ~/custom-sdk -type f | sort
-          
+          find ~/custom-sdk -type f | sort
+
       - name: Setup Native 64-bit SDK
         uses: actions/setup-dotnet@v4
         with:
@@ -605,104 +590,117 @@ jobs:
             -p:ExcludeMagickArm64=true \
             -p:DebugType=none \
             -p:DebugSymbols=false
-            
+
           echo "=== Build Output ==="
           ls -la ./publish/linux-x86/*.dll | head -10
 
-      - name: Inject Custom AppHost and Runtime
+      - name: Write Python patch script to file
         shell: bash
         run: |
-          set -e
-          echo "=== Erstelle EXAKTE .NET SDK Struktur ==="
-          
-          # 1. Custom AppHost kopieren
-          if [ -f ~/custom-sdk/host/apphost ]; then
-            echo "✓ Kopiere Custom AppHost..."
-            cp ~/custom-sdk/host/apphost ./publish/linux-x86/Converter
-            chmod +x ./publish/linux-x86/Converter
-            
-            # AppHost patchen
-            python3 - <<'PYEOF'
+          cat > /tmp/patch_apphost.py << 'PYEOF'
           import os
+
           apphost_path = "./publish/linux-x86/Converter"
           placeholder = b"c3ab8ff13720e8ad9047dd39466b3c8974e592c2fa383d4a3960714caef0c4f2"
           dll_name = b"Converter.dll"
+
           with open(apphost_path, 'rb') as f:
               data = bytearray(f.read())
+
           idx = data.find(placeholder)
           if idx != -1:
               replacement = dll_name + b"\x00" * (len(placeholder) - len(dll_name))
               data[idx:idx+len(placeholder)] = replacement
               with open(apphost_path, 'wb') as f:
                   f.write(data)
-              print("✓ AppHost gepatcht")
+              print("AppHost gepatcht")
           else:
-              print("✗ Placeholder nicht gefunden")
+              print("Placeholder nicht gefunden")
           PYEOF
+
+          cat > /tmp/patch_runtimeconfig.py << 'PYEOF'
+          import json
+
+          config_path = "./publish/linux-x86/Converter.runtimeconfig.json"
+
+          with open(config_path, "r") as f:
+              config = json.load(f)
+
+          if "runtimeOptions" not in config:
+              config["runtimeOptions"] = {}
+
+          config["runtimeOptions"]["rollForward"] = "LatestMajor"
+
+          if "framework" in config["runtimeOptions"]:
+              config["runtimeOptions"]["framework"]["rollForward"] = "LatestMajor"
+
+          with open(config_path, "w") as f:
+              json.dump(config, f, indent=2)
+
+          print("runtimeconfig.json gepatcht")
+          PYEOF
+
+      - name: Inject Custom AppHost and Runtime
+        shell: bash
+        run: |
+          set -e
+          echo "=== Erstelle EXAKTE .NET SDK Struktur ==="
+
+          # 1. Custom AppHost kopieren
+          if [ -f ~/custom-sdk/host/apphost ]; then
+            echo "Kopiere Custom AppHost..."
+            cp ~/custom-sdk/host/apphost ./publish/linux-x86/Converter
+            chmod +x ./publish/linux-x86/Converter
+            python3 /tmp/patch_apphost.py
           else
-            echo "✗ Custom AppHost nicht gefunden!"
+            echo "Custom AppHost nicht gefunden!"
           fi
-          
+
           # 2. host/fxr/9.0.0/ kopieren
           if [ -d ~/custom-sdk/host/fxr/9.0.0 ]; then
-            echo "✓ Kopiere host/fxr/9.0.0/..."
+            echo "Kopiere host/fxr/9.0.0/..."
             mkdir -p "./publish/linux-x86/host/fxr/9.0.0"
             cp -r ~/custom-sdk/host/fxr/9.0.0/* "./publish/linux-x86/host/fxr/9.0.0/"
           else
-            echo "✗ host/fxr/9.0.0 nicht gefunden!"
+            echo "host/fxr/9.0.0 nicht gefunden!"
           fi
-          
+
           # 3. shared/Microsoft.NETCore.App/9.0.0/ kopieren
           if [ -d ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0 ]; then
-            echo "✓ Kopiere shared/Microsoft.NETCore.App/9.0.0/..."
+            echo "Kopiere shared/Microsoft.NETCore.App/9.0.0/..."
             mkdir -p "./publish/linux-x86/shared/Microsoft.NETCore.App/9.0.0"
             cp -r ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/* "./publish/linux-x86/shared/Microsoft.NETCore.App/9.0.0/"
           else
-            echo "✗ shared/Microsoft.NETCore.App/9.0.0 nicht gefunden!"
+            echo "shared/Microsoft.NETCore.App/9.0.0 nicht gefunden!"
           fi
-          
+
           # 4. dotnet CLI kopieren (Fallback)
           if [ -f ~/custom-sdk/dotnet ]; then
             cp ~/custom-sdk/dotnet ./publish/linux-x86/dotnet
             chmod +x ./publish/linux-x86/dotnet
           fi
-          
+
           # 5. corerun kopieren (Fallback)
           if [ -f ~/custom-sdk/corerun ]; then
             cp ~/custom-sdk/corerun ./publish/linux-x86/corerun
             chmod +x ./publish/linux-x86/corerun
           fi
-          
+
           # 6. runtimeconfig.json patchen
           if [ -f ./publish/linux-x86/Converter.runtimeconfig.json ]; then
-            python3 - <<'PYEOF'
-          import json
-          with open("./publish/linux-x86/Converter.runtimeconfig.json", "r") as f:
-              config = json.load(f)
-          
-          if "runtimeOptions" not in config:
-              config["runtimeOptions"] = {}
-          config["runtimeOptions"]["rollForward"] = "LatestMajor"
-          
-          if "framework" in config["runtimeOptions"]:
-              config["runtimeOptions"]["framework"]["rollForward"] = "LatestMajor"
-          
-          with open("./publish/linux-x86/Converter.runtimeconfig.json", "w") as f:
-              json.dump(config, f, indent=2)
-          print("✓ runtimeconfig.json gepatcht")
-          PYEOF
+            python3 /tmp/patch_runtimeconfig.py
           fi
-          
+
           echo ""
           echo "=== Finale Struktur ==="
-          tree ./publish/linux-x86 -L 4 2>/dev/null | head -50
+          tree ./publish/linux-x86 -L 4 || find ./publish/linux-x86 -type d | head -20
 
       - name: Assemble Final Package
         shell: bash
         run: |
           mkdir -p ./final-linux-x86
           cp -r ./publish/linux-x86/* ./final-linux-x86/
-          
+
           rm -f ./final-linux-x86/Magick.NET-Q16-x64.dll ./final-linux-x86/Magick.NET-Q16-arm64.dll
           rm -f ./final-linux-x86/libMagick*x64*.so ./final-linux-x86/libMagick*arm64*.so
           sed -i '/Magick.NET-Q16-x64/d; /Magick.NET-Q16-arm64/d' ./final-linux-x86/Converter.deps.json || true
@@ -714,7 +712,7 @@ jobs:
           cat > ./final-linux-x86/run.sh << 'EOF'
           #!/bin/bash
           DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
-          
+
           export DOTNET_ROOT="$DIR"
           export DOTNET_MULTILEVEL_LOOKUP=0
           export LD_LIBRARY_PATH="$DIR:$DIR/vlc:$LD_LIBRARY_PATH"
@@ -728,7 +726,7 @@ jobs:
           export DOTNET_JitMinOpts=1
           export DOTNET_ROLL_FORWARD=LatestMajor
           ulimit -s 256 2>/dev/null || true
-          
+
           if [ -x "$DIR/Converter" ]; then
             exec "$DIR/Converter" "$@"
           elif [ -x "$DIR/dotnet" ] && [ -f "$DIR/Converter.dll" ]; then
