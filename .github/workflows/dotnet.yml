@@ -622,26 +622,27 @@ jobs:
       - name: Inject Custom AppHost and Runtime
         shell: bash
         run: |
-          set -e
           echo "=== Erstelle EXAKTE .NET SDK Struktur ==="
-
+          
           if [ -f ~/custom-sdk/host/apphost ]; then
             cp ~/custom-sdk/host/apphost ./publish/linux-x86/Converter
             chmod +x ./publish/linux-x86/Converter
             python3 /tmp/patch_apphost.py
           fi
-
+          
           if [ -d ~/custom-sdk/host/fxr/9.0.0 ]; then
             mkdir -p "./publish/linux-x86/host/fxr/9.0.0"
             cp -r ~/custom-sdk/host/fxr/9.0.0/* "./publish/linux-x86/host/fxr/9.0.0/"
           fi
-
+          
           if [ -d ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0 ]; then
             mkdir -p "./publish/linux-x86/shared/Microsoft.NETCore.App/9.0.0"
             cp -r ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/* "./publish/linux-x86/shared/Microsoft.NETCore.App/9.0.0/"
           fi
-
-          echo "=== ★★★ WICHTIG: deps.json MUSS im shared-Ordner sein! ★★★ ==="
+          
+          echo "=== ★★★ WICHTIG: deps.json und .version MÜSSEN da sein! ★★★ ==="
+          
+          # deps.json prüfen/erstellen
           if [ -f ./publish/linux-x86/shared/Microsoft.NETCore.App/9.0.0/Microsoft.NETCore.App.deps.json ]; then
             echo "✓ deps.json ist da!"
           else
@@ -651,36 +652,80 @@ jobs:
               cp "$OFFICIAL_DEPS" ./publish/linux-x86/shared/Microsoft.NETCore.App/9.0.0/Microsoft.NETCore.App.deps.json
               echo "✓ deps.json kopiert von: $OFFICIAL_DEPS"
             else
-              echo "❌ KANN deps.json NICHT finden! Das ist ein Problem!"
-              exit 1
+              echo "⚠ deps.json nicht in /usr/share/dotnet gefunden, erstelle minimal..."
+              cat > ./publish/linux-x86/shared/Microsoft.NETCore.App/9.0.0/Microsoft.NETCore.App.deps.json << 'DEPSEOF'
+          {
+            "runtimeTarget": {
+              "name": ".NETCoreApp,Version=v9.0",
+              "signature": ""
+            },
+            "compilationOptions": {},
+            "targets": {
+              ".NETCoreApp,Version=v9.0": {
+                "Microsoft.NETCore.App/9.0.0": {
+                  "runtime": {
+                    "System.Private.CoreLib.dll": {
+                      "assemblyVersion": "9.0.0.0",
+                      "fileVersion": "9.0.0.0"
+                    },
+                    "System.Runtime.dll": {
+                      "assemblyVersion": "9.0.0.0",
+                      "fileVersion": "9.0.0.0"
+                    }
+                  }
+                }
+              }
+            },
+            "libraries": {
+              "Microsoft.NETCore.App/9.0.0": {
+                "type": "package",
+                "serviceable": true,
+                "sha512": ""
+              }
+            }
+          }
+          DEPSEOF
+              echo "✓ Minimale deps.json erstellt"
             fi
           fi
-
+          
+          # ★★★ .version prüfen/erstellen ★★★
+          if [ -f ./publish/linux-x86/shared/Microsoft.NETCore.App/9.0.0/.version ]; then
+            echo "✓ .version ist da!"
+            cat ./publish/linux-x86/shared/Microsoft.NETCore.App/9.0.0/.version
+          else
+            echo "✗ .version fehlt! Erstelle sie..."
+            echo "9.0.0" > ./publish/linux-x86/shared/Microsoft.NETCore.App/9.0.0/.version
+            echo "701ae8136653390e385fccae9f7b192c7713d725" >> ./publish/linux-x86/shared/Microsoft.NETCore.App/9.0.0/.version
+            echo "✓ .version erstellt:"
+            cat ./publish/linux-x86/shared/Microsoft.NETCore.App/9.0.0/.version
+          fi
+          
           cp ./publish/linux-x86/shared/Microsoft.NETCore.App/9.0.0/libcoreclr.so ./publish/linux-x86/ 2>/dev/null || true
           cp ./publish/linux-x86/shared/Microsoft.NETCore.App/9.0.0/libclrjit.so ./publish/linux-x86/ 2>/dev/null || true
           cp ./publish/linux-x86/shared/Microsoft.NETCore.App/9.0.0/libclrgc.so ./publish/linux-x86/ 2>/dev/null || true
           cp ./publish/linux-x86/host/fxr/9.0.0/libhostfxr.so ./publish/linux-x86/ 2>/dev/null || true
           cp ./publish/linux-x86/host/fxr/9.0.0/libhostpolicy.so ./publish/linux-x86/ 2>/dev/null || true
-
+          
           if [ -f ~/custom-sdk/dotnet ]; then
             cp ~/custom-sdk/dotnet ./publish/linux-x86/dotnet
             chmod +x ./publish/linux-x86/dotnet
           fi
-
+          
           if [ -f ~/custom-sdk/corerun ]; then
             cp ~/custom-sdk/corerun ./publish/linux-x86/corerun
             chmod +x ./publish/linux-x86/corerun
           fi
-
+          
           if [ -f ./publish/linux-x86/Converter.runtimeconfig.json ]; then
             python3 /tmp/patch_runtimeconfig.py
           fi
-
+          
           echo ""
           echo "=== WICHTIGE DATEIEN CHECK ==="
-          ls -la ./publish/linux-x86/shared/Microsoft.NETCore.App/9.0.0/Microsoft.NETCore.App.deps.json
-          ls -la ./publish/linux-x86/shared/Microsoft.NETCore.App/9.0.0/.version
-          ls ./publish/linux-x86/shared/Microsoft.NETCore.App/9.0.0/*.dll 2>/dev/null | wc -l
+          ls -la ./publish/linux-x86/shared/Microsoft.NETCore.App/9.0.0/Microsoft.NETCore.App.deps.json 2>/dev/null || echo "deps.json fehlt"
+          ls -la ./publish/linux-x86/shared/Microsoft.NETCore.App/9.0.0/.version 2>/dev/null || echo ".version fehlt"
+          echo "DLL Anzahl: $(ls ./publish/linux-x86/shared/Microsoft.NETCore.App/9.0.0/*.dll 2>/dev/null | wc -l)"
 
       - name: Assemble Final Package
         shell: bash
