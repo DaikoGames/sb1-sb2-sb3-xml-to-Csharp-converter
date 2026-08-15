@@ -201,19 +201,23 @@ jobs:
             cp -r "$CORECLR_DIR"/* ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/ 2>/dev/null || true
           fi
 
-          echo "=== SUCHE VERWALTETE DLLs ==="
-          find ~/runtime/artifacts/bin -name "System.Runtime.dll" 2>/dev/null | head -5
-          find ~/runtime/artifacts/bin -name "System.Collections.dll" 2>/dev/null | head -5
+          echo "=== SUCHE ALLE VERWALTETEN DLLs ==="
+          echo "Debug: Alle DLLs in artifacts/bin:"
+          find ~/runtime/artifacts/bin -name "*.dll" 2>/dev/null | wc -l
+          echo ""
+          echo "Debug: System.* DLLs:"
+          find ~/runtime/artifacts/bin -name "System.*.dll" 2>/dev/null | head -30
+          echo ""
+          echo "Debug: Microsoft.* DLLs:"
+          find ~/runtime/artifacts/bin -name "Microsoft.*.dll" 2>/dev/null | head -20
 
-          SYSRUNTIME=$(find ~/runtime/artifacts/bin -name "System.Runtime.dll" 2>/dev/null | grep -v "ref" | head -n 1)
-          if [ -n "$SYSRUNTIME" ]; then
-            echo "✓ System.Runtime.dll gefunden: $SYSRUNTIME"
-            MANAGED_DIR=$(dirname "$SYSRUNTIME")
-            cp -r "$MANAGED_DIR"/*.dll ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/ 2>/dev/null || true
-          else
-            echo "✗ System.Runtime.dll NICHT gefunden - suche in allen Ordnern..."
-            find ~/runtime/artifacts/bin -name "*.dll" -path "*x86*" 2>/dev/null | head -20
-          fi
+          echo "=== KOPIERE ALLE VERWALTETEN DLLs ==="
+          find ~/runtime/artifacts/bin -name "*.dll" ! -name "*.resources.dll" ! -name "*.ni.dll" 2>/dev/null | while read dll; do
+            if [[ "$dll" == *"ref/"* ]]; then
+              continue
+            fi
+            cp "$dll" ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/ 2>/dev/null || true
+          done
 
           echo "9.0.0" > ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/.version
           echo "701ae8136653390e385fccae9f7b192c7713d725" >> ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/.version
@@ -254,9 +258,12 @@ jobs:
           find ~/custom-sdk -type f | sort
 
           echo ""
-          echo "=== Shared Framework DLLs ==="
+          echo "=== DLL COUNT ==="
+          echo "DLLs im Shared Framework:"
           ls ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/*.dll 2>/dev/null | wc -l
-          ls ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/*.dll 2>/dev/null | head -20 || echo "Keine DLLs gefunden!"
+          echo ""
+          echo "Erste 30 DLLs:"
+          ls ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/*.dll 2>/dev/null | head -30 || echo "Keine DLLs gefunden!"
 
           cd ~/custom-sdk && tar -czf ~/dotnet-linux-x86-sdk.tar.gz .
 
