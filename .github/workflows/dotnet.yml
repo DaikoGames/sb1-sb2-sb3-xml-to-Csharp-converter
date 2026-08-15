@@ -160,7 +160,7 @@ jobs:
             /p:BuildInstaller=false /p:FeatureEventTrace=0 /p:FeaturePerfTracing=0 \
             /p:ContinuousIntegrationBuild=true /p:BuildInParallel=false
 
-      - name: Assemble Custom SDK
+      - name: Assemble Custom SDK (NUR ECHTE RUNTIME-DATEIEN!)
         run: |
           set -e
 
@@ -169,56 +169,75 @@ jobs:
           mkdir -p ~/custom-sdk/host/fxr/9.0.0
           mkdir -p ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0
 
+          # DOTNET EXECUTABLE
           DOTNET_BIN=$(find ~/runtime/artifacts/bin -type f -name "dotnet" -executable 2>/dev/null | head -n 1)
           if [ -n "$DOTNET_BIN" ]; then
             echo "✓ dotnet gefunden: $DOTNET_BIN"
             cp "$DOTNET_BIN" ~/custom-sdk/dotnet
             chmod +x ~/custom-sdk/dotnet
-          else
-            echo "✗ dotnet NICHT gefunden!"
           fi
 
-          LIBHOSTFXR=$(find ~/runtime/artifacts/bin -name "libhostfxr.so" 2>/dev/null | head -n 1)
+          # LIBHOSTFXR.SO und LIBHOSTPOLICY.SO
+          LIBHOSTFXR=$(find ~/runtime/artifacts/bin -name "libhostfxr.so" -not -path "*/dbg*" 2>/dev/null | head -n 1)
           if [ -n "$LIBHOSTFXR" ]; then
             echo "✓ libhostfxr.so gefunden: $LIBHOSTFXR"
             cp "$LIBHOSTFXR" ~/custom-sdk/host/fxr/9.0.0/
-          else
-            echo "✗ libhostfxr.so NICHT gefunden!"
           fi
 
-          LIBHOSTPOLICY=$(find ~/runtime/artifacts/bin -name "libhostpolicy.so" 2>/dev/null | head -n 1)
+          LIBHOSTPOLICY=$(find ~/runtime/artifacts/bin -name "libhostpolicy.so" -not -path "*/dbg*" 2>/dev/null | head -n 1)
           if [ -n "$LIBHOSTPOLICY" ]; then
             echo "✓ libhostpolicy.so gefunden: $LIBHOSTPOLICY"
             cp "$LIBHOSTPOLICY" ~/custom-sdk/host/fxr/9.0.0/
+          fi
+
+          # === WICHTIG: NUR DIE ECHTEN RUNTIME-DATEIEN KOPIEREN! ===
+          echo "=== Suche Runtime-Ordner ==="
+          
+          # NATIVE LIBRARIES (aus runtimes/linux-x86/native/)
+          RUNTIME_NATIVE=$(find ~/runtime/artifacts/bin -type d -path "*/microsoft.netcore.app.runtime.linux-x86/*/runtimes/linux-x86/native" 2>/dev/null | head -n 1)
+          if [ -n "$RUNTIME_NATIVE" ]; then
+            echo "✓ Runtime Native Ordner gefunden: $RUNTIME_NATIVE"
+            cp "$RUNTIME_NATIVE"/libcoreclr.so ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/ 2>/dev/null || true
+            cp "$RUNTIME_NATIVE"/libclrjit.so ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/ 2>/dev/null || true
+            cp "$RUNTIME_NATIVE"/libclrgc.so ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/ 2>/dev/null || true
+            cp "$RUNTIME_NATIVE"/libSystem.*.so ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/ 2>/dev/null || true
+            cp "$RUNTIME_NATIVE"/corerun ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/ 2>/dev/null || true
           else
-            echo "✗ libhostpolicy.so NICHT gefunden!"
+            echo "✗ Runtime Native Ordner nicht gefunden!"
           fi
 
-          LIBCORECLR=$(find ~/runtime/artifacts/bin -name "libcoreclr.so" 2>/dev/null | head -n 1)
-          if [ -n "$LIBCORECLR" ]; then
-            echo "✓ libcoreclr.so gefunden: $LIBCORECLR"
-            CORECLR_DIR=$(dirname "$LIBCORECLR")
-            cp -r "$CORECLR_DIR"/* ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/ 2>/dev/null || true
-          fi
-
-          echo "=== SUCHE ALLE VERWALTETEN DLLs ==="
-          echo "Debug: Alle DLLs in artifacts/bin:"
-          find ~/runtime/artifacts/bin -name "*.dll" 2>/dev/null | wc -l
-          echo ""
-          echo "Debug: System.* DLLs:"
-          find ~/runtime/artifacts/bin -name "System.*.dll" 2>/dev/null | head -30
-          echo ""
-          echo "Debug: Microsoft.* DLLs:"
-          find ~/runtime/artifacts/bin -name "Microsoft.*.dll" 2>/dev/null | head -20
-
-          echo "=== KOPIERE ALLE VERWALTETEN DLLs ==="
-          find ~/runtime/artifacts/bin -name "*.dll" ! -name "*.resources.dll" ! -name "*.ni.dll" 2>/dev/null | while read dll; do
-            if [[ "$dll" == *"ref/"* ]]; then
-              continue
+          # MANAGED DLLS (aus runtimes/linux-x86/lib/net9.0/)
+          RUNTIME_LIB=$(find ~/runtime/artifacts/bin -type d -path "*/microsoft.netcore.app.runtime.linux-x86/*/runtimes/linux-x86/lib/net9.0" 2>/dev/null | head -n 1)
+          if [ -n "$RUNTIME_LIB" ]; then
+            echo "✓ Runtime Lib Ordner gefunden: $RUNTIME_LIB"
+            cp "$RUNTIME_LIB"/*.dll ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/ 2>/dev/null || true
+          else
+            echo "✗ Runtime Lib Ordner nicht gefunden! Versuche Alternative..."
+            # Alternative: Suche nach lib/net9.0 im Runtime-Ordner
+            RUNTIME_LIB_ALT=$(find ~/runtime/artifacts/bin -type d -name "net9.0" -path "*/runtimes/linux-x86/*" 2>/dev/null | head -n 1)
+            if [ -n "$RUNTIME_LIB_ALT" ]; then
+              echo "✓ Alternative Runtime Lib Ordner gefunden: $RUNTIME_LIB_ALT"
+              cp "$RUNTIME_LIB_ALT"/*.dll ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/ 2>/dev/null || true
+            else
+              echo "✗ Auch alternative nicht gefunden!"
             fi
-            cp "$dll" ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/ 2>/dev/null || true
-          done
+          fi
 
+          # APPHOST
+          APPHOST=$(find ~/runtime/artifacts/bin -type f -name "apphost" -executable 2>/dev/null | head -n 1)
+          if [ -n "$APPHOST" ]; then
+            echo "✓ apphost gefunden: $APPHOST"
+            cp "$APPHOST" ~/custom-sdk/host/apphost
+            chmod +x ~/custom-sdk/host/apphost
+          fi
+
+          # CORERUN (aus dem root custom-sdk)
+          if [ -f ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/corerun ]; then
+            cp ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/corerun ~/custom-sdk/corerun
+            chmod +x ~/custom-sdk/corerun
+          fi
+
+          # .version und runtimeconfig.json
           echo "9.0.0" > ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/.version
           echo "701ae8136653390e385fccae9f7b192c7713d725" >> ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/.version
 
@@ -235,35 +254,19 @@ jobs:
           }
           RCEOF
 
-          APPHOST=$(find ~/runtime/artifacts/bin -type f -name "apphost" -executable 2>/dev/null | head -n 1)
-          if [ -n "$APPHOST" ]; then
-            echo "✓ apphost gefunden: $APPHOST"
-            cp "$APPHOST" ~/custom-sdk/host/apphost
-            chmod +x ~/custom-sdk/host/apphost
-          else
-            echo "✗ apphost NICHT gefunden!"
-          fi
-
-          CORERUN=$(find ~/runtime/artifacts/bin -type f -name "corerun" -executable 2>/dev/null | head -n 1)
-          if [ -n "$CORERUN" ]; then
-            echo "✓ corerun gefunden: $CORERUN"
-            cp "$CORERUN" ~/custom-sdk/corerun
-            chmod +x ~/custom-sdk/corerun
-          else
-            echo "✗ corerun NICHT gefunden!"
-          fi
-
-          echo ""
-          echo "=== FINALE SDK STRUKTUR ==="
-          find ~/custom-sdk -type f | sort
-
           echo ""
           echo "=== DLL COUNT ==="
           echo "DLLs im Shared Framework:"
           ls ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/*.dll 2>/dev/null | wc -l
           echo ""
-          echo "Erste 30 DLLs:"
-          ls ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/*.dll 2>/dev/null | head -30 || echo "Keine DLLs gefunden!"
+          echo "Wichtige Runtime DLLs:"
+          ls ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/System.Runtime.dll 2>/dev/null && echo "✓ System.Runtime.dll vorhanden"
+          ls ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/System.Private.CoreLib.dll 2>/dev/null && echo "✓ System.Private.CoreLib.dll vorhanden"
+          ls ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/System.Collections.dll 2>/dev/null && echo "✓ System.Collections.dll vorhanden"
+          echo ""
+          echo "Native Libraries:"
+          ls ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/libcoreclr.so 2>/dev/null && echo "✓ libcoreclr.so vorhanden"
+          ls ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/libclrjit.so 2>/dev/null && echo "✓ libclrjit.so vorhanden"
 
           cd ~/custom-sdk && tar -czf ~/dotnet-linux-x86-sdk.tar.gz .
 
@@ -641,31 +644,28 @@ jobs:
             cp ~/custom-sdk/host/apphost ./publish/linux-x86/Converter
             chmod +x ./publish/linux-x86/Converter
             python3 /tmp/patch_apphost.py
-          else
-            echo "✗ Custom AppHost nicht gefunden!"
           fi
 
           if [ -d ~/custom-sdk/host/fxr/9.0.0 ]; then
             echo "✓ Kopiere host/fxr/9.0.0/..."
             mkdir -p "./publish/linux-x86/host/fxr/9.0.0"
             cp -r ~/custom-sdk/host/fxr/9.0.0/* "./publish/linux-x86/host/fxr/9.0.0/"
-          else
-            echo "✗ host/fxr/9.0.0 nicht gefunden!"
           fi
 
           if [ -d ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0 ]; then
             echo "✓ Kopiere shared/Microsoft.NETCore.App/9.0.0/..."
             mkdir -p "./publish/linux-x86/shared/Microsoft.NETCore.App/9.0.0"
             cp -r ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/* "./publish/linux-x86/shared/Microsoft.NETCore.App/9.0.0/"
-          else
-            echo "✗ shared/Microsoft.NETCore.App/9.0.0 nicht gefunden!"
           fi
 
+          # WICHTIG: Runtime-Dateien auch FLACH ins Root kopieren
           cp ./publish/linux-x86/shared/Microsoft.NETCore.App/9.0.0/libcoreclr.so ./publish/linux-x86/ 2>/dev/null || true
           cp ./publish/linux-x86/shared/Microsoft.NETCore.App/9.0.0/libclrjit.so ./publish/linux-x86/ 2>/dev/null || true
+          cp ./publish/linux-x86/shared/Microsoft.NETCore.App/9.0.0/libclrgc.so ./publish/linux-x86/ 2>/dev/null || true
           cp ./publish/linux-x86/host/fxr/9.0.0/libhostfxr.so ./publish/linux-x86/ 2>/dev/null || true
           cp ./publish/linux-x86/host/fxr/9.0.0/libhostpolicy.so ./publish/linux-x86/ 2>/dev/null || true
 
+          # dotnet CLI und corerun
           if [ -f ~/custom-sdk/dotnet ]; then
             cp ~/custom-sdk/dotnet ./publish/linux-x86/dotnet
             chmod +x ./publish/linux-x86/dotnet
@@ -676,6 +676,7 @@ jobs:
             chmod +x ./publish/linux-x86/corerun
           fi
 
+          # runtimeconfig.json patchen
           if [ -f ./publish/linux-x86/Converter.runtimeconfig.json ]; then
             python3 /tmp/patch_runtimeconfig.py
           fi
