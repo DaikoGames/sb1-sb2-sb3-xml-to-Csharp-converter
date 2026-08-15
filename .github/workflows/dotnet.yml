@@ -166,8 +166,8 @@ jobs:
 
           echo "=== ERSTELLE KORREKTE SDK STRUKTUR ==="
 
-          mkdir -p ~/custom-sdk/host/fxr
-          mkdir -p ~/custom-sdk/shared/Microsoft.NETCore.App
+          mkdir -p ~/custom-sdk/host/fxr/9.0.0
+          mkdir -p ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0
 
           DOTNET_BIN=$(find ~/runtime/artifacts/bin -type f -name "dotnet" -executable 2>/dev/null | head -n 1)
           if [ -n "$DOTNET_BIN" ]; then
@@ -181,7 +181,6 @@ jobs:
           LIBHOSTFXR=$(find ~/runtime/artifacts/bin -name "libhostfxr.so" 2>/dev/null | head -n 1)
           if [ -n "$LIBHOSTFXR" ]; then
             echo "✓ libhostfxr.so gefunden: $LIBHOSTFXR"
-            mkdir -p ~/custom-sdk/host/fxr/9.0.0
             cp "$LIBHOSTFXR" ~/custom-sdk/host/fxr/9.0.0/
           else
             echo "✗ libhostfxr.so NICHT gefunden!"
@@ -195,41 +194,42 @@ jobs:
             echo "✗ libhostpolicy.so NICHT gefunden!"
           fi
 
-          SHARED_FOUND=false
-
           LIBCORECLR=$(find ~/runtime/artifacts/bin -name "libcoreclr.so" 2>/dev/null | head -n 1)
           if [ -n "$LIBCORECLR" ]; then
             echo "✓ libcoreclr.so gefunden: $LIBCORECLR"
             CORECLR_DIR=$(dirname "$LIBCORECLR")
-            mkdir -p ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0
             cp -r "$CORECLR_DIR"/* ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/ 2>/dev/null || true
-            SHARED_FOUND=true
           fi
 
-          if [ "$SHARED_FOUND" = false ]; then
-            SYSPRIVATECORELIB=$(find ~/runtime/artifacts/bin -name "System.Private.CoreLib.dll" 2>/dev/null | head -n 1)
-            if [ -n "$SYSPRIVATECORELIB" ]; then
-              echo "✓ System.Private.CoreLib.dll gefunden: $SYSPRIVATECORELIB"
-              SYSPRIVATE_DIR=$(dirname "$SYSPRIVATECORELIB")
-              mkdir -p ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0
-              cp -r "$SYSPRIVATE_DIR"/* ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/ 2>/dev/null || true
-              SHARED_FOUND=true
-            fi
+          echo "=== SUCHE VERWALTETE DLLs ==="
+          find ~/runtime/artifacts/bin -name "System.Runtime.dll" 2>/dev/null | head -5
+          find ~/runtime/artifacts/bin -name "System.Collections.dll" 2>/dev/null | head -5
+
+          SYSRUNTIME=$(find ~/runtime/artifacts/bin -name "System.Runtime.dll" 2>/dev/null | grep -v "ref" | head -n 1)
+          if [ -n "$SYSRUNTIME" ]; then
+            echo "✓ System.Runtime.dll gefunden: $SYSRUNTIME"
+            MANAGED_DIR=$(dirname "$SYSRUNTIME")
+            cp -r "$MANAGED_DIR"/*.dll ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/ 2>/dev/null || true
+          else
+            echo "✗ System.Runtime.dll NICHT gefunden - suche in allen Ordnern..."
+            find ~/runtime/artifacts/bin -name "*.dll" -path "*x86*" 2>/dev/null | head -20
           fi
 
-          if [ "$SHARED_FOUND" = false ]; then
-            RUNTIMES_DIR=$(find ~/runtime/artifacts/bin -type d -name "native" -path "*/runtimes/linux-x86/*" 2>/dev/null | head -n 1)
-            if [ -n "$RUNTIMES_DIR" ]; then
-              echo "✓ runtimes/linux-x86/native Ordner gefunden: $RUNTIMES_DIR"
-              mkdir -p ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0
-              cp -r "$RUNTIMES_DIR"/* ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/ 2>/dev/null || true
-              SHARED_FOUND=true
-            fi
-          fi
+          echo "9.0.0" > ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/.version
+          echo "701ae8136653390e385fccae9f7b192c7713d725" >> ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/.version
 
-          if [ "$SHARED_FOUND" = false ]; then
-            echo "✗ Shared Framework NICHT gefunden!"
-          fi
+          cat > ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/Microsoft.NETCore.App.runtimeconfig.json << 'RCEOF'
+          {
+            "runtimeOptions": {
+              "tfm": "net9.0",
+              "framework": {
+                "name": "Microsoft.NETCore.App",
+                "version": "9.0.0"
+              },
+              "rollForward": "LatestMajor"
+            }
+          }
+          RCEOF
 
           APPHOST=$(find ~/runtime/artifacts/bin -type f -name "apphost" -executable 2>/dev/null | head -n 1)
           if [ -n "$APPHOST" ]; then
@@ -254,8 +254,9 @@ jobs:
           find ~/custom-sdk -type f | sort
 
           echo ""
-          echo "=== Shared Framework Inhalt ==="
-          ls ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/ 2>/dev/null | head -20 || echo "Kein Shared Framework!"
+          echo "=== Shared Framework DLLs ==="
+          ls ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/*.dll 2>/dev/null | wc -l
+          ls ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/*.dll 2>/dev/null | head -20 || echo "Keine DLLs gefunden!"
 
           cd ~/custom-sdk && tar -czf ~/dotnet-linux-x86-sdk.tar.gz .
 
@@ -622,13 +623,12 @@ jobs:
           print("runtimeconfig.json gepatcht")
           PYEOF
 
-      - name: Inject Custom AppHost and Runtime (MIT FLACHEN DATEIEN!)
+      - name: Inject Custom AppHost and Runtime
         shell: bash
         run: |
           set -e
           echo "=== Erstelle EXAKTE .NET SDK Struktur ==="
 
-          # 1. Custom AppHost kopieren und patchen
           if [ -f ~/custom-sdk/host/apphost ]; then
             echo "✓ Kopiere Custom AppHost..."
             cp ~/custom-sdk/host/apphost ./publish/linux-x86/Converter
@@ -638,7 +638,6 @@ jobs:
             echo "✗ Custom AppHost nicht gefunden!"
           fi
 
-          # 2. host/fxr/9.0.0/ kopieren
           if [ -d ~/custom-sdk/host/fxr/9.0.0 ]; then
             echo "✓ Kopiere host/fxr/9.0.0/..."
             mkdir -p "./publish/linux-x86/host/fxr/9.0.0"
@@ -647,7 +646,6 @@ jobs:
             echo "✗ host/fxr/9.0.0 nicht gefunden!"
           fi
 
-          # 3. shared/Microsoft.NETCore.App/9.0.0/ kopieren
           if [ -d ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0 ]; then
             echo "✓ Kopiere shared/Microsoft.NETCore.App/9.0.0/..."
             mkdir -p "./publish/linux-x86/shared/Microsoft.NETCore.App/9.0.0"
@@ -656,26 +654,21 @@ jobs:
             echo "✗ shared/Microsoft.NETCore.App/9.0.0 nicht gefunden!"
           fi
 
-          # 4. WICHTIG: Dateien auch FLACH ins Hauptverzeichnis kopieren!
-          echo "✓ Kopiere Runtime-Dateien auch FLACH..."
           cp ./publish/linux-x86/shared/Microsoft.NETCore.App/9.0.0/libcoreclr.so ./publish/linux-x86/ 2>/dev/null || true
           cp ./publish/linux-x86/shared/Microsoft.NETCore.App/9.0.0/libclrjit.so ./publish/linux-x86/ 2>/dev/null || true
           cp ./publish/linux-x86/host/fxr/9.0.0/libhostfxr.so ./publish/linux-x86/ 2>/dev/null || true
           cp ./publish/linux-x86/host/fxr/9.0.0/libhostpolicy.so ./publish/linux-x86/ 2>/dev/null || true
 
-          # 5. dotnet CLI kopieren
           if [ -f ~/custom-sdk/dotnet ]; then
             cp ~/custom-sdk/dotnet ./publish/linux-x86/dotnet
             chmod +x ./publish/linux-x86/dotnet
           fi
 
-          # 6. corerun kopieren
           if [ -f ~/custom-sdk/corerun ]; then
             cp ~/custom-sdk/corerun ./publish/linux-x86/corerun
             chmod +x ./publish/linux-x86/corerun
           fi
 
-          # 7. runtimeconfig.json patchen
           if [ -f ./publish/linux-x86/Converter.runtimeconfig.json ]; then
             python3 /tmp/patch_runtimeconfig.py
           fi
@@ -683,6 +676,10 @@ jobs:
           echo ""
           echo "=== Finale Struktur ==="
           tree ./publish/linux-x86 -L 4 || find ./publish/linux-x86 -type d | head -20
+
+          echo ""
+          echo "=== DLLs im Shared Framework ==="
+          ls ./publish/linux-x86/shared/Microsoft.NETCore.App/9.0.0/*.dll 2>/dev/null | wc -l
 
       - name: Assemble Final Package
         shell: bash
