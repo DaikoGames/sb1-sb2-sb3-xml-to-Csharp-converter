@@ -9,9 +9,6 @@ permissions:
   contents: write
 
 jobs:
-  # ========================================================================
-  # JOB 1: CROSS-COMPILE RUNTIME ON DEBIAN 12
-  # ========================================================================
   build-runtime-x86:
     name: Cross-compile .NET 9.0 x86 Runtime
     runs-on: ubuntu-latest
@@ -172,7 +169,6 @@ jobs:
           mkdir -p ~/custom-sdk/host/fxr
           mkdir -p ~/custom-sdk/shared/Microsoft.NETCore.App
 
-          # 1. DOTNET EXECUTABLE
           DOTNET_BIN=$(find ~/runtime/artifacts/bin -type f -name "dotnet" -executable 2>/dev/null | head -n 1)
           if [ -n "$DOTNET_BIN" ]; then
             echo "✓ dotnet gefunden: $DOTNET_BIN"
@@ -182,7 +178,6 @@ jobs:
             echo "✗ dotnet NICHT gefunden!"
           fi
 
-          # 2. LIBHOSTFXR.SO (mit Version 9.0.0 statt native)
           LIBHOSTFXR=$(find ~/runtime/artifacts/bin -name "libhostfxr.so" 2>/dev/null | head -n 1)
           if [ -n "$LIBHOSTFXR" ]; then
             echo "✓ libhostfxr.so gefunden: $LIBHOSTFXR"
@@ -192,7 +187,6 @@ jobs:
             echo "✗ libhostfxr.so NICHT gefunden!"
           fi
 
-          # 3. LIBHOSTPOLICY.SO
           LIBHOSTPOLICY=$(find ~/runtime/artifacts/bin -name "libhostpolicy.so" 2>/dev/null | head -n 1)
           if [ -n "$LIBHOSTPOLICY" ]; then
             echo "✓ libhostpolicy.so gefunden: $LIBHOSTPOLICY"
@@ -201,7 +195,6 @@ jobs:
             echo "✗ libhostpolicy.so NICHT gefunden!"
           fi
 
-          # 4. SHARED FRAMEWORK (mehrere Suchstrategien)
           SHARED_FOUND=false
 
           LIBCORECLR=$(find ~/runtime/artifacts/bin -name "libcoreclr.so" 2>/dev/null | head -n 1)
@@ -238,7 +231,6 @@ jobs:
             echo "✗ Shared Framework NICHT gefunden!"
           fi
 
-          # 5. APPHOST
           APPHOST=$(find ~/runtime/artifacts/bin -type f -name "apphost" -executable 2>/dev/null | head -n 1)
           if [ -n "$APPHOST" ]; then
             echo "✓ apphost gefunden: $APPHOST"
@@ -248,7 +240,6 @@ jobs:
             echo "✗ apphost NICHT gefunden!"
           fi
 
-          # 6. CORERUN
           CORERUN=$(find ~/runtime/artifacts/bin -type f -name "corerun" -executable 2>/dev/null | head -n 1)
           if [ -n "$CORERUN" ]; then
             echo "✓ corerun gefunden: $CORERUN"
@@ -274,9 +265,6 @@ jobs:
           name: dotnet-linux-x86-sdk
           path: ~/dotnet-linux-x86-sdk.tar.gz
 
-  # ========================================================================
-  # JOB 2: BUILD NORMAL PLATFORMS
-  # ========================================================================
   build:
     needs: build-runtime-x86
     strategy:
@@ -385,9 +373,6 @@ jobs:
           name: vpk-artifacts-${{ matrix.runtime }}
           path: ./Releases/*
 
-  # ========================================================================
-  # JOB 3: BUILD LINUX ARM32
-  # ========================================================================
   build-debian-12_linux-arm32:
     name: Build Linux ARM32 (Debian 12)
     needs: build-runtime-x86
@@ -518,9 +503,6 @@ jobs:
           name: vpk-artifact-linux_arm32
           path: ./Converter-linux-arm.tar.xz
 
-  # ========================================================================
-  # JOB 4: BUILD LINUX x86 (KORREKT EINGERÜCKT!)
-  # ========================================================================
   build-debian-12_linux-x86:
     name: Build Linux x86 (Debian 12, Custom AppHost)
     needs: build-runtime-x86
@@ -594,7 +576,7 @@ jobs:
           echo "=== Build Output ==="
           ls -la ./publish/linux-x86/*.dll | head -10
 
-      - name: Write Python patch script to file
+      - name: Write Python patch scripts
         shell: bash
         run: |
           cat > /tmp/patch_apphost.py << 'PYEOF'
@@ -640,53 +622,60 @@ jobs:
           print("runtimeconfig.json gepatcht")
           PYEOF
 
-      - name: Inject Custom AppHost and Runtime
+      - name: Inject Custom AppHost and Runtime (MIT FLACHEN DATEIEN!)
         shell: bash
         run: |
           set -e
           echo "=== Erstelle EXAKTE .NET SDK Struktur ==="
 
-          # 1. Custom AppHost kopieren
+          # 1. Custom AppHost kopieren und patchen
           if [ -f ~/custom-sdk/host/apphost ]; then
-            echo "Kopiere Custom AppHost..."
+            echo "✓ Kopiere Custom AppHost..."
             cp ~/custom-sdk/host/apphost ./publish/linux-x86/Converter
             chmod +x ./publish/linux-x86/Converter
             python3 /tmp/patch_apphost.py
           else
-            echo "Custom AppHost nicht gefunden!"
+            echo "✗ Custom AppHost nicht gefunden!"
           fi
 
           # 2. host/fxr/9.0.0/ kopieren
           if [ -d ~/custom-sdk/host/fxr/9.0.0 ]; then
-            echo "Kopiere host/fxr/9.0.0/..."
+            echo "✓ Kopiere host/fxr/9.0.0/..."
             mkdir -p "./publish/linux-x86/host/fxr/9.0.0"
             cp -r ~/custom-sdk/host/fxr/9.0.0/* "./publish/linux-x86/host/fxr/9.0.0/"
           else
-            echo "host/fxr/9.0.0 nicht gefunden!"
+            echo "✗ host/fxr/9.0.0 nicht gefunden!"
           fi
 
           # 3. shared/Microsoft.NETCore.App/9.0.0/ kopieren
           if [ -d ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0 ]; then
-            echo "Kopiere shared/Microsoft.NETCore.App/9.0.0/..."
+            echo "✓ Kopiere shared/Microsoft.NETCore.App/9.0.0/..."
             mkdir -p "./publish/linux-x86/shared/Microsoft.NETCore.App/9.0.0"
             cp -r ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/* "./publish/linux-x86/shared/Microsoft.NETCore.App/9.0.0/"
           else
-            echo "shared/Microsoft.NETCore.App/9.0.0 nicht gefunden!"
+            echo "✗ shared/Microsoft.NETCore.App/9.0.0 nicht gefunden!"
           fi
 
-          # 4. dotnet CLI kopieren (Fallback)
+          # 4. WICHTIG: Dateien auch FLACH ins Hauptverzeichnis kopieren!
+          echo "✓ Kopiere Runtime-Dateien auch FLACH..."
+          cp ./publish/linux-x86/shared/Microsoft.NETCore.App/9.0.0/libcoreclr.so ./publish/linux-x86/ 2>/dev/null || true
+          cp ./publish/linux-x86/shared/Microsoft.NETCore.App/9.0.0/libclrjit.so ./publish/linux-x86/ 2>/dev/null || true
+          cp ./publish/linux-x86/host/fxr/9.0.0/libhostfxr.so ./publish/linux-x86/ 2>/dev/null || true
+          cp ./publish/linux-x86/host/fxr/9.0.0/libhostpolicy.so ./publish/linux-x86/ 2>/dev/null || true
+
+          # 5. dotnet CLI kopieren
           if [ -f ~/custom-sdk/dotnet ]; then
             cp ~/custom-sdk/dotnet ./publish/linux-x86/dotnet
             chmod +x ./publish/linux-x86/dotnet
           fi
 
-          # 5. corerun kopieren (Fallback)
+          # 6. corerun kopieren
           if [ -f ~/custom-sdk/corerun ]; then
             cp ~/custom-sdk/corerun ./publish/linux-x86/corerun
             chmod +x ./publish/linux-x86/corerun
           fi
 
-          # 6. runtimeconfig.json patchen
+          # 7. runtimeconfig.json patchen
           if [ -f ./publish/linux-x86/Converter.runtimeconfig.json ]; then
             python3 /tmp/patch_runtimeconfig.py
           fi
@@ -772,9 +761,6 @@ jobs:
           name: vpk-artifact-linux_x86
           path: ./Converter-linux-x86.tar.xz
 
-  # ========================================================================
-  # JOB 5: RELEASE
-  # ========================================================================
   release:
     needs: [build, build-debian-12_linux-arm32, build-debian-12_linux-x86]
     runs-on: ubuntu-latest
