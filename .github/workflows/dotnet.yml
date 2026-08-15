@@ -20,7 +20,7 @@ jobs:
     steps:
       - name: Install container prerequisites
         run: |
-          apt-get update && apt-get install -y sudo git curl wget ca-certificates lsb-release gnupg coreutils which tree
+          apt-get update && apt-get install -y sudo git curl wget ca-certificates lsb-release gnupg coreutils which tree binutils
 
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -97,45 +97,6 @@ jobs:
                       with open(filepath, 'w') as f:
                           f.write(content)
 
-          test_proj = 'src/installer/tests/Assets/Projects/HelloWorld/SelfContained.csproj'
-          if os.path.exists(test_proj):
-              with open(test_proj, 'r') as f:
-                  content = f.read()
-              content = content.replace('<SelfContained>true</SelfContained>', '<SelfContained>false</SelfContained>')
-              content = content.replace('<UseAppHost>true</UseAppHost>', '<UseAppHost>false</UseAppHost>')
-              with open(test_proj, 'w') as f:
-                  f.write(content)
-
-          crossgen2_proj = 'src/coreclr/tools/aot/crossgen2/crossgen2_publish.csproj'
-          if os.path.exists(crossgen2_proj):
-              with open(crossgen2_proj, 'r') as f:
-                  content = f.read()
-              if '<UseAppHost>false</UseAppHost>' not in content:
-                  new_props = '  <PropertyGroup>\n    <UseAppHost>false</UseAppHost>\n    <PublishReadyToRun>false</PublishReadyToRun>\n    <PublishTrimmed>false</PublishTrimmed>\n    <PublishSingleFile>false</PublishSingleFile>\n  </PropertyGroup>\n</Project>'
-                  content = content.replace('</Project>', new_props)
-                  with open(crossgen2_proj, 'w') as f:
-                      f.write(content)
-
-          sfxproj = 'src/installer/pkg/sfx/Microsoft.NETCore.App/Microsoft.NETCore.App.Crossgen2.sfxproj'
-          if os.path.exists(sfxproj):
-              with open(sfxproj, 'r') as f:
-                  content = f.read()
-              if 'Name="Build" />' not in content:
-                  patch = '\n  <Target Name="Build" />\n  <Target Name="Pack" />\n  <Target Name="CreateManifestResourceNames" />\n  <Target Name="VerifySharedFrameworkDependencies" />\n</Project>'
-                  content = content.replace('</Project>', patch)
-                  with open(sfxproj, 'w') as f:
-                      f.write(content)
-
-          hostmodel_proj = 'src/installer/managed/Microsoft.NET.HostModel/Microsoft.NET.HostModel.csproj'
-          if os.path.exists(hostmodel_proj):
-              with open(hostmodel_proj, 'r') as f:
-                  content = f.read()
-              if 'DeleteAssemblyReferenceCache' not in content:
-                  patch = '\n  <Target Name="DeleteAssemblyReferenceCache" BeforeTargets="GenerateAssemblyReferenceCache">\n    <Delete Files="$(IntermediateOutputPath)$(MSBuildProjectName).csproj.AssemblyReference.cache" ContinueOnError="true" />\n  </Target>\n</Project>'
-                  content = content.replace('</Project>', patch)
-                  with open(hostmodel_proj, 'w') as f:
-                      f.write(content)
-
           print("Patches applied.")
           PYEOF
           python3 /tmp/patch.py
@@ -160,56 +121,102 @@ jobs:
             /p:BuildInstaller=false /p:FeatureEventTrace=0 /p:FeaturePerfTracing=0 \
             /p:ContinuousIntegrationBuild=true /p:BuildInParallel=false
 
-      - name: Assemble Custom SDK
+      - name: Assemble Custom SDK (AUTO VERSION DETECTION)
+        shell: bash
         run: |
-          set -e
-
-          echo "=== ERSTELLE KORREKTE SDK STRUKTUR ==="
-
-          mkdir -p ~/custom-sdk/host/fxr/9.0.0
-          mkdir -p ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0
-
+          echo "=== DETECTING REAL RUNTIME VERSION ==="
+          
+          CORECLR_PATH=$(find ~/runtime/artifacts/bin -name "libcoreclr.so" -path "*linux-x86*" -not -name "*.dbg" 2>/dev/null | head -n 1)
+          if [ -z "$CORECLR_PATH" ]; then
+            echo "ERROR: libcoreclr.so not found!"
+            exit 1
+          fi
+          echo "libcoreclr.so path: $CORECLR_PATH"
+          
+          REAL_VERSION=$(strings "$CORECLR_PATH" 2>/dev/null | grep -oE "^9\.0\.[0-9]+$" | sort -V | tail -n 1)
+          if [ -z "$REAL_VERSION" ]; then
+            REAL_VERSION="9.0.1"
+          fi
+          COMMIT_HASH=$(strings "$CORECLR_PATH" 2>/dev/null | grep -oE "^[0-9a-f]{40}$" | head -n 1)
+          if [ -z "$COMMIT_HASH" ]; then
+            COMMIT_HASH="701ae8136653390e385fccae9f7b192c7713d725"
+          fi
+          
+          echo "REAL VERSION: $REAL_VERSION"
+          echo "COMMIT HASH: $COMMIT_HASH"
+          echo "$REAL_VERSION" > ~/RUNTIME_VERSION.txt
+          echo "$COMMIT_HASH" > ~/COMMIT_HASH.txt
+          
+          mkdir -p ~/custom-sdk/host/fxr/$REAL_VERSION
+          mkdir -p ~/custom-sdk/shared/Microsoft.NETCore.App/$REAL_VERSION
+          
+          RUNTIME_NATIVE=$(dirname "$CORECLR_PATH")
+          cp "$RUNTIME_NATIVE"/libcoreclr.so ~/custom-sdk/shared/Microsoft.NETCore.App/$REAL_VERSION/
+          cp "$RUNTIME_NATIVE"/libclrjit.so ~/custom-sdk/shared/Microsoft.NETCore.App/$REAL_VERSION/ 2>/dev/null || true
+          cp "$RUNTIME_NATIVE"/libclrgc.so ~/custom-sdk/shared/Microsoft.NETCore.App/$REAL_VERSION/ 2>/dev/null || true
+          for so_file in "$RUNTIME_NATIVE"/libSystem.*.so; do
+            [ -f "$so_file" ] && cp "$so_file" ~/custom-sdk/shared/Microsoft.NETCore.App/$REAL_VERSION/
+          done
+          [ -f "$RUNTIME_NATIVE"/corerun ] && cp "$RUNTIME_NATIVE"/corerun ~/custom-sdk/shared/Microsoft.NETCore.App/$REAL_VERSION/
+          
+          LIBHOSTFXR=$(find ~/runtime/artifacts/bin -name "libhostfxr.so" -path "*linux-x86*" -not -name "*.dbg" 2>/dev/null | head -n 1)
+          if [ -n "$LIBHOSTFXR" ]; then
+            cp "$LIBHOSTFXR" ~/custom-sdk/host/fxr/$REAL_VERSION/
+          fi
+          
+          LIBHOSTPOLICY=$(find ~/runtime/artifacts/bin -name "libhostpolicy.so" -path "*linux-x86*" -not -name "*.dbg" 2>/dev/null | head -n 1)
+          if [ -n "$LIBHOSTPOLICY" ]; then
+            cp "$LIBHOSTPOLICY" ~/custom-sdk/host/fxr/$REAL_VERSION/
+          fi
+          
           DOTNET_BIN=$(find ~/runtime/artifacts/bin -type f -name "dotnet" -executable 2>/dev/null | head -n 1)
           if [ -n "$DOTNET_BIN" ]; then
             cp "$DOTNET_BIN" ~/custom-sdk/dotnet
             chmod +x ~/custom-sdk/dotnet
           fi
-
-          LIBHOSTFXR=$(find ~/runtime/artifacts/bin -name "libhostfxr.so" -path "*/microsoft.netcore.app.runtime*" 2>/dev/null | head -n 1)
-          if [ -n "$LIBHOSTFXR" ]; then
-            cp "$LIBHOSTFXR" ~/custom-sdk/host/fxr/9.0.0/
+          
+          APPHOST=$(find ~/runtime/artifacts/bin -type f -name "apphost" -executable 2>/dev/null | head -n 1)
+          if [ -n "$APPHOST" ]; then
+            cp "$APPHOST" ~/custom-sdk/host/apphost
+            chmod +x ~/custom-sdk/host/apphost
           fi
-
-          LIBHOSTPOLICY=$(find ~/runtime/artifacts/bin -name "libhostpolicy.so" -path "*/microsoft.netcore.app.runtime*" 2>/dev/null | head -n 1)
-          if [ -n "$LIBHOSTPOLICY" ]; then
-            cp "$LIBHOSTPOLICY" ~/custom-sdk/host/fxr/9.0.0/
+          
+          CORERUN=$(find ~/runtime/artifacts/bin -type f -name "corerun" -executable -path "*linux-x86*" 2>/dev/null | head -n 1)
+          if [ -n "$CORERUN" ]; then
+            cp "$CORERUN" ~/custom-sdk/corerun
+            chmod +x ~/custom-sdk/corerun
           fi
-
-          RUNTIME_NATIVE=$(find ~/runtime/artifacts/bin -type d -path "*/microsoft.netcore.app.runtime.linux-x86/*/runtimes/linux-x86/native" 2>/dev/null | head -n 1)
-          if [ -n "$RUNTIME_NATIVE" ]; then
-            cp "$RUNTIME_NATIVE"/libcoreclr.so ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/ 2>/dev/null || true
-            cp "$RUNTIME_NATIVE"/libclrjit.so ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/ 2>/dev/null || true
-            cp "$RUNTIME_NATIVE"/libclrgc.so ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/ 2>/dev/null || true
-            cp "$RUNTIME_NATIVE"/libSystem.*.so ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/ 2>/dev/null || true
-            cp "$RUNTIME_NATIVE"/corerun ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/ 2>/dev/null || true
+          
+          RUNTIME_LIB_DIR=$(find ~/runtime/artifacts/bin/microsoft.netcore.app.runtime.linux-x86 -type d -name "net9.0" -path "*/lib/*" 2>/dev/null | head -n 1)
+          if [ -n "$RUNTIME_LIB_DIR" ]; then
+            echo "Runtime Lib dir: $RUNTIME_LIB_DIR"
+            cp "$RUNTIME_LIB_DIR"/*.dll ~/custom-sdk/shared/Microsoft.NETCore.App/$REAL_VERSION/ 2>/dev/null || true
+            cp "$RUNTIME_LIB_DIR"/System.Private.CoreLib.pdb ~/custom-sdk/shared/Microsoft.NETCore.App/$REAL_VERSION/ 2>/dev/null || true
           fi
-
-          RUNTIME_LIB=$(find ~/runtime/artifacts/bin -type d -path "*/microsoft.netcore.app.runtime.linux-x86/*/runtimes/linux-x86/lib/net9.0" 2>/dev/null | head -n 1)
-          if [ -n "$RUNTIME_LIB" ]; then
-            cp "$RUNTIME_LIB"/*.dll ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/ 2>/dev/null || true
-          fi
-
-          echo "9.0.0" > ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/.version
-          echo "701ae8136653390e385fccae9f7b192c7713d725" >> ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/.version
-
-          echo "=== ★★★ WICHTIG: Microsoft.NETCore.App.deps.json erstellen ★★★ ==="
+          
+          echo "$REAL_VERSION" > ~/custom-sdk/shared/Microsoft.NETCore.App/$REAL_VERSION/.version
+          echo "$COMMIT_HASH" >> ~/custom-sdk/shared/Microsoft.NETCore.App/$REAL_VERSION/.version
+          
+          cat > ~/custom-sdk/shared/Microsoft.NETCore.App/$REAL_VERSION/Microsoft.NETCore.App.runtimeconfig.json << RCEOF
+          {
+            "runtimeOptions": {
+              "tfm": "net9.0",
+              "framework": {
+                "name": "Microsoft.NETCore.App",
+                "version": "$REAL_VERSION"
+              },
+              "rollForward": "LatestMajor"
+            }
+          }
+          RCEOF
+          
           OFFICIAL_DEPS=$(find /usr/share/dotnet/shared/Microsoft.NETCore.App -name "Microsoft.NETCore.App.deps.json" 2>/dev/null | head -n 1)
           if [ -n "$OFFICIAL_DEPS" ]; then
-            echo "✓ Offizielle deps.json gefunden: $OFFICIAL_DEPS"
-            cp "$OFFICIAL_DEPS" ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/Microsoft.NETCore.App.deps.json
+            echo "Found official deps: $OFFICIAL_DEPS"
+            cp "$OFFICIAL_DEPS" ~/custom-sdk/shared/Microsoft.NETCore.App/$REAL_VERSION/Microsoft.NETCore.App.deps.json
+            sed -i "s|Microsoft.NETCore.App/[0-9][0-9.]*|Microsoft.NETCore.App/$REAL_VERSION|g" ~/custom-sdk/shared/Microsoft.NETCore.App/$REAL_VERSION/Microsoft.NETCore.App.deps.json
           else
-            echo "✗ Offizielle deps.json nicht gefunden, erstelle minimale Version..."
-            cat > ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/Microsoft.NETCore.App.deps.json << 'DEPSEOF'
+            cat > ~/custom-sdk/shared/Microsoft.NETCore.App/$REAL_VERSION/Microsoft.NETCore.App.deps.json << DEPSEOF
           {
             "runtimeTarget": {
               "name": ".NETCoreApp,Version=v9.0",
@@ -218,18 +225,18 @@ jobs:
             "compilationOptions": {},
             "targets": {
               ".NETCoreApp,Version=v9.0": {
-                "Microsoft.NETCore.App/9.0.0": {
+                "Microsoft.NETCore.App/$REAL_VERSION": {
                   "runtime": {
                     "System.Private.CoreLib.dll": {
                       "assemblyVersion": "9.0.0.0",
-                      "fileVersion": "9.0.24.52809"
+                      "fileVersion": "9.0.0.0"
                     }
                   }
                 }
               }
             },
             "libraries": {
-              "Microsoft.NETCore.App/9.0.0": {
+              "Microsoft.NETCore.App/$REAL_VERSION": {
                 "type": "package",
                 "serviceable": true,
                 "sha512": ""
@@ -238,25 +245,10 @@ jobs:
           }
           DEPSEOF
           fi
-
-          APPHOST=$(find ~/runtime/artifacts/bin -type f -name "apphost" -executable -path "*/corehost/*" 2>/dev/null | head -n 1)
-          if [ -n "$APPHOST" ]; then
-            cp "$APPHOST" ~/custom-sdk/host/apphost
-            chmod +x ~/custom-sdk/host/apphost
-          fi
-
-          CORERUN=$(find ~/runtime/artifacts/bin -type f -name "corerun" -executable -path "*/native/*" 2>/dev/null | head -n 1)
-          if [ -n "$CORERUN" ]; then
-            cp "$CORERUN" ~/custom-sdk/corerun
-            chmod +x ~/custom-sdk/corerun
-          fi
-
-          echo ""
-          echo "=== WICHTIGE DATEIEN CHECK ==="
-          ls -la ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/Microsoft.NETCore.App.deps.json
-          ls -la ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/.version
-          ls ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/*.dll 2>/dev/null | wc -l
-
+          
+          echo "=== DLL COUNT ==="
+          ls ~/custom-sdk/shared/Microsoft.NETCore.App/$REAL_VERSION/*.dll 2>/dev/null | wc -l
+          
           cd ~/custom-sdk && tar -czf ~/dotnet-linux-x86-sdk.tar.gz .
 
       - name: Upload Custom SDK
@@ -264,6 +256,14 @@ jobs:
         with:
           name: dotnet-linux-x86-sdk
           path: ~/dotnet-linux-x86-sdk.tar.gz
+
+      - name: Upload Version Info
+        uses: actions/upload-artifact@v4
+        with:
+          name: runtime-version-info
+          path: |
+            ~/RUNTIME_VERSION.txt
+            ~/COMMIT_HASH.txt
 
   build:
     needs: build-runtime-x86
@@ -546,12 +546,19 @@ jobs:
           name: dotnet-linux-x86-sdk
           path: ~/custom-sdk-tar
 
+      - name: Download Version Info
+        uses: actions/download-artifact@v4
+        with:
+          name: runtime-version-info
+          path: ~/version-info
+
       - name: Extract Custom x86 Runtime
         run: |
           mkdir -p ~/custom-sdk
           tar -xzf ~/custom-sdk-tar/dotnet-linux-x86-sdk.tar.gz -C ~/custom-sdk
-          echo "=== deps.json vorhanden? ==="
-          ls -la ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/Microsoft.NETCore.App.deps.json 2>/dev/null || echo "❌ FEHLT!"
+          RUNTIME_VERSION=$(cat ~/version-info/RUNTIME_VERSION.txt 2>/dev/null || echo "9.0.1")
+          echo "RUNTIME_VERSION=$RUNTIME_VERSION" >> $GITHUB_ENV
+          echo "Using runtime version: $RUNTIME_VERSION"
 
       - name: Setup Native 64-bit SDK
         uses: actions/setup-dotnet@v4
@@ -599,8 +606,10 @@ jobs:
 
           cat > /tmp/patch_runtimeconfig.py << 'PYEOF'
           import json
+          import os
 
           config_path = "./publish/linux-x86/Converter.runtimeconfig.json"
+          real_version = os.environ.get("RUNTIME_VERSION", "9.0.1")
 
           with open(config_path, "r") as f:
               config = json.load(f)
@@ -609,20 +618,27 @@ jobs:
               config["runtimeOptions"] = {}
 
           config["runtimeOptions"]["rollForward"] = "LatestMajor"
+          config["runtimeOptions"]["includedFrameworks"] = [
+              {
+                  "name": "Microsoft.NETCore.App",
+                  "version": real_version
+              }
+          ]
 
           if "framework" in config["runtimeOptions"]:
               config["runtimeOptions"]["framework"]["rollForward"] = "LatestMajor"
+              config["runtimeOptions"]["framework"]["version"] = real_version
 
           with open(config_path, "w") as f:
               json.dump(config, f, indent=2)
 
-          print("runtimeconfig.json gepatcht")
+          print(f"runtimeconfig.json gepatcht mit Version {real_version}")
           PYEOF
 
-      - name: Inject Custom AppHost and Runtime
+      - name: Inject Custom AppHost and Runtime (DYNAMIC VERSION)
         shell: bash
         run: |
-          echo "=== Erstelle EXAKTE .NET SDK Struktur ==="
+          echo "=== Using runtime version: $RUNTIME_VERSION ==="
           
           if [ -f ~/custom-sdk/host/apphost ]; then
             cp ~/custom-sdk/host/apphost ./publish/linux-x86/Converter
@@ -630,82 +646,15 @@ jobs:
             python3 /tmp/patch_apphost.py
           fi
           
-          if [ -d ~/custom-sdk/host/fxr/9.0.0 ]; then
-            mkdir -p "./publish/linux-x86/host/fxr/9.0.0"
-            cp -r ~/custom-sdk/host/fxr/9.0.0/* "./publish/linux-x86/host/fxr/9.0.0/"
+          if [ -d ~/custom-sdk/host/fxr/$RUNTIME_VERSION ]; then
+            mkdir -p "./publish/linux-x86/host/fxr/$RUNTIME_VERSION"
+            cp -r ~/custom-sdk/host/fxr/$RUNTIME_VERSION/* "./publish/linux-x86/host/fxr/$RUNTIME_VERSION/"
           fi
           
-          if [ -d ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0 ]; then
-            mkdir -p "./publish/linux-x86/shared/Microsoft.NETCore.App/9.0.0"
-            cp -r ~/custom-sdk/shared/Microsoft.NETCore.App/9.0.0/* "./publish/linux-x86/shared/Microsoft.NETCore.App/9.0.0/"
+          if [ -d ~/custom-sdk/shared/Microsoft.NETCore.App/$RUNTIME_VERSION ]; then
+            mkdir -p "./publish/linux-x86/shared/Microsoft.NETCore.App/$RUNTIME_VERSION"
+            cp -r ~/custom-sdk/shared/Microsoft.NETCore.App/$RUNTIME_VERSION/* "./publish/linux-x86/shared/Microsoft.NETCore.App/$RUNTIME_VERSION/"
           fi
-          
-          echo "=== ★★★ WICHTIG: deps.json und .version MÜSSEN da sein! ★★★ ==="
-          
-          # deps.json prüfen/erstellen
-          if [ -f ./publish/linux-x86/shared/Microsoft.NETCore.App/9.0.0/Microsoft.NETCore.App.deps.json ]; then
-            echo "✓ deps.json ist da!"
-          else
-            echo "✗ deps.json fehlt! Kopiere von offizieller Installation..."
-            OFFICIAL_DEPS=$(find /usr/share/dotnet/shared/Microsoft.NETCore.App -name "Microsoft.NETCore.App.deps.json" 2>/dev/null | head -n 1)
-            if [ -n "$OFFICIAL_DEPS" ]; then
-              cp "$OFFICIAL_DEPS" ./publish/linux-x86/shared/Microsoft.NETCore.App/9.0.0/Microsoft.NETCore.App.deps.json
-              echo "✓ deps.json kopiert von: $OFFICIAL_DEPS"
-            else
-              echo "⚠ deps.json nicht in /usr/share/dotnet gefunden, erstelle minimal..."
-              cat > ./publish/linux-x86/shared/Microsoft.NETCore.App/9.0.0/Microsoft.NETCore.App.deps.json << 'DEPSEOF'
-          {
-            "runtimeTarget": {
-              "name": ".NETCoreApp,Version=v9.0",
-              "signature": ""
-            },
-            "compilationOptions": {},
-            "targets": {
-              ".NETCoreApp,Version=v9.0": {
-                "Microsoft.NETCore.App/9.0.0": {
-                  "runtime": {
-                    "System.Private.CoreLib.dll": {
-                      "assemblyVersion": "9.0.0.0",
-                      "fileVersion": "9.0.0.0"
-                    },
-                    "System.Runtime.dll": {
-                      "assemblyVersion": "9.0.0.0",
-                      "fileVersion": "9.0.0.0"
-                    }
-                  }
-                }
-              }
-            },
-            "libraries": {
-              "Microsoft.NETCore.App/9.0.0": {
-                "type": "package",
-                "serviceable": true,
-                "sha512": ""
-              }
-            }
-          }
-          DEPSEOF
-              echo "✓ Minimale deps.json erstellt"
-            fi
-          fi
-          
-          # ★★★ .version prüfen/erstellen ★★★
-          if [ -f ./publish/linux-x86/shared/Microsoft.NETCore.App/9.0.0/.version ]; then
-            echo "✓ .version ist da!"
-            cat ./publish/linux-x86/shared/Microsoft.NETCore.App/9.0.0/.version
-          else
-            echo "✗ .version fehlt! Erstelle sie..."
-            echo "9.0.0" > ./publish/linux-x86/shared/Microsoft.NETCore.App/9.0.0/.version
-            echo "701ae8136653390e385fccae9f7b192c7713d725" >> ./publish/linux-x86/shared/Microsoft.NETCore.App/9.0.0/.version
-            echo "✓ .version erstellt:"
-            cat ./publish/linux-x86/shared/Microsoft.NETCore.App/9.0.0/.version
-          fi
-          
-          cp ./publish/linux-x86/shared/Microsoft.NETCore.App/9.0.0/libcoreclr.so ./publish/linux-x86/ 2>/dev/null || true
-          cp ./publish/linux-x86/shared/Microsoft.NETCore.App/9.0.0/libclrjit.so ./publish/linux-x86/ 2>/dev/null || true
-          cp ./publish/linux-x86/shared/Microsoft.NETCore.App/9.0.0/libclrgc.so ./publish/linux-x86/ 2>/dev/null || true
-          cp ./publish/linux-x86/host/fxr/9.0.0/libhostfxr.so ./publish/linux-x86/ 2>/dev/null || true
-          cp ./publish/linux-x86/host/fxr/9.0.0/libhostpolicy.so ./publish/linux-x86/ 2>/dev/null || true
           
           if [ -f ~/custom-sdk/dotnet ]; then
             cp ~/custom-sdk/dotnet ./publish/linux-x86/dotnet
@@ -717,15 +666,26 @@ jobs:
             chmod +x ./publish/linux-x86/corerun
           fi
           
+          # WICHTIG: libhostfxr.so ins Root kopieren (Bootstrap für AppHost)
+          if [ -f ./publish/linux-x86/host/fxr/$RUNTIME_VERSION/libhostfxr.so ]; then
+            cp ./publish/linux-x86/host/fxr/$RUNTIME_VERSION/libhostfxr.so ./publish/linux-x86/
+          fi
+          
           if [ -f ./publish/linux-x86/Converter.runtimeconfig.json ]; then
             python3 /tmp/patch_runtimeconfig.py
           fi
           
+          echo "=== FINAL STRUCTURE ==="
+          ls ./publish/linux-x86/shared/Microsoft.NETCore.App/$RUNTIME_VERSION/ | head -20
           echo ""
-          echo "=== WICHTIGE DATEIEN CHECK ==="
-          ls -la ./publish/linux-x86/shared/Microsoft.NETCore.App/9.0.0/Microsoft.NETCore.App.deps.json 2>/dev/null || echo "deps.json fehlt"
-          ls -la ./publish/linux-x86/shared/Microsoft.NETCore.App/9.0.0/.version 2>/dev/null || echo ".version fehlt"
-          echo "DLL Anzahl: $(ls ./publish/linux-x86/shared/Microsoft.NETCore.App/9.0.0/*.dll 2>/dev/null | wc -l)"
+          echo "DLL count:"
+          ls ./publish/linux-x86/shared/Microsoft.NETCore.App/$RUNTIME_VERSION/*.dll 2>/dev/null | wc -l
+          echo ""
+          echo ".version content:"
+          cat ./publish/linux-x86/shared/Microsoft.NETCore.App/$RUNTIME_VERSION/.version
+          echo ""
+          echo "deps.json first 20 lines:"
+          head -20 ./publish/linux-x86/shared/Microsoft.NETCore.App/$RUNTIME_VERSION/Microsoft.NETCore.App.deps.json
 
       - name: Assemble Final Package
         shell: bash
