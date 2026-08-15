@@ -125,8 +125,6 @@ jobs:
           ~/runtime/.dotnet/dotnet build-server shutdown || true
           rm -rf ~/runtime/artifacts/obj ~/runtime/artifacts/bin ~/runtime/artifacts/packages
           
-          # FIX: Removed /p:UseAppHost=false. In .NET 9, passing this globally breaks internal tools 
-          # like crossgen2 that require single-file publishing, causing NETSDK1098 errors.
           ./build.sh -subset clr+libs+host+packs -configuration Release -arch "x86" --cross \
             /p:SelfContained=false /p:RunTests=false /p:BuildTests=false \
             /p:BuildInstaller=false /p:FeatureEventTrace=0 /p:FeaturePerfTracing=0 \
@@ -221,8 +219,6 @@ jobs:
           }
           RCEOF
           
-          # FIX: actions/setup-dotnet installs to $HOME/.dotnet in GitHub Actions runners.
-          # We search both $HOME/.dotnet and /usr/share/dotnet to be completely safe.
           OFFICIAL_DEPS=$(find $HOME/.dotnet /usr/share/dotnet -name "Microsoft.NETCore.App.deps.json" 2>/dev/null | head -n 1)
           if [ -n "$OFFICIAL_DEPS" ]; then
             echo "Found official deps: $OFFICIAL_DEPS"
@@ -477,7 +473,7 @@ jobs:
           DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
           export DOTNET_ROOT="$DIR"
           export LD_LIBRARY_PATH="$DIR:$DIR/vlc:$LD_LIBRARY_PATH"
-          export DOTNET_GCHeapHardLimit=536870912
+          # REMOVED DOTNET_GCHeapHardLimit=536870912 to fix System.OutOfMemoryException on 32-bit
           export DOTNET_gcServer=0
           export DOTNET_GCHeapCount=1
           export DOTNET_EnableDiagnostics=0
@@ -655,57 +651,49 @@ jobs:
           print(f"runtimeconfig.json gepatcht mit Version {real_version}")
           PYEOF
 
-      - name: Inject Custom AppHost and Runtime (DYNAMIC VERSION)
+      - name: Inject Custom AppHost and Runtime (TRUE FLAT LAYOUT)
         shell: bash
         run: |
           echo "=== Using runtime version: $RUNTIME_VERSION ==="
+          PUBLISH_DIR="./publish/linux-x86"
           
+          # 1. Patch and copy AppHost
           if [ -f ~/custom-sdk/host/apphost ]; then
-            cp ~/custom-sdk/host/apphost ./publish/linux-x86/Converter
-            chmod +x ./publish/linux-x86/Converter
+            cp ~/custom-sdk/host/apphost "$PUBLISH_DIR/Converter"
+            chmod +x "$PUBLISH_DIR/Converter"
             python3 /tmp/patch_apphost.py
           fi
           
+          # 2. Copy hostfxr and hostpolicy FLAT
           if [ -d ~/custom-sdk/host/fxr/$RUNTIME_VERSION ]; then
-            mkdir -p "./publish/linux-x86/host/fxr/$RUNTIME_VERSION"
-            cp -r ~/custom-sdk/host/fxr/$RUNTIME_VERSION/* "./publish/linux-x86/host/fxr/$RUNTIME_VERSION/"
+            cp ~/custom-sdk/host/fxr/$RUNTIME_VERSION/*.so "$PUBLISH_DIR/" 2>/dev/null || true
           fi
           
+          # 3. Copy CoreCLR, JIT, GC, and all managed/native runtime DLLs FLAT
           if [ -d ~/custom-sdk/shared/Microsoft.NETCore.App/$RUNTIME_VERSION ]; then
-            mkdir -p "./publish/linux-x86/shared/Microsoft.NETCore.App/$RUNTIME_VERSION"
-            cp -r ~/custom-sdk/shared/Microsoft.NETCore.App/$RUNTIME_VERSION/* "./publish/linux-x86/shared/Microsoft.NETCore.App/$RUNTIME_VERSION/"
+            cp ~/custom-sdk/shared/Microsoft.NETCore.App/$RUNTIME_VERSION/*.so "$PUBLISH_DIR/" 2>/dev/null || true
+            cp ~/custom-sdk/shared/Microsoft.NETCore.App/$RUNTIME_VERSION/*.dll "$PUBLISH_DIR/" 2>/dev/null || true
+            cp ~/custom-sdk/shared/Microsoft.NETCore.App/$RUNTIME_VERSION/*.pdb "$PUBLISH_DIR/" 2>/dev/null || true
+            # Copy runtime config and deps jsons (Crucial for flat layout resolution)
+            cp ~/custom-sdk/shared/Microsoft.NETCore.App/$RUNTIME_VERSION/*.json "$PUBLISH_DIR/" 2>/dev/null || true
           fi
           
-          if [ -f ~/custom-sdk/dotnet ]; then
-            cp ~/custom-sdk/dotnet ./publish/linux-x86/dotnet
-            chmod +x ./publish/linux-x86/dotnet
-          fi
+          # 4. Clean up any nested shared/host folders to enforce TRUE FLAT
+          rm -rf "$PUBLISH_DIR/shared" "$PUBLISH_DIR/host" "$PUBLISH_DIR/dotnet" "$PUBLISH_DIR/corerun"
           
-          if [ -f ~/custom-sdk/corerun ]; then
-            cp ~/custom-sdk/corerun ./publish/linux-x86/corerun
-            chmod +x ./publish/linux-x86/corerun
-          fi
-          
-          # WICHTIG: libhostfxr.so ins Root kopieren (Bootstrap für AppHost)
-          if [ -f ./publish/linux-x86/host/fxr/$RUNTIME_VERSION/libhostfxr.so ]; then
-            cp ./publish/linux-x86/host/fxr/$RUNTIME_VERSION/libhostfxr.so ./publish/linux-x86/
-          fi
-          
-          if [ -f ./publish/linux-x86/Converter.runtimeconfig.json ]; then
+          # 5. Patch runtimeconfig.json
+          if [ -f "$PUBLISH_DIR/Converter.runtimeconfig.json" ]; then
             python3 /tmp/patch_runtimeconfig.py
           fi
           
-          echo "=== FINAL STRUCTURE ==="
-          ls ./publish/linux-x86/shared/Microsoft.NETCore.App/$RUNTIME_VERSION/ | head -20
+          echo "=== FINAL FLAT STRUCTURE ==="
+          ls "$PUBLISH_DIR" | head -30
           echo ""
-          echo "DLL count:"
-          ls ./publish/linux-x86/shared/Microsoft.NETCore.App/$RUNTIME_VERSION/*.dll 2>/dev/null | wc -l
+          echo "Total DLLs in root:"
+          ls "$PUBLISH_DIR"/*.dll 2>/dev/null | wc -l
           echo ""
-          echo ".version content:"
-          cat ./publish/linux-x86/shared/Microsoft.NETCore.App/$RUNTIME_VERSION/.version
-          echo ""
-          echo "deps.json first 20 lines:"
-          head -20 ./publish/linux-x86/shared/Microsoft.NETCore.App/$RUNTIME_VERSION/Microsoft.NETCore.App.deps.json
+          echo "Total SOs in root:"
+          ls "$PUBLISH_DIR"/*.so 2>/dev/null | wc -l
 
       - name: Assemble Final Package
         shell: bash
@@ -728,7 +716,7 @@ jobs:
           export DOTNET_ROOT="$DIR"
           export DOTNET_MULTILEVEL_LOOKUP=0
           export LD_LIBRARY_PATH="$DIR:$DIR/vlc:$LD_LIBRARY_PATH"
-          export DOTNET_GCHeapHardLimit=536870912
+          # REMOVED DOTNET_GCHeapHardLimit=536870912 to fix System.OutOfMemoryException on 32-bit
           export DOTNET_gcServer=0
           export DOTNET_GCHeapCount=1
           export DOTNET_EnableDiagnostics=0
@@ -741,10 +729,6 @@ jobs:
 
           if [ -x "$DIR/Converter" ]; then
             exec "$DIR/Converter" "$@"
-          elif [ -x "$DIR/dotnet" ] && [ -f "$DIR/Converter.dll" ]; then
-            exec "$DIR/dotnet" exec "$DIR/Converter.dll" "$@"
-          elif [ -x "$DIR/corerun" ] && [ -f "$DIR/Converter.dll" ]; then
-            exec "$DIR/corerun" "$DIR/Converter.dll" "$@"
           else
             echo "ERROR: No launcher found!"
             exit 1
@@ -752,8 +736,6 @@ jobs:
           EOF
           chmod +x ./final-linux-x86/run.sh
           [ -f ./final-linux-x86/Converter ] && chmod +x ./final-linux-x86/Converter
-          [ -f ./final-linux-x86/dotnet ] && chmod +x ./final-linux-x86/dotnet
-          [ -f ./final-linux-x86/corerun ] && chmod +x ./final-linux-x86/corerun
 
           mkdir -p ./final-linux-x86/ConverterIcon ./final-linux-x86/Scratch-Format-Converter ./final-linux-x86/Scratch-To-Snap ./final-linux-x86/svg_library_ScratchJnr ./final-linux-x86/wav_library_ScratchJnr
           cp ./ConverterIcon/* ./final-linux-x86/ConverterIcon/ 2>/dev/null || true
