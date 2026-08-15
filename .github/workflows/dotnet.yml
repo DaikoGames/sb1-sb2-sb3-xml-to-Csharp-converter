@@ -19,6 +19,7 @@ jobs:
     timeout-minutes: 180
     steps:
       - name: Install container prerequisites
+        shell: bash
         run: |
           apt-get update && apt-get install -y sudo git curl wget ca-certificates lsb-release gnupg coreutils which tree binutils
 
@@ -28,6 +29,7 @@ jobs:
           fetch-depth: 1
 
       - name: Install host build prerequisites
+        shell: bash
         run: |
           apt-get update && apt-get install -y --no-install-recommends \
             build-essential clang cmake cpio curl git libicu-dev \
@@ -35,12 +37,14 @@ jobs:
             pigz zlib1g-dev python3 liblttng-ust-dev
 
       - name: Install i386 cross-compilation toolchain
+        shell: bash
         run: |
           dpkg --add-architecture i386 && apt-get update && apt-get install -y --no-install-recommends \
             crossbuild-essential-i386 binfmt-support debootstrap \
             qemu-user-static qemu-user
 
       - name: Install Debian archive keyring
+        shell: bash
         run: apt-get install -y debian-archive-keyring
 
       - name: Setup .NET SDK (bootstrap)
@@ -49,9 +53,11 @@ jobs:
           dotnet-version: '9.0.200'
 
       - name: Clone dotnet/runtime
+        shell: bash
         run: git clone --depth 1 --branch "release/9.0" https://github.com/dotnet/runtime.git ~/runtime
 
       - name: Apply Cross-Compile Patches
+        shell: bash
         run: |
           cd ~/runtime
           cat > /tmp/patch.py << 'PYEOF'
@@ -102,6 +108,7 @@ jobs:
           python3 /tmp/patch.py
 
       - name: Generate cross rootfs for x86
+        shell: bash
         run: |
           cd ~/runtime
           sed -i 's|__UbuntuRepo="http://archive.ubuntu.com/ubuntu/"|__UbuntuRepo="http://ftp.debian.org/debian/"|g' eng/common/cross/build-rootfs.sh
@@ -110,14 +117,18 @@ jobs:
           ./eng/common/cross/build-rootfs.sh "x86" "bookworm" "no-lldb" --skipunmount
 
       - name: Build .NET Runtime
+        shell: bash
         run: |
           cd ~/runtime
           export ROOTFS_DIR="$HOME/runtime/.tools/rootfs/x86"
           pkill -9 -f dotnet || true
           ~/runtime/.dotnet/dotnet build-server shutdown || true
           rm -rf ~/runtime/artifacts/obj ~/runtime/artifacts/bin ~/runtime/artifacts/packages
+          
+          # FIX: Removed /p:UseAppHost=false. In .NET 9, passing this globally breaks internal tools 
+          # like crossgen2 that require single-file publishing, causing NETSDK1098 errors.
           ./build.sh -subset clr+libs+host+packs -configuration Release -arch "x86" --cross \
-            /p:UseAppHost=false /p:SelfContained=false /p:RunTests=false /p:BuildTests=false \
+            /p:SelfContained=false /p:RunTests=false /p:BuildTests=false \
             /p:BuildInstaller=false /p:FeatureEventTrace=0 /p:FeaturePerfTracing=0 \
             /p:ContinuousIntegrationBuild=true /p:BuildInParallel=false
 
@@ -210,12 +221,15 @@ jobs:
           }
           RCEOF
           
-          OFFICIAL_DEPS=$(find /usr/share/dotnet/shared/Microsoft.NETCore.App -name "Microsoft.NETCore.App.deps.json" 2>/dev/null | head -n 1)
+          # FIX: actions/setup-dotnet installs to $HOME/.dotnet in GitHub Actions runners.
+          # We search both $HOME/.dotnet and /usr/share/dotnet to be completely safe.
+          OFFICIAL_DEPS=$(find $HOME/.dotnet /usr/share/dotnet -name "Microsoft.NETCore.App.deps.json" 2>/dev/null | head -n 1)
           if [ -n "$OFFICIAL_DEPS" ]; then
             echo "Found official deps: $OFFICIAL_DEPS"
             cp "$OFFICIAL_DEPS" ~/custom-sdk/shared/Microsoft.NETCore.App/$REAL_VERSION/Microsoft.NETCore.App.deps.json
             sed -i "s|Microsoft.NETCore.App/[0-9][0-9.]*|Microsoft.NETCore.App/$REAL_VERSION|g" ~/custom-sdk/shared/Microsoft.NETCore.App/$REAL_VERSION/Microsoft.NETCore.App.deps.json
           else
+            echo "WARNING: Official deps not found. Using fallback dummy deps (Host might reject these)."
             cat > ~/custom-sdk/shared/Microsoft.NETCore.App/$REAL_VERSION/Microsoft.NETCore.App.deps.json << DEPSEOF
           {
             "runtimeTarget": {
@@ -384,6 +398,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Install container prerequisites
+        shell: bash
         run: |
           apt-get update && apt-get install -y sudo git curl wget ca-certificates lsb-release gnupg python3 coreutils which xz-utils
 
@@ -416,6 +431,7 @@ jobs:
           dotnet-version: '9.0.x'
 
       - name: Install ARM32 (armhf) Native Libraries
+        shell: bash
         run: |
           dpkg --add-architecture armhf
           apt-get update
@@ -495,6 +511,7 @@ jobs:
           done
 
       - name: Create Linux ARM32 Archive
+        shell: bash
         run: tar -cJf Converter-linux-arm.tar.xz -C ./final-linux-arm .
 
       - name: Upload Artifact
@@ -514,6 +531,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Install container prerequisites
+        shell: bash
         run: |
           apt-get update && apt-get install -y sudo git curl wget ca-certificates lsb-release gnupg python3 coreutils which xz-utils tree
 
@@ -553,6 +571,7 @@ jobs:
           path: ~/version-info
 
       - name: Extract Custom x86 Runtime
+        shell: bash
         run: |
           mkdir -p ~/custom-sdk
           tar -xzf ~/custom-sdk-tar/dotnet-linux-x86-sdk.tar.gz -C ~/custom-sdk
@@ -566,6 +585,7 @@ jobs:
           dotnet-version: '9.0.x'
 
       - name: Install i386 Native Libraries
+        shell: bash
         run: |
           dpkg --add-architecture i386 && apt-get update && apt-get install -y libvlc-dev:i386 libvlccore-dev:i386 vlc-plugin-base:i386 libmagickcore-6.q16-6:i386 libmagickwand-6.q16-6:i386
 
@@ -756,6 +776,7 @@ jobs:
           done
 
       - name: Create Linux x86 Archive
+        shell: bash
         run: tar -cJf Converter-linux-x86.tar.xz -C ./final-linux-x86 .
 
       - name: Upload Artifact
