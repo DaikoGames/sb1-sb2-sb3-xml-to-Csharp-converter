@@ -9,8 +9,11 @@ permissions:
   contents: write
 
 jobs:
-  build-runtime-x86:
-    name: Cross-compile .NET 9.0 x86 Runtime
+  # =====================================================================
+  # JOB 1: Build the NativeAOT ILCompiler for linux-x86 from source
+  # =====================================================================
+  build-nativeaot-compiler-x86:
+    name: Build NativeAOT ILCompiler (linux-x86)
     runs-on: ubuntu-latest
     container:
       image: debian:12
@@ -18,36 +21,19 @@ jobs:
         DEBIAN_FRONTEND: noninteractive
     timeout-minutes: 180
     steps:
-      - name: Install container prerequisites
+      - name: Install prerequisites
         shell: bash
         run: |
-          apt-get update && apt-get install -y sudo git curl wget ca-certificates lsb-release gnupg coreutils which tree binutils
+          apt-get update && apt-get install -y sudo git curl wget ca-certificates lsb-release gnupg coreutils which tree binutils \
+            build-essential clang cmake cpio curl git libicu-dev libkrb5-dev libssl-dev lld lldb llvm ninja-build pigz zlib1g-dev python3 liblttng-ust-dev
+          dpkg --add-architecture i386 && apt-get update && apt-get install -y --no-install-recommends crossbuild-essential-i386 binfmt-support debootstrap qemu-user-static qemu-user debian-archive-keyring
 
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
-      - name: Install host build prerequisites
-        shell: bash
-        run: |
-          apt-get update && apt-get install -y --no-install-recommends \
-            build-essential clang cmake cpio curl git libicu-dev \
-            libkrb5-dev libssl-dev lld lldb llvm ninja-build \
-            pigz zlib1g-dev python3 liblttng-ust-dev
-
-      - name: Install i386 cross-compilation toolchain
-        shell: bash
-        run: |
-          dpkg --add-architecture i386 && apt-get update && apt-get install -y --no-install-recommends \
-            crossbuild-essential-i386 binfmt-support debootstrap \
-            qemu-user-static qemu-user
-
-      - name: Install Debian archive keyring
-        shell: bash
-        run: apt-get install -y debian-archive-keyring
-
-      - name: Setup .NET SDK (bootstrap)
+      - name: Setup .NET SDK
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.200'
@@ -55,66 +41,6 @@ jobs:
       - name: Clone dotnet/runtime
         shell: bash
         run: git clone --depth 1 --branch "release/9.0" https://github.com/dotnet/runtime.git ~/runtime
-
-      - name: Apply Cross-Compile Patches
-        shell: bash
-        run: |
-          cd ~/runtime
-          cat > /tmp/patch.py << 'PYEOF'
-          import os, re, glob
-
-          def replace(filepath, old, new):
-              if os.path.exists(filepath):
-                  with open(filepath, 'r') as f:
-                      content = f.read()
-                  if old in content:
-                      with open(filepath, 'w') as f:
-                          f.write(content.replace(old, new))
-
-          replace('src/coreclr/vm/vars.hpp', 'CORProfilerDisableOptimizations()', 'false')
-          replace('src/coreclr/vm/ceemain.cpp', 'BEGIN_PROFILER_CALLBACK(CORProfilerPresent());', 'if (false) {')
-          replace('src/coreclr/vm/ceemain.cpp', 'END_PROFILER_CALLBACK();', '}')
-          replace('src/coreclr/vm/ceemain.cpp', 'CORProfilerPresent()', 'false')
-          replace('src/coreclr/debug/ee/debugger.cpp', 'CORProfilerDisableOptimizations()', 'false')
-          replace('src/coreclr/vm/rejit.inl', 'BEGIN_PROFILER_CALLBACK(CORProfilerEnableRejit());', 'if (false) {')
-          replace('src/coreclr/vm/rejit.inl', 'END_PROFILER_CALLBACK();', '}')
-          replace('src/coreclr/vm/rejit.inl', 'CORProfilerEnableRejit() != FALSE', 'false')
-          replace('src/coreclr/vm/eeprofinterfaces.inl', 'CORProfilerTrackAllocations()', 'FALSE')
-          replace('src/coreclr/vm/eeprofinterfaces.inl', 'CORProfilerTrackLargeAllocations()', 'FALSE')
-          replace('src/coreclr/vm/eeprofinterfaces.inl', 'CORProfilerTrackPinnedAllocations()', 'FALSE')
-          replace('src/coreclr/vm/eetoprofinterfaceimpl.inl', 'CORProfilerPresent()', 'FALSE')
-
-          # FIX: Patch tools to prevent NETSDK1098 when UseAppHost=false is passed globally
-          for csproj in glob.glob('src/coreclr/tools/**/*.csproj', recursive=True):
-              replace(csproj, '<PublishTrimmed>true</PublishTrimmed>', '<PublishTrimmed>false</PublishTrimmed>')
-              replace(csproj, '<SelfContained>true</SelfContained>', '<SelfContained>false</SelfContained>')
-              replace(csproj, '<UseLocalAppHostPack>true</UseLocalAppHostPack>', '<UseAppHost>false</UseAppHost>')
-              replace(csproj, '<UseAppHost>true</UseAppHost>', '<UseAppHost>false</UseAppHost>')
-              replace(csproj, '<PublishSingleFile>true</PublishSingleFile>', '<PublishSingleFile>false</PublishSingleFile>')
-              replace(csproj, '<PublishReadyToRun>true</PublishReadyToRun>', '<PublishReadyToRun>false</PublishReadyToRun>')
-
-          filepath = 'src/coreclr/inc/profilepriv.inl'
-          if os.path.exists(filepath):
-              with open(filepath, 'r') as f:
-                  content = f.read()
-              if not content.lstrip().startswith('#if FEATURE_PERFTRACING'):
-                  with open(filepath, 'w') as f:
-                      f.write('#if FEATURE_PERFTRACING\n' + content + '\n#endif\n')
-
-          for host in ['corerun', 'apphost', 'singlefilehost']:
-              filepath = f'src/coreclr/hosts/{host}/CMakeLists.txt'
-              if os.path.exists(filepath):
-                  with open(filepath, 'r') as f:
-                      content = f.read()
-                  pattern = r'(target_link_libraries\s*\(\s*' + host + r'\s+PRIVATE\s+coreclr_pal)'
-                  if re.search(pattern, content):
-                      content = re.sub(pattern, r'\1\n    -Wl,--start-group\n    dl\n    c\n    -Wl,--end-group', content)
-                      with open(filepath, 'w') as f:
-                          f.write(content)
-
-          print("Patches applied.")
-          PYEOF
-          python3 /tmp/patch.py
 
       - name: Generate cross rootfs for x86
         shell: bash
@@ -125,15 +51,15 @@ jobs:
           sed -i 's|Components: main universe|Components: main|g' eng/common/cross/build-rootfs.sh
           ./eng/common/cross/build-rootfs.sh "x86" "bookworm" "no-lldb" --skipunmount
 
-      - name: Build Runtime
+      - name: Build NativeAOT Compiler & Runtime for x86
         run: |
           cd ~/runtime
           export ROOTFS_DIR="$HOME/runtime/.tools/rootfs/x86"
           pkill -9 -f dotnet || true
           ~/runtime/.dotnet/dotnet build-server shutdown || true
-          rm -rf ~/runtime/artifacts/obj ~/runtime/artifacts/bin ~/runtime/artifacts/packages
-          # FIX: Added SkipValidatePackage=true to bypass closure validation for cross-compiled tools.
-          ./build.sh -subset clr+libs+host+packs -configuration Release -arch "x86" --cross \
+          
+          # Build the NativeAOT ILCompiler and the runtime libraries for linux-x86
+          ./build.sh -subset clr.corelib+clr.nativeaotlibs+clr.tools+clr.aot+libs+packs -configuration Release -arch "x86" --cross \
             /p:SelfContained=false /p:UseAppHost=false /p:RunTests=false /p:BuildTests=false \
             /p:BuildInstaller=false /p:FeatureEventTrace=0 /p:FeaturePerfTracing=0 \
             /p:ContinuousIntegrationBuild=true /p:BuildInParallel=false \
@@ -142,181 +68,25 @@ jobs:
         env:
           DOTNET_ROOT: /usr/share/dotnet
 
-      - name: Assemble Custom SDK
+      - name: Assemble Local NuGet Feed
         shell: bash
         run: |
-          echo "=== DETECTING REAL RUNTIME VERSION ==="
-          
-          CORECLR_PATH=$(find ~/runtime/artifacts/bin -name "libcoreclr.so" -path "*linux-x86*" -not -name "*.dbg" 2>/dev/null | head -n 1)
-          if [ -z "$CORECLR_PATH" ]; then
-            echo "ERROR: libcoreclr.so not found!"
-            exit 1
-          fi
-          echo "libcoreclr.so path: $CORECLR_PATH"
-          
-          # FIX: Added || true to prevent pipefail crash when grep finds no match
-          REAL_VERSION=$(strings "$CORECLR_PATH" 2>/dev/null | grep -oE "^[0-9]+\.[0-9]+\.[0-9]+" | sort -V | tail -n 1 || true)
-          if [ -z "$REAL_VERSION" ]; then
-            REAL_VERSION="9.0.0"
-          fi
-          echo "Detected runtime version: $REAL_VERSION"
-          
-          # FIX: Added || true to prevent pipefail crash when grep finds no match
-          COMMIT_HASH=$(strings "$CORECLR_PATH" 2>/dev/null | grep -oE "^[0-9a-f]{40}$" | head -n 1 || true)
-          if [ -z "$COMMIT_HASH" ]; then
-            COMMIT_HASH="701ae8136653390e385fccae9f7b192c7713d725"
-          fi
-          echo "Commit hash: $COMMIT_HASH"
-          
-          echo "$REAL_VERSION" > ~/RUNTIME_VERSION.txt
-          echo "$COMMIT_HASH" > ~/COMMIT_HASH.txt
-          
-          mkdir -p ~/custom-sdk/host/fxr/$REAL_VERSION
-          mkdir -p ~/custom-sdk/shared/Microsoft.NETCore.App/$REAL_VERSION
-          
-          RUNTIME_NATIVE=$(dirname "$CORECLR_PATH")
-          echo "Runtime native dir: $RUNTIME_NATIVE"
-          cp "$RUNTIME_NATIVE"/libcoreclr.so ~/custom-sdk/shared/Microsoft.NETCore.App/$REAL_VERSION/
-          cp "$RUNTIME_NATIVE"/libclrjit.so ~/custom-sdk/shared/Microsoft.NETCore.App/$REAL_VERSION/ 2>/dev/null || true
-          cp "$RUNTIME_NATIVE"/libclrgc.so ~/custom-sdk/shared/Microsoft.NETCore.App/$REAL_VERSION/ 2>/dev/null || true
-          cp "$RUNTIME_NATIVE"/libSystem.*.so ~/custom-sdk/shared/Microsoft.NETCore.App/$REAL_VERSION/ 2>/dev/null || true
-          cp "$RUNTIME_NATIVE"/corerun ~/custom-sdk/shared/Microsoft.NETCore.App/$REAL_VERSION/ 2>/dev/null || true
-          
-          LIBHOSTFXR=$(find ~/runtime/artifacts/bin -name "libhostfxr.so" -path "*linux-x86*" -not -name "*.dbg" 2>/dev/null | head -n 1)
-          if [ -n "$LIBHOSTFXR" ]; then
-            echo "libhostfxr.so: $LIBHOSTFXR"
-            cp "$LIBHOSTFXR" ~/custom-sdk/host/fxr/$REAL_VERSION/
-          else
-            echo "WARNING: libhostfxr.so not found!"
-          fi
-          
-          LIBHOSTPOLICY=$(find ~/runtime/artifacts/bin -name "libhostpolicy.so" -path "*linux-x86*" -not -name "*.dbg" 2>/dev/null | head -n 1)
-          if [ -n "$LIBHOSTPOLICY" ]; then
-            echo "libhostpolicy.so: $LIBHOSTPOLICY"
-            cp "$LIBHOSTPOLICY" ~/custom-sdk/host/fxr/$REAL_VERSION/
-          else
-            echo "WARNING: libhostpolicy.so not found!"
-          fi
-          
-          DOTNET_BIN=$(find ~/runtime/artifacts/bin -type f -name "dotnet" -executable 2>/dev/null | head -n 1)
-          if [ -n "$DOTNET_BIN" ]; then
-            echo "dotnet: $DOTNET_BIN"
-            cp "$DOTNET_BIN" ~/custom-sdk/dotnet
-            chmod +x ~/custom-sdk/dotnet
-          else
-            echo "WARNING: dotnet not found!"
-          fi
-          
-          APPHOST=$(find ~/runtime/artifacts/bin -type f -name "apphost" -executable 2>/dev/null | head -n 1)
-          if [ -n "$APPHOST" ]; then
-            echo "apphost: $APPHOST"
-            cp "$APPHOST" ~/custom-sdk/host/apphost
-            chmod +x ~/custom-sdk/host/apphost
-          else
-            echo "WARNING: apphost not found!"
-          fi
-          
-          CORERUN=$(find ~/runtime/artifacts/bin -type f -name "corerun" -executable 2>/dev/null | head -n 1)
-          if [ -n "$CORERUN" ]; then
-            echo "corerun: $CORERUN"
-            cp "$CORERUN" ~/custom-sdk/corerun
-            chmod +x ~/custom-sdk/corerun
-          else
-            echo "WARNING: corerun not found!"
-          fi
-          
-          RUNTIME_LIB_DIR=$(find ~/runtime/artifacts/bin -type d -path "*/net9.0*" -path "*linux-x86*" 2>/dev/null | head -n 1)
-          if [ -n "$RUNTIME_LIB_DIR" ]; then
-            echo "Runtime lib dir: $RUNTIME_LIB_DIR"
-            cp "$RUNTIME_LIB_DIR"/*.dll ~/custom-sdk/shared/Microsoft.NETCore.App/$REAL_VERSION/ 2>/dev/null || true
-            cp "$RUNTIME_LIB_DIR"/*.pdb ~/custom-sdk/shared/Microsoft.NETCore.App/$REAL_VERSION/ 2>/dev/null || true
-            cp "$RUNTIME_LIB_DIR"/*.deps.json ~/custom-sdk/shared/Microsoft.NETCore.App/$REAL_VERSION/ 2>/dev/null || true
-          else
-            echo "WARNING: Runtime lib dir not found, searching alternative..."
-            RUNTIME_LIB_DIR=$(find ~/runtime/artifacts/bin -type d -name "net9.0" 2>/dev/null | head -n 1)
-            if [ -n "$RUNTIME_LIB_DIR" ]; then
-              echo "Alt runtime lib dir: $RUNTIME_LIB_DIR"
-              cp "$RUNTIME_LIB_DIR"/*.dll ~/custom-sdk/shared/Microsoft.NETCore.App/$REAL_VERSION/ 2>/dev/null || true
-              cp "$RUNTIME_LIB_DIR"/*.deps.json ~/custom-sdk/shared/Microsoft.NETCore.App/$REAL_VERSION/ 2>/dev/null || true
-            fi
-          fi
-          
-          echo "$REAL_VERSION" > ~/custom-sdk/shared/Microsoft.NETCore.App/$REAL_VERSION/.version
-          echo "$COMMIT_HASH" >> ~/custom-sdk/shared/Microsoft.NETCore.App/$REAL_VERSION/.version
-          
-          cat > ~/custom-sdk/shared/Microsoft.NETCore.App/$REAL_VERSION/Microsoft.NETCore.App.runtimeconfig.json << RCEOF
-          {
-            "runtimeOptions": {
-              "tfm": "net9.0",
-              "framework": {
-                "name": "Microsoft.NETCore.App",
-                "version": "$REAL_VERSION"
-              },
-              "rollForward": "LatestMajor"
-            }
-          }
-          RCEOF
+          mkdir -p ~/local-aot-feed
+          # Find all generated .nupkg files and copy them to the local feed
+          find ~/runtime/artifacts/packages -name "*.nupkg" -exec cp {} ~/local-aot-feed/ \;
+          ls -la ~/local-aot-feed
 
-          # Ensure Microsoft.NETCore.App.deps.json exists
-          if [ ! -f ~/custom-sdk/shared/Microsoft.NETCore.App/$REAL_VERSION/Microsoft.NETCore.App.deps.json ]; then
-            echo "Searching for Microsoft.NETCore.App.deps.json..."
-            DEPS_JSON=$(find ~/runtime/artifacts -name "Microsoft.NETCore.App.deps.json" 2>/dev/null | head -n 1)
-            if [ -n "$DEPS_JSON" ]; then
-              cp "$DEPS_JSON" ~/custom-sdk/shared/Microsoft.NETCore.App/$REAL_VERSION/
-              echo "Copied $DEPS_JSON"
-            else
-              echo "WARNING: Microsoft.NETCore.App.deps.json not found! Creating minimal fallback..."
-              cat > ~/custom-sdk/shared/Microsoft.NETCore.App/$REAL_VERSION/Microsoft.NETCore.App.deps.json << 'DEPS'
-          {
-            "runtimeTarget": {
-              "name": ".NETCoreApp,Version=v9.0",
-              "signature": ""
-            },
-            "compilationOptions": {},
-            "targets": {
-              ".NETCoreApp,Version=v9.0": {}
-            },
-            "libraries": {}
-          }
-          DEPS
-            fi
-          fi
-          
-          echo ""
-          echo "=== DLL COUNT ==="
-          # FIX: Replaced `ls` with `find` to prevent pipefail crash if glob doesn't match
-          DLL_COUNT=$(find ~/custom-sdk/shared/Microsoft.NETCore.App/$REAL_VERSION/ -maxdepth 1 -name "*.dll" 2>/dev/null | wc -l)
-          echo "DLL count: $DLL_COUNT"
-          
-          if [ "$DLL_COUNT" -lt 100 ]; then
-            echo "WARNING: DLL count is low, searching for additional DLLs..."
-            find ~/runtime/artifacts/bin -name "*.dll" -path "*linux-x86*" -not -path "*/ref/*" -not -name "*.resources.dll" 2>/dev/null | while read dll; do
-              cp "$dll" ~/custom-sdk/shared/Microsoft.NETCore.App/$REAL_VERSION/ 2>/dev/null || true
-            done
-          fi
-          
-          echo ""
-          echo "=== FINAL SDK STRUCTURE ==="
-          find ~/custom-sdk -type f | sort
-          
-          cd ~/custom-sdk && tar -czf ~/dotnet-linux-x86-sdk.tar.gz .
-
-      - name: Upload Custom SDK
+      - name: Upload Local NuGet Feed
         uses: actions/upload-artifact@v4
         with:
-          name: dotnet-linux-x86-sdk
-          path: ~/dotnet-linux-x86-sdk.tar.gz
+          name: linux-x86-aot-feed
+          path: ~/local-aot-feed
 
-      - name: Upload Version Info
-        uses: actions/upload-artifact@v4
-        with:
-          name: runtime-version-info
-          path: |
-            ~/RUNTIME_VERSION.txt
-            ~/COMMIT_HASH.txt
-
+  # =====================================================================
+  # JOB 2: Build standard SelfContained apps for Win/Mac/Linux-x64/ARM64
+  # =====================================================================
   build:
-    needs: build-runtime-x86
+    name: Build Standard (${{ matrix.runtime }})
     strategy:
       matrix:
         include:
@@ -423,9 +193,11 @@ jobs:
           name: vpk-artifacts-${{ matrix.runtime }}
           path: ./Releases/*
 
+  # =====================================================================
+  # JOB 3: Build Linux ARM32 (SelfContained)
+  # =====================================================================
   build-debian-12_linux-arm32:
     name: Build Linux ARM32 (Debian 12)
-    needs: build-runtime-x86
     runs-on: ubuntu-latest
     container:
       image: debian:12
@@ -556,20 +328,30 @@ jobs:
           name: vpk-artifact-linux_arm32
           path: ./Converter-linux-arm.tar.xz
 
-  build-debian-12_linux-x86:
-    name: Build Linux x86 (Debian 12, Custom AppHost)
-    needs: build-runtime-x86
+  # =====================================================================
+  # JOB 4: Build Linux x86 using NativeAOT (The "Holy Grail" Job)
+  # =====================================================================
+  build-debian-12_linux-x86-aot:
+    name: Build Linux x86 (NativeAOT)
+    needs: build-nativeaot-compiler-x86
     runs-on: ubuntu-latest
     container:
-      image: debian:12
+      image: i386/debian:12
       env:
         DEBIAN_FRONTEND: noninteractive
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
-      - name: Install container prerequisites
+      - name: Install prerequisites & Native Toolchain (Clang/LLD required for NativeAOT)
         shell: bash
         run: |
-          apt-get update && apt-get install -y sudo git curl wget ca-certificates lsb-release gnupg python3 coreutils which xz-utils tree
+          apt-get update && apt-get install -y sudo curl wget ca-certificates gnupg python3 coreutils xz-utils tree \
+            clang lld zlib1g-dev libicu-dev git
+          
+          # Install .NET SDK manually because i386 doesn't have an official setup-dotnet image
+          curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel 9.0 --install-dir /usr/share/dotnet
+          ln -s /usr/share/dotnet/dotnet /usr/local/bin/dotnet
+          echo "DOTNET_ROOT=/usr/share/dotnet" >> $GITHUB_ENV
+          echo "/usr/share/dotnet" >> $GITHUB_PATH
 
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -594,157 +376,68 @@ jobs:
           path: Translate-Folder
           fetch-depth: 1
 
-      - name: Download Custom x86 Runtime
+      - name: Download Local AOT NuGet Feed
         uses: actions/download-artifact@v4
         with:
-          name: dotnet-linux-x86-sdk
-          path: ~/custom-sdk-tar
+          name: linux-x86-aot-feed
+          path: ./local-aot-feed
 
-      - name: Download Version Info
-        uses: actions/download-artifact@v4
-        with:
-          name: runtime-version-info
-          path: ~/version-info
-
-      - name: Extract Custom x86 Runtime
+      - name: Setup NuGet Config for Local AOT Feed
         shell: bash
         run: |
-          mkdir -p ~/custom-sdk
-          tar -xzf ~/custom-sdk-tar/dotnet-linux-x86-sdk.tar.gz -C ~/custom-sdk
-          RUNTIME_VERSION=$(cat ~/version-info/RUNTIME_VERSION.txt 2>/dev/null || echo "9.0.0")
-          echo "RUNTIME_VERSION=$RUNTIME_VERSION" >> $GITHUB_ENV
-          echo "Using runtime version: $RUNTIME_VERSION"
-          echo ""
-          echo "=== Custom SDK Contents ==="
-          find ~/custom-sdk -type f | sort
+          cat > nuget.config << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <configuration>
+            <packageSources>
+              <clear />
+              <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
+              <add key="local-aot-feed" value="./local-aot-feed" />
+            </packageSources>
+          </configuration>
+          EOF
 
-      - name: Setup Native 64-bit SDK
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '9.0.x'
-
-      - name: Install i386 Native Libraries
+      - name: Install i386 Native Libraries (OS Level)
         shell: bash
         run: |
-          dpkg --add-architecture i386 && apt-get update && apt-get install -y libvlc-dev:i386 libvlccore-dev:i386 vlc-plugin-base:i386 libmagickcore-6.q16-6:i386 libmagickwand-6.q16-6:i386
+          # Note: We are already in an i386 container, so no :i386 suffix needed
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            libvlc5 libvlccore9 vlc-plugin-base \
+            libmagickcore-6.q16-6 libmagickwand-6.q16-6 \
+            libstdc++6 libgcc-s1 zlib1g
 
-      - name: Build App (Framework-Dependent, NO AppHost)
+      - name: Publish App with NativeAOT
         shell: bash
         run: |
-          dotnet build "./sb1 sb2 sb3 xml to Csharp converter.csproj" -c Release -r linux-x86 -o "./publish/linux-x86" \
-            -p:SelfContained=false \
-            -p:UseAppHost=false \
+          dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" -c Release -r linux-x86 -o "./publish/linux-x86" \
+            -p:SelfContained=true \
+            -p:PublishAot=true \
+            -p:IlcOptimizationPreference=Size \
+            -p:IlcGenerateStackTraceData=false \
+            -p:StripSymbols=true \
+            -p:InvariantGlobalization=true \
             -p:ExcludeMagickX64=true \
             -p:ExcludeMagickArm64=true \
             -p:DebugType=none \
             -p:DebugSymbols=false
 
-      - name: Write Python patch scripts
+      - name: Inject OS Native Libraries (.so files)
         shell: bash
         run: |
-          cat > /tmp/patch_apphost.py << 'PYEOF'
-          import os
-
-          apphost_path = "./publish/linux-x86/Converter"
-          placeholder = b"c3ab8ff13720e8ad9047dd39466b3c8974e592c2fa383d4a3960714caef0c4f2"
-          dll_name = b"Converter.dll"
-
-          with open(apphost_path, 'rb') as f:
-              data = bytearray(f.read())
-
-          idx = data.find(placeholder)
-          if idx != -1:
-              replacement = dll_name + b"\x00" * (len(placeholder) - len(dll_name))
-              data[idx:idx+len(placeholder)] = replacement
-              with open(apphost_path, 'wb') as f:
-                  f.write(data)
-              print("AppHost patched successfully")
-          else:
-              print("WARNING: Placeholder not found in apphost")
-          PYEOF
-
-          cat > /tmp/patch_runtimeconfig.py << 'PYEOF'
-          import json
-          import os
-
-          config_path = "./publish/linux-x86/Converter.runtimeconfig.json"
-          real_version = os.environ.get("RUNTIME_VERSION", "9.0.0")
-
-          with open(config_path, "r") as f:
-              config = json.load(f)
-
-          if "runtimeOptions" not in config:
-              config["runtimeOptions"] = {}
-
-          config["runtimeOptions"]["rollForward"] = "LatestMajor"
-          config["runtimeOptions"]["includedFrameworks"] = [
-              {
-                  "name": "Microsoft.NETCore.App",
-                  "version": real_version
-              }
-          ]
-
-          if "framework" in config["runtimeOptions"]:
-              config["runtimeOptions"]["framework"]["rollForward"] = "LatestMajor"
-              config["runtimeOptions"]["framework"]["version"] = real_version
-
-          with open(config_path, "w") as f:
-              json.dump(config, f, indent=2)
-
-          print(f"runtimeconfig.json patched with version {real_version}")
-          PYEOF
-
-      - name: Inject Custom AppHost and Runtime
-        shell: bash
-        run: |
-          echo "=== Injecting runtime version: $RUNTIME_VERSION ==="
+          PUBLISH_DIR="./publish/linux-x86"
           
-          if [ -f ~/custom-sdk/host/apphost ]; then
-            echo "Injecting apphost..."
-            cp ~/custom-sdk/host/apphost ./publish/linux-x86/Converter
-            chmod +x ./publish/linux-x86/Converter
-            python3 /tmp/patch_apphost.py
-          else
-            echo "WARNING: apphost not found in custom SDK!"
-          fi
+          # Copy VLC
+          cp /usr/lib/i386-linux-gnu/libvlc.so* $PUBLISH_DIR/ || true
+          cp /usr/lib/i386-linux-gnu/libvlccore.so* $PUBLISH_DIR/ || true
+          cp -r /usr/lib/i386-linux-gnu/vlc/ $PUBLISH_DIR/ || true
           
-          if [ -d ~/custom-sdk/host/fxr/$RUNTIME_VERSION ]; then
-            echo "Injecting host/fxr/$RUNTIME_VERSION..."
-            mkdir -p "./publish/linux-x86/host/fxr/$RUNTIME_VERSION"
-            cp -r ~/custom-sdk/host/fxr/$RUNTIME_VERSION/* "./publish/linux-x86/host/fxr/$RUNTIME_VERSION/"
-          else
-            echo "WARNING: host/fxr/$RUNTIME_VERSION not found!"
-          fi
+          # Copy ImageMagick
+          cp /usr/lib/i386-linux-gnu/libMagickCore-6.Q16.so* $PUBLISH_DIR/ || true
+          cp /usr/lib/i386-linux-gnu/libMagickWand-6.Q16.so* $PUBLISH_DIR/ || true
           
-          if [ -d ~/custom-sdk/shared/Microsoft.NETCore.App/$RUNTIME_VERSION ]; then
-            echo "Injecting shared/Microsoft.NETCore.App/$RUNTIME_VERSION..."
-            mkdir -p "./publish/linux-x86/shared/Microsoft.NETCore.App/$RUNTIME_VERSION"
-            cp -r ~/custom-sdk/shared/Microsoft.NETCore.App/$RUNTIME_VERSION/* "./publish/linux-x86/shared/Microsoft.NETCore.App/$RUNTIME_VERSION/"
-          else
-            echo "WARNING: shared/Microsoft.NETCore.App/$RUNTIME_VERSION not found!"
-          fi
-          
-          if [ -f ~/custom-sdk/dotnet ]; then
-            cp ~/custom-sdk/dotnet ./publish/linux-x86/dotnet
-            chmod +x ./publish/linux-x86/dotnet
-          fi
-          
-          if [ -f ~/custom-sdk/corerun ]; then
-            cp ~/custom-sdk/corerun ./publish/linux-x86/corerun
-            chmod +x ./publish/linux-x86/corerun
-          fi
-          
-          if [ -f ./publish/linux-x86/Converter.runtimeconfig.json ]; then
-            python3 /tmp/patch_runtimeconfig.py
-          fi
-          
-          echo ""
-          echo "=== FINAL PUBLISH STRUCTURE ==="
-          find ./publish/linux-x86 -type f | sort
-          echo ""
-          echo "=== DLL COUNT in shared ==="
-          # FIX: Replaced `ls` with `find` to prevent pipefail crash if glob doesn't match
-          find ./publish/linux-x86/shared/Microsoft.NETCore.App/$RUNTIME_VERSION/ -maxdepth 1 -name "*.dll" 2>/dev/null | wc -l
+          # Copy C++ Runtime
+          cp /usr/lib/i386-linux-gnu/libstdc++.so.6 $PUBLISH_DIR/ || true
+          cp /usr/lib/i386-linux-gnu/libgcc_s.so.1 $PUBLISH_DIR/ || true
 
       - name: Assemble Final Package
         shell: bash
@@ -752,32 +445,20 @@ jobs:
           mkdir -p ./final-linux-x86
           cp -r ./publish/linux-x86/* ./final-linux-x86/
 
+          # Clean up wrong architecture Magick DLLs if they leaked through
           rm -f ./final-linux-x86/Magick.NET-Q16-x64.dll ./final-linux-x86/Magick.NET-Q16-arm64.dll
           rm -f ./final-linux-x86/libMagick*x64*.so ./final-linux-x86/libMagick*arm64*.so
-          sed -i '/Magick.NET-Q16-x64/d; /Magick.NET-Q16-arm64/d' ./final-linux-x86/Converter.deps.json || true
 
-          cp /usr/lib/i386-linux-gnu/libvlc.so* ./final-linux-x86/ 2>/dev/null || true
-          cp /usr/lib/i386-linux-gnu/libvlccore.so* ./final-linux-x86/ 2>/dev/null || true
-          cp -r /usr/lib/i386-linux-gnu/vlc/ ./final-linux-x86/ 2>/dev/null || true
-
+          # NativeAOT doesn't need DOTNET_ROOT or GC limits. It's just a native binary!
           cat > ./final-linux-x86/run.sh << 'EOF'
           #!/bin/bash
           DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
-          export DOTNET_ROOT="$DIR"
-          export DOTNET_MULTILEVEL_LOOKUP=0
           export LD_LIBRARY_PATH="$DIR:$DIR/vlc:$LD_LIBRARY_PATH"
-          export DOTNET_GCHeapHardLimit=536870912
-          export DOTNET_gcServer=0
-          export DOTNET_GCHeapCount=1
-          export DOTNET_EnableDiagnostics=0
-          export DOTNET_TieredCompilation=0
-          export DOTNET_ReadyToRun=0
-          export DOTNET_DefaultStackSize=262144
-          export DOTNET_JitMinOpts=1
-          ulimit -s 256 2>/dev/null || true
+          export DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
           exec "$DIR/Converter" "$@"
           EOF
           chmod +x ./final-linux-x86/run.sh
+          chmod +x ./final-linux-x86/Converter
 
           mkdir -p ./final-linux-x86/ConverterIcon ./final-linux-x86/Scratch-Format-Converter ./final-linux-x86/Scratch-To-Snap ./final-linux-x86/svg_library_ScratchJnr ./final-linux-x86/wav_library_ScratchJnr
           cp ./ConverterIcon/* ./final-linux-x86/ConverterIcon/ 2>/dev/null || true
@@ -801,16 +482,19 @@ jobs:
 
       - name: Create Linux x86 Archive
         shell: bash
-        run: tar -cJf Converter-linux-x86.tar.xz -C ./final-linux-x86 .
+        run: tar -cJf Converter-linux-x86-aot.tar.xz -C ./final-linux-x86 .
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: vpk-artifact-linux_x86
-          path: ./Converter-linux-x86.tar.xz
+          name: vpk-artifact-linux_x86_aot
+          path: ./Converter-linux-x86-aot.tar.xz
 
+  # =====================================================================
+  # JOB 5: Release Everything
+  # =====================================================================
   release:
-    needs: [build, build-debian-12_linux-arm32, build-debian-12_linux-x86]
+    needs: [build, build-debian-12_linux-arm32, build-debian-12_linux-x86-aot]
     runs-on: ubuntu-latest
     steps:
       - name: Download Artifacts
