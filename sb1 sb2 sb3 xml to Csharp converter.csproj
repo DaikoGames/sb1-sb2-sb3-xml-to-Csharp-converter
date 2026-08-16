@@ -1,4 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net9.0</TargetFramework>
@@ -9,6 +10,13 @@
     <AssemblyName>Converter</AssemblyName>
     <AssemblyTitle>Converter</AssemblyTitle>
     <RootNamespace>Converter</RootNamespace>
+    
+    <!-- NATIVE AOT SETTINGS -->
+    <PublishAot>true</PublishAot>
+    <IlcOptimizationPreference>Size</IlcOptimizationPreference>
+    <IlcGenerateStackTraceData>false</IlcGenerateStackTraceData>
+    <StripSymbols>true</StripSymbols>
+    <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
 
   <!-- Architecture Detection for Native Dependencies -->
