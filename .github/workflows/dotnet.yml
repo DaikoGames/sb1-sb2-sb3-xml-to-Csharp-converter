@@ -1,196 +1,14 @@
 name: Deploy to GitHub Releases
-
-on:
+on: 
   schedule:
-    - cron: '30 14 * * 6'
+     - cron: '30 14 * * 6' 
   workflow_dispatch:
-
+     
 permissions:
   contents: write
-
+  
 jobs:
-  # ═══════════════════════════════════════════════════════════════
-  # JOB 1: Build NativeAOT toolchain for linux-x86 from source
-  # ═══════════════════════════════════════════════════════════════
-  build-nativeaot-toolchain-x86:
-    name: Build NativeAOT Toolchain (linux-x86)
-    runs-on: ubuntu-latest
-    container:
-      image: debian:12
-      env:
-        DEBIAN_FRONTEND: noninteractive
-    timeout-minutes: 180
-    steps:
-      - name: Install container prerequisites
-        shell: bash
-        run: |
-          apt-get update && apt-get install -y sudo git curl wget ca-certificates lsb-release gnupg coreutils which tree binutils
-
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-
-      - name: Install host build prerequisites
-        shell: bash
-        run: |
-          apt-get update && apt-get install -y --no-install-recommends \
-            build-essential clang cmake cpio curl git libicu-dev \
-            libkrb5-dev libssl-dev lld lldb llvm ninja-build \
-            pigz zlib1g-dev python3 liblttng-ust-dev
-
-      - name: Install i386 cross-compilation toolchain
-        shell: bash
-        run: |
-          dpkg --add-architecture i386 && apt-get update && apt-get install -y --no-install-recommends \
-            crossbuild-essential-i386 binfmt-support debootstrap \
-            qemu-user-static qemu-user
-
-      - name: Install Debian archive keyring
-        shell: bash
-        run: apt-get install -y debian-archive-keyring
-
-      - name: Setup .NET SDK (bootstrap)
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '9.0.200'
-
-      - name: Clone dotnet/runtime
-        shell: bash
-        run: git clone --depth 1 --branch "release/9.0" https://github.com/dotnet/runtime.git ~/runtime
-
-      - name: Apply Cross-Compile Patches
-        shell: bash
-        run: |
-          cd ~/runtime
-          cat > /tmp/patch.py << 'PYEOF'
-          import os, re, glob
-
-          def replace(filepath, old, new):
-              if os.path.exists(filepath):
-                  with open(filepath, 'r') as f:
-                      content = f.read()
-                  if old in content:
-                      with open(filepath, 'w') as f:
-                          f.write(content.replace(old, new))
-
-          replace('src/coreclr/vm/vars.hpp', 'CORProfilerDisableOptimizations()', 'false')
-          replace('src/coreclr/vm/ceemain.cpp', 'BEGIN_PROFILER_CALLBACK(CORProfilerPresent());', 'if (false) {')
-          replace('src/coreclr/vm/ceemain.cpp', 'END_PROFILER_CALLBACK();', '}')
-          replace('src/coreclr/vm/ceemain.cpp', 'CORProfilerPresent()', 'false')
-          replace('src/coreclr/debug/ee/debugger.cpp', 'CORProfilerDisableOptimizations()', 'false')
-          replace('src/coreclr/vm/rejit.inl', 'BEGIN_PROFILER_CALLBACK(CORProfilerEnableRejit());', 'if (false) {')
-          replace('src/coreclr/vm/rejit.inl', 'END_PROFILER_CALLBACK();', '}')
-          replace('src/coreclr/vm/rejit.inl', 'CORProfilerEnableRejit() != FALSE', 'false')
-          replace('src/coreclr/vm/eeprofinterfaces.inl', 'CORProfilerTrackAllocations()', 'FALSE')
-          replace('src/coreclr/vm/eeprofinterfaces.inl', 'CORProfilerTrackLargeAllocations()', 'FALSE')
-          replace('src/coreclr/vm/eeprofinterfaces.inl', 'CORProfilerTrackPinnedAllocations()', 'FALSE')
-          replace('src/coreclr/vm/eetoprofinterfaceimpl.inl', 'CORProfilerPresent()', 'FALSE')
-
-          for csproj in glob.glob('src/coreclr/tools/**/*.csproj', recursive=True):
-              replace(csproj, '<PublishTrimmed>true</PublishTrimmed>', '<PublishTrimmed>false</PublishTrimmed>')
-              replace(csproj, '<SelfContained>true</SelfContained>', '<SelfContained>false</SelfContained>')
-              replace(csproj, '<UseLocalAppHostPack>true</UseLocalAppHostPack>', '<UseAppHost>false</UseAppHost>')
-              replace(csproj, '<UseAppHost>true</UseAppHost>', '<UseAppHost>false</UseAppHost>')
-              replace(csproj, '<PublishSingleFile>true</PublishSingleFile>', '<PublishSingleFile>false</PublishSingleFile>')
-              replace(csproj, '<PublishReadyToRun>true</PublishReadyToRun>', '<PublishReadyToRun>false</PublishReadyToRun>')
-
-          filepath = 'src/coreclr/inc/profilepriv.inl'
-          if os.path.exists(filepath):
-              with open(filepath, 'r') as f:
-                  content = f.read()
-              if not content.lstrip().startswith('#if FEATURE_PERFTRACING'):
-                  with open(filepath, 'w') as f:
-                      f.write('#if FEATURE_PERFTRACING\n' + content + '\n#endif\n')
-
-          for host in ['corerun', 'apphost', 'singlefilehost']:
-              filepath = f'src/coreclr/hosts/{host}/CMakeLists.txt'
-              if os.path.exists(filepath):
-                  with open(filepath, 'r') as f:
-                      content = f.read()
-                  pattern = r'(target_link_libraries\s*\(\s*' + host + r'\s+PRIVATE\s+coreclr_pal)'
-                  if re.search(pattern, content):
-                      content = re.sub(pattern, r'\1\n    -Wl,--start-group\n    dl\n    c\n    -Wl,--end-group', content)
-                      with open(filepath, 'w') as f:
-                          f.write(content)
-
-          print("Patches applied.")
-          PYEOF
-          python3 /tmp/patch.py
-
-      - name: Generate cross rootfs for x86
-        shell: bash
-        run: |
-          cd ~/runtime
-          sed -i 's|__UbuntuRepo="http://archive.ubuntu.com/ubuntu/"|__UbuntuRepo="http://ftp.debian.org/debian/"|g' eng/common/cross/build-rootfs.sh
-          sed -i 's|__UbuntuSuites="updates security backports"|__UbuntuSuites="updates"|g' eng/common/cross/build-rootfs.sh
-          sed -i 's|Components: main universe|Components: main|g' eng/common/cross/build-rootfs.sh
-          ./eng/common/cross/build-rootfs.sh "x86" "bookworm" "no-lldb" --skipunmount
-
-      - name: Build NativeAOT Runtime for x86
-        run: |
-          cd ~/runtime
-          export ROOTFS_DIR="$HOME/runtime/.tools/rootfs/x86"
-          pkill -9 -f dotnet || true
-          ~/runtime/.dotnet/dotnet build-server shutdown || true
-          rm -rf ~/runtime/artifacts/obj ~/runtime/artifacts/bin ~/runtime/artifacts/packages
-
-          # clr.aot includes everything: ILCompiler + NativeAOT CoreLib + NativeAOT runtime
-          ./build.sh -subset clr+clr.aot+libs+host+packs \
-            -configuration Release -arch "x86" --cross \
-            /p:SelfContained=false /p:UseAppHost=false /p:RunTests=false /p:BuildTests=false \
-            /p:BuildInstaller=false /p:FeatureEventTrace=0 /p:FeaturePerfTracing=0 \
-            /p:ContinuousIntegrationBuild=true /p:BuildInParallel=false \
-            /p:SkipValidatePackage=true
-        shell: bash --noprofile --norc -e -o pipefail {0}
-        env:
-          DOTNET_ROOT: /usr/share/dotnet
-          
-      - name: Collect NativeAOT artifacts
-        shell: bash
-        run: |
-          mkdir -p ~/nativeaot-x86
-
-          # ILCompiler (crossgen2 / ilc)
-          ILC_PATH=$(find ~/runtime/artifacts/bin -name "ILCompiler" -o -name "ilc" -o -name "crossgen2" 2>/dev/null | head -n 1)
-          if [ -n "$ILC_PATH" ]; then
-            cp -r "$(dirname "$ILC_PATH")" ~/nativeaot-x86/ilc/
-            echo "ILCompiler found: $ILC_PATH"
-          else
-            echo "WARNING: ILCompiler not found"
-            find ~/runtime/artifacts/bin -type f -name "*ilc*" -o -name "*ILCompiler*" -o -name "*crossgen*" 2>/dev/null | head -20
-          fi
-
-          # NativeAOT static libraries (.a files)
-          find ~/runtime/artifacts/bin -name "*.a" -path "*x86*" -exec cp {} ~/nativeaot-x86/ \; 2>/dev/null || true
-          find ~/runtime/artifacts/bin -name "libbootstrapper*" -exec cp {} ~/nativeaot-x86/ \; 2>/dev/null || true
-          find ~/runtime/artifacts/bin -name "libRuntime*" -exec cp {} ~/nativeaot-x86/ \; 2>/dev/null || true
-          find ~/runtime/artifacts/bin -name "libSystem.Private.CoreLib*" -exec cp {} ~/nativeaot-x86/ \; 2>/dev/null || true
-
-          # Framework DLLs (needed for trimming analysis)
-          LIBS_DIR=$(find ~/runtime/artifacts/bin -type d -path "*linux.x86*" -path "*Release*" 2>/dev/null | head -n 1)
-          if [ -n "$LIBS_DIR" ]; then
-            mkdir -p ~/nativeaot-x86/libs
-            cp "$LIBS_DIR"/*.dll ~/nativeaot-x86/libs/ 2>/dev/null || true
-          fi
-
-          # Any NuGet packages produced
-          find ~/runtime/artifacts/packages -name "*.nupkg" -exec cp {} ~/nativeaot-x86/ \; 2>/dev/null || true
-
-          echo "=== NativeAOT artifacts ==="
-          find ~/nativeaot-x86 -type f | sort | head -100
-
-      - name: Upload NativeAOT toolchain
-        uses: actions/upload-artifact@v4
-        with:
-          name: nativeaot-toolchain-x86
-          path: ~/nativeaot-x86
-
-  # ═══════════════════════════════════════════════════════════════
-  # JOB 2: Build all standard platforms (Win/Mac/Linux x64+arm64)
-  # ═══════════════════════════════════════════════════════════════
   build:
-    needs: build-nativeaot-toolchain-x86
     strategy:
       matrix:
         include:
@@ -200,453 +18,370 @@ jobs:
             runtime: win-arm64
           - os: windows-latest
             runtime: win-x86
-          - os: macos-latest
-            runtime: osx-x64
-          - os: macos-latest
-            runtime: osx-arm64
           - os: ubuntu-latest
             runtime: linux-x64
           - os: ubuntu-latest
             runtime: linux-arm64
+          - os: macos-latest
+            runtime: osx-x64
+          - os: macos-latest
+            runtime: osx-arm64
+
     runs-on: ${{ matrix.os }}
+      
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-      - name: Checkout External Dependencies
+
+      - name: Checkout External Dependency (Scratch-Format-Converter)
         uses: actions/checkout@v4
         with:
           repository: 'DaikoGames/Scratch-Format-Converter'
           path: Scratch-Format-Converter
-          fetch-depth: 1
-      - name: Checkout Scratch-To-Snap
-        uses: actions/checkout@v4
-        with:
-          repository: 'DaikoGames/Scratch-To-Snap-'
-          path: Scratch-To-Snap
-          fetch-depth: 1
-      - name: Checkout Translator
+          
+      - name: Checkout External Dependency (Translator)
         uses: actions/checkout@v4
         with:
           repository: 'DaikoGames/Translate-Folder'
           path: Translate-Folder
-          fetch-depth: 1
+          
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 9.0.x
+
       - name: Build and Publish App
         shell: bash
         run: |
-          dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" -c Release -r ${{ matrix.runtime }} -o "./publish/${{ matrix.runtime }}" -p:SelfContained=true -p:PublishSingleFile=true -p:PublishReadyToRun=true -p:IncludeAllContentForSelfExtract=true
+          dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" \
+            -c Release \
+            -r ${{ matrix.runtime }} \
+            -o "./publish/${{ matrix.runtime }}" \
+            -p:SelfContained=true \
+            -p:PublishSingleFile=true
 
       - name: Install Velopack CLI
         run: dotnet tool install -g vpk
+
       - name: Add dotnet tools to PATH
         shell: bash
         run: echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
-      - name: Add files and Pack (Windows)
+
+      - name: Add files (Windows)
         shell: pwsh
-        if: contains(matrix.runtime, 'win')
+        if: contains(matrix.runtime, 'win')  
         run: |
           $baseDir = "./publish/${{ matrix.runtime }}"
-          New-Item -ItemType Directory -Force -Path "$baseDir/ConverterIcon", "$baseDir/Scratch-Format-Converter", "$baseDir/Scratch-To-Snap", "$baseDir/Install", "$baseDir/svg_library_ScratchJnr", "$baseDir/wav_library_ScratchJnr"
-          Copy-Item "./ConverterIcon/Converter.ico", "./ConverterIcon/Converter.png" "$baseDir/ConverterIcon/"
-          Copy-Item "./Scratch-Format-Converter/Convert.js", "./Scratch-Format-Converter/package.json", "./Scratch-Format-Converter/package-lock.json" "$baseDir/Scratch-Format-Converter/"
-          Copy-Item "./Scratch-To-Snap/converter.js", "./Scratch-To-Snap/package.json", "./Scratch-To-Snap/package-lock.json" "$baseDir/Scratch-To-Snap/"
-          Copy-Item "./Install/dotnet-install.ps1" "$baseDir/Install/"
-          Copy-Item -Path "./svg_library_ScratchJnr/*" "$baseDir/svg_library_ScratchJnr/"
-          Copy-Item "./wav_library_ScratchJnr/*" "$baseDir/wav_library_ScratchJnr/"
-          Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.gz" | ForEach-Object { $dn = $_.Directory.Name; New-Item -ItemType Directory -Force -Path "$baseDir/Translate-Folder/$dn" | Out-Null; gzip -d -c $_.FullName > "$baseDir/Translate-Folder/$dn/$($_.Name -replace '\.gz$', '')"; Remove-Item $_.FullName -Force }
-          Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.json" | ForEach-Object { $dn = $_.Directory.Name; Copy-Item $_.FullName "$baseDir/Translate-Folder/$dn/" -Force }
-          Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.yml" | ForEach-Object { $dn = $_.Directory.Name; Copy-Item $_.FullName "$baseDir/Translate-Folder/$dn/" -Force }
-          Copy-Item "./README.md" "$baseDir/"
-          vpk pack -u "Converter" -v "0.9.${{ github.run_number }}" --packDir "$baseDir" --outputDir "./Releases" --icon "./ConverterIcon/Converter.ico" --channel "${{ matrix.runtime }}"
-      - name: Add files and Pack (macOS)
-        shell: bash
-        if: contains(matrix.runtime, 'osx')
+          New-Item -ItemType Directory -Force -Path "$baseDir/ConverterIcon"
+          Copy-Item "./ConverterIcon/Converter.ico" "$baseDir/ConverterIcon/Converter.ico"
+          Copy-Item "./ConverterIcon/Converter.png" "$baseDir/ConverterIcon/Converter.png"
+          New-Item -ItemType Directory -Force -Path "$baseDir/Scratch-Format-Converter"
+          Copy-Item "./Scratch-Format-Converter/Convert.js" "$baseDir/Scratch-Format-Converter/Convert.js"
+          Copy-Item "./Scratch-Format-Converter/package.json" "$baseDir/Scratch-Format-Converter/package.json"
+          Copy-Item "./Scratch-Format-Converter/package-lock.json" "$baseDir/Scratch-Format-Converter/package-lock.json"
+          New-Item -ItemType Directory -Force -Path "$baseDir/Install"
+          Copy-Item "./Install/dotnet-install.ps1" "$baseDir/Install/dotnet-install.ps1"
+          New-Item -ItemType Directory -Force -Path "$baseDir/svg_library_ScratchJnr"
+          Copy-Item -Path "./svg_library_ScratchJnr/*" "$baseDir/svg_library_ScratchJnr"
+          New-Item -ItemType Directory -Force -Path "$baseDir/wav_library_ScratchJnr"
+          Copy-Item "./wav_library_ScratchJnr/*" "$baseDir/wav_library_ScratchJnr" 
+          $GZfiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.gz" -ErrorAction Stop
+          foreach ($GZfile in $GZfiles) {
+          $GZDirectoryName = $GZfile.Directory.Name
+          New-Item -ItemType Directory -Force -Path "$baseDir/Translate-Folder/$GZDirectoryName" | Out-Null
+          $OutFileName = $GZfile.Name -replace '\.gz$', ''
+          gzip -d -c $GZfile.FullName > "$baseDir/Translate-Folder/$GZDirectoryName/$OutFileName"
+          Remove-Item $GZfile.FullName -Force
+          }
+          $JSONFiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.json" -ErrorAction Stop 
+          foreach ($JSONfile in $JSONFiles){
+          $JSONFileName = $JSONfile.Name
+          $JSONDirectoryName = (Get-Item $JSONfile).Directory.Name
+          Copy-Item -Path $JSONfile.FullName "$baseDir/Translate-Folder/$JSONDirectoryName/$JSONFileName" -Force
+          }
+          $YMLFiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.yml" -ErrorAction Stop 
+          foreach ($YMLfile in $YMLFiles){
+          $JYMLFileName = $YMLfile.Name
+          $YMLDirectoryName = (Get-Item $YMLfile).Directory.Name
+          Copy-Item -Path $YMLfile.FullName "$baseDir/Translate-Folder/$YMLDirectoryName/$JYMLFileName" -Force
+          }
+          Copy-Item "./README.md" "$baseDir/README.md"
+  
+      - name: Add Files (Linux, MacOS)
+        shell: pwsh
+        if: contains(matrix.runtime, 'linux') || contains(matrix.runtime, 'osx')
         run: |
-          baseDir="./publish/${{ matrix.runtime }}"
-          mkdir -p "$baseDir/ConverterIcon" "$baseDir/Scratch-Format-Converter" "$baseDir/Scratch-To-Snap" "$baseDir/Install" "$baseDir/svg_library_ScratchJnr" "$baseDir/wav_library_ScratchJnr"
-          cp ./ConverterIcon/Converter.ico ./ConverterIcon/Converter.png "$baseDir/ConverterIcon/"
-          cp ./Scratch-Format-Converter/Convert.js ./Scratch-Format-Converter/package.json ./Scratch-Format-Converter/package-lock.json "$baseDir/Scratch-Format-Converter/"
-          cp ./Scratch-To-Snap/converter.js ./Scratch-To-Snap/package.json ./Scratch-To-Snap/package-lock.json "$baseDir/Scratch-To-Snap/"
-          cp ./Install/dotnet-install.sh "$baseDir/Install/"
-          cp -r ./svg_library_ScratchJnr/* "$baseDir/svg_library_ScratchJnr/"
-          cp -r ./wav_library_ScratchJnr/* "$baseDir/wav_library_ScratchJnr/"
-          cp ./README.md "$baseDir/"
-          vpk pack -u "Converter" -v "0.9.${{ github.run_number }}" --packDir "$baseDir" --outputDir "./Releases" --channel "${{ matrix.runtime }}"
-      - name: Add files and Pack (Linux)
+          $baseDir = "./publish/${{ matrix.runtime }}"
+          New-Item -ItemType Directory -Force -Path "$baseDir/ConverterIcon"
+          Copy-Item "./ConverterIcon/Converter.ico" "$baseDir/ConverterIcon/Converter.ico"
+          Copy-Item "./ConverterIcon/Converter.png" "$baseDir/ConverterIcon/Converter.png"
+          New-Item -ItemType Directory -Force -Path "$baseDir/Scratch-Format-Converter"
+          Copy-Item "./Scratch-Format-Converter/Convert.js" "$baseDir/Scratch-Format-Converter/Convert.js"
+          Copy-Item "./Scratch-Format-Converter/package.json" "$baseDir/Scratch-Format-Converter/package.json"
+          Copy-Item "./Scratch-Format-Converter/package-lock.json" "$baseDir/Scratch-Format-Converter/package-lock.json"
+          New-Item -ItemType Directory -Force -Path "$baseDir/Install"
+          Copy-Item "./Install/dotnet-install.sh" "$baseDir/Install/dotnet-install.sh"
+          New-Item -ItemType Directory -Force -Path "$baseDir/svg_library_ScratchJnr"
+          Copy-Item "./svg_library_ScratchJnr/*" "$baseDir/svg_library_ScratchJnr" 
+          New-Item -ItemType Directory -Force -Path "$baseDir/wav_library_ScratchJnr"
+          Copy-Item "./wav_library_ScratchJnr/*" "$baseDir/wav_library_ScratchJnr" 
+          $GZfiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.gz" -ErrorAction Stop
+          foreach ($GZfile in $GZfiles) {
+          $GZDirectoryName = $GZfile.Directory.Name
+          New-Item -ItemType Directory -Force -Path "$baseDir/Translate-Folder/$GZDirectoryName" | Out-Null
+          $OutFileName = $GZfile.Name -replace '\.gz$', ''
+          gzip -d -c $GZfile.FullName > "$baseDir/Translate-Folder/$GZDirectoryName/$OutFileName"
+          Remove-Item $GZfile.FullName -Force
+          }
+          $JSONFiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.json" -ErrorAction Stop 
+          foreach ($JSONfile in $JSONFiles){
+          $JSONFileName = $JSONfile.Name
+          $JSONDirectoryName = (Get-Item $JSONfile).Directory.Name
+          Copy-Item -Path $JSONfile.FullName "$baseDir/Translate-Folder/$JSONDirectoryName/$JSONFileName" -Force
+          }
+          $YMLFiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.yml" -ErrorAction Stop 
+          foreach ($YMLfile in $YMLFiles){
+          $JYMLFileName = $YMLfile.Name
+          $YMLDirectoryName = (Get-Item $YMLfile).Directory.Name
+          Copy-Item -Path $YMLfile.FullName "$baseDir/Translate-Folder/$YMLDirectoryName/$JYMLFileName" -Force
+          }
+          Copy-Item "./README.md" "$baseDir/README.md"
+          
+      - name: Check Help
+        shell: bash
+        run: |
+          vpk pack --help
+          
+      - name: Pack with Velopack Windows
+        shell: bash
+        if: contains(matrix.runtime, 'win')
+        run: |
+          vpk pack \
+            -u "Converter" \
+            -v "0.9.${{ github.run_number }}" \
+            --packDir "./publish/${{ matrix.runtime }}" \
+            --outputDir "./Releases" \
+            --icon "./ConverterIcon/Converter.ico" \
+            --channel "${{ matrix.runtime }}"
+            
+      - name: Pack with Velopack Linux
         shell: bash
         if: contains(matrix.runtime, 'linux')
         run: |
-          baseDir="./publish/${{ matrix.runtime }}"
-          mkdir -p "$baseDir/ConverterIcon" "$baseDir/Scratch-Format-Converter" "$baseDir/Scratch-To-Snap" "$baseDir/Install" "$baseDir/svg_library_ScratchJnr" "$baseDir/wav_library_ScratchJnr"
-          cp ./ConverterIcon/Converter.ico ./ConverterIcon/Converter.png "$baseDir/ConverterIcon/"
-          cp ./Scratch-Format-Converter/Convert.js ./Scratch-Format-Converter/package.json ./Scratch-Format-Converter/package-lock.json "$baseDir/Scratch-Format-Converter/"
-          cp ./Scratch-To-Snap/converter.js ./Scratch-To-Snap/package.json ./Scratch-To-Snap/package-lock.json "$baseDir/Scratch-To-Snap/"
-          cp ./Install/dotnet-install.sh "$baseDir/Install/"
-          cp -r ./svg_library_ScratchJnr/* "$baseDir/svg_library_ScratchJnr/"
-          cp -r ./wav_library_ScratchJnr/* "$baseDir/wav_library_ScratchJnr/"
-          cp ./README.md "$baseDir/"
-          vpk pack -u "Converter" -v "0.9.${{ github.run_number }}" --packDir "$baseDir" --outputDir "./Releases" --icon "./ConverterIcon/Converter.png" --channel "${{ matrix.runtime }}"
+          vpk pack \
+            -u "Converter" \
+            -v "0.9.${{ github.run_number }}" \
+            --packDir "./publish/${{ matrix.runtime }}" \
+            --outputDir "./Releases" \
+            --icon "./ConverterIcon/Converter.png" \
+            --channel "${{ matrix.runtime }}"
+            
+      - name: Pack with Velopack MacOS
+        shell: bash
+        if: contains(matrix.runtime, 'osx')
+        run: |
+          vpk pack \
+            -u "Converter" \
+            -v "0.9.${{ github.run_number }}" \
+            --packDir "./publish/${{ matrix.runtime }}" \
+            --outputDir "./Releases" \
+            --icon "./ConverterIcon/Converter.icns" \
+            --channel "${{ matrix.runtime }}"
+            
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: vpk-artifacts-${{ matrix.runtime }}
           path: ./Releases/*
-
-  # ═══════════════════════════════════════════════════════════════
-  # JOB 3: Build Linux ARM32 (Debian 12)
-  # ═══════════════════════════════════════════════════════════════
-  build-debian-12_linux-arm32:
-    name: Build Linux ARM32 (Debian 12)
-    needs: build-nativeaot-toolchain-x86
-    runs-on: ubuntu-latest
-    container:
-      image: debian:12
-      env:
-        DEBIAN_FRONTEND: noninteractive
-    timeout-minutes: 60
-    steps:
-      - name: Install container prerequisites
-        shell: bash
-        run: |
-          apt-get update && apt-get install -y sudo git curl wget ca-certificates lsb-release gnupg python3 coreutils which xz-utils
-
+          
+  build_ubuntu-latest_linux-x86:
+   needs: build
+   runs-on: ubuntu-latest
+   steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-      - name: Checkout External Dependencies
+
+      - name: Checkout External Dependency (Scratch-Format-Converter)
         uses: actions/checkout@v4
         with:
           repository: 'DaikoGames/Scratch-Format-Converter'
           path: Scratch-Format-Converter
-          fetch-depth: 1
-      - name: Checkout Scratch-To-Snap
-        uses: actions/checkout@v4
-        with:
-          repository: 'DaikoGames/Scratch-To-Snap-'
-          path: Scratch-To-Snap
-          fetch-depth: 1
-      - name: Checkout Translator
+          
+      - name: Checkout External Dependency (Translator)
         uses: actions/checkout@v4
         with:
           repository: 'DaikoGames/Translate-Folder'
           path: Translate-Folder
-          fetch-depth: 1
-
-      - name: Setup .NET SDK
+          
+      - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '9.0.x'
+          dotnet-version: 9.0.x
 
-      - name: Install ARM32 (armhf) Native Libraries
+      - name: Build and Publish App
         shell: bash
         run: |
-          dpkg --add-architecture armhf
-          apt-get update
-          apt-get install -y --no-install-recommends \
-            gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf \
-            libvlc-dev:armhf libvlccore-dev:armhf vlc-plugin-base:armhf \
-            libmagickcore-6.q16-6:armhf libmagickwand-6.q16-6:armhf
-
-      - name: Build App (SelfContained)
-        shell: bash
-        run: |
-          dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" -c Release -r linux-arm -o "./publish/linux-arm" \
+          dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" \
+            -c Release \
+            -r win-x86 \
+            -o "./publish/linux-x86" \
             -p:SelfContained=true \
-            -p:PublishSingleFile=true \
-            -p:PublishReadyToRun=true \
-            -p:IncludeAllContentForSelfExtract=true \
-            -p:ExcludeMagickX64=true \
-            -p:ExcludeMagickArm64=true \
-            -p:DebugType=none \
-            -p:DebugSymbols=false
-
-      - name: Inject ARM32 Native Libraries
+            -p:PublishSingleFile=true
+  
+      - name: Add Wine and Build AppImage - (Linux x86)
         shell: bash
         run: |
-          cp /usr/lib/arm-linux-gnueabihf/libvlc.so* ./publish/linux-arm/ || true
-          cp /usr/lib/arm-linux-gnueabihf/libvlccore.so* ./publish/linux-arm/ || true
-          cp -r /usr/lib/arm-linux-gnueabihf/vlc/ ./publish/linux-arm/ || true
-          cp /usr/lib/arm-linux-gnueabihf/libMagickCore-6.Q16.so* ./publish/linux-arm/ || true
-          cp /usr/lib/arm-linux-gnueabihf/libMagickWand-6.Q16.so* ./publish/linux-arm/ || true
-
-          rm -f ./publish/linux-arm/Magick.NET-Q16-x64.dll ./publish/linux-arm/Magick.NET-Q16-arm64.dll
-          rm -f ./publish/linux-arm/libMagick*x64*.so ./publish/linux-arm/libMagick*arm64*.so
-          sed -i '/Magick.NET-Q16-x64/d; /Magick.NET-Q16-arm64/d' ./publish/linux-arm/Converter.deps.json || true
-
-      - name: Assemble Final Package
-        shell: bash
-        run: |
-          mkdir -p ./final-linux-arm
-          cp -r ./publish/linux-arm/* ./final-linux-arm/
-
-          cat > ./final-linux-arm/run.sh << 'EOF'
-          #!/bin/bash
-          DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
-          export DOTNET_ROOT="$DIR"
-          export LD_LIBRARY_PATH="$DIR:$DIR/vlc:$LD_LIBRARY_PATH"
-          export DOTNET_GCHeapHardLimit=536870912
-          export DOTNET_gcServer=0
-          export DOTNET_GCHeapCount=1
-          export DOTNET_EnableDiagnostics=0
-          export DOTNET_TieredCompilation=0
-          export DOTNET_ReadyToRun=0
-          export DOTNET_DefaultStackSize=262144
-          export DOTNET_JitMinOpts=1
-          ulimit -s 256 2>/dev/null || true
-          exec "$DIR/Converter" "$@"
-          EOF
-          chmod +x ./final-linux-arm/run.sh
-
-          mkdir -p ./final-linux-arm/ConverterIcon ./final-linux-arm/Scratch-Format-Converter ./final-linux-arm/Scratch-To-Snap ./final-linux-arm/svg_library_ScratchJnr ./final-linux-arm/wav_library_ScratchJnr
-          cp ./ConverterIcon/* ./final-linux-arm/ConverterIcon/ 2>/dev/null || true
-          cp ./Scratch-Format-Converter/* ./final-linux-arm/Scratch-Format-Converter/ 2>/dev/null || true
-          cp ./Scratch-To-Snap/* ./final-linux-arm/Scratch-To-Snap/ 2>/dev/null || true
-          cp -r ./svg_library_ScratchJnr/* ./final-linux-arm/svg_library_ScratchJnr/ 2>/dev/null || true
-          cp -r ./wav_library_ScratchJnr/* ./final-linux-arm/wav_library_ScratchJnr/ 2>/dev/null || true
-          cp ./README.md ./final-linux-arm/ 2>/dev/null || true
-
-          find ./Translate-Folder -type f -name "*.gz" | while read gz_file; do
-            dir_name=$(basename "$(dirname "$gz_file")")
-            mkdir -p "./final-linux-arm/Translate-Folder/$dir_name"
-            out_file=$(basename "$gz_file" .gz)
-            gzip -d -c "$gz_file" > "./final-linux-arm/Translate-Folder/$dir_name/$out_file"
-          done
-          find ./Translate-Folder -type f \( -name "*.json" -o -name "*.yml" \) | while read file; do
-            dir_name=$(basename "$(dirname "$file")")
-            mkdir -p "./final-linux-arm/Translate-Folder/$dir_name"
-            cp "$file" "./final-linux-arm/Translate-Folder/$dir_name/"
-          done
-
-      - name: Create Linux ARM32 Archive
-        shell: bash
-        run: tar -cJf Converter-linux-arm.tar.xz -C ./final-linux-arm .
-
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: vpk-artifact-linux_arm32
-          path: ./Converter-linux-arm.tar.xz
-
-  # ═══════════════════════════════════════════════════════════════
-  # JOB 4: Build Linux x86 with NativeAOT
-  # ═══════════════════════════════════════════════════════════════
-  build-debian-12_linux-x86-nativeaot:
-    name: Build Linux x86 (NativeAOT)
-    needs: build-nativeaot-toolchain-x86
-    runs-on: ubuntu-latest
-    container:
-      image: debian:12
-      env:
-        DEBIAN_FRONTEND: noninteractive
-    timeout-minutes: 90
-    steps:
-      - name: Install container prerequisites
-        shell: bash
-        run: |
-          apt-get update && apt-get install -y sudo git curl wget ca-certificates lsb-release gnupg python3 coreutils which xz-utils tree
-
-      - name: Checkout Code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-      - name: Checkout External Dependencies
-        uses: actions/checkout@v4
-        with:
-          repository: 'DaikoGames/Scratch-Format-Converter'
-          path: Scratch-Format-Converter
-          fetch-depth: 1
-      - name: Checkout Scratch-To-Snap
-        uses: actions/checkout@v4
-        with:
-          repository: 'DaikoGames/Scratch-To-Snap-'
-          path: Scratch-To-Snap
-          fetch-depth: 1
-      - name: Checkout Translator
-        uses: actions/checkout@v4
-        with:
-          repository: 'DaikoGames/Translate-Folder'
-          path: Translate-Folder
-          fetch-depth: 1
-
-      - name: Download NativeAOT toolchain
-        uses: actions/download-artifact@v4
-        with:
-          name: nativeaot-toolchain-x86
-          path: ~/nativeaot-x86
-
-      - name: Setup .NET SDK
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '9.0.x'
-
-      - name: Install i386 Native Libraries + Linker
-        shell: bash
-        run: |
-          dpkg --add-architecture i386 && apt-get update
-          apt-get install -y --no-install-recommends \
-            gcc-i686-linux-gnu g++-i686-linux-gnu \
-            libvlc-dev:i386 libvlccore-dev:i386 vlc-plugin-base:i386 \
-            libmagickcore-6.q16-6:i386 libmagickwand-6.q16-6:i386 \
-            libc6-dev:i386 libstdc++6:i386 libgcc-s1:i386 zlib1g:i386
-
-      - name: Inspect NativeAOT toolchain
-        shell: bash
-        run: |
-          echo "=== NativeAOT toolchain contents ==="
-          find ~/nativeaot-x86 -type f | sort | head -100
-          echo ""
-          echo "=== Looking for ILCompiler ==="
-          find ~/nativeaot-x86 -name "*ilc*" -o -name "*ILCompiler*" -o -name "*crossgen*" | head -20
-          echo ""
-          echo "=== Looking for .a files ==="
-          find ~/nativeaot-x86 -name "*.a" | head -20
-
-      - name: Build App with NativeAOT
-        shell: bash
-        run: |
-          # Set up environment for the custom NativeAOT toolchain
-          ILC_DIR=$(find ~/nativeaot-x86 -type d -name "ilc" | head -n 1)
-
-          # If we found the ILCompiler, use it via IlcPath
-          # Otherwise, try standard PublishAot (will likely fail but gives us the error)
-          if [ -n "$ILC_DIR" ] && [ -f "$ILC_DIR/ILCompiler" -o -f "$ILC_DIR/ilc" ]; then
-            echo "Using custom ILCompiler from: $ILC_DIR"
-            dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" -c Release -r linux-x86 -o "./publish/linux-x86" \
-              -p:PublishAot=true \
-              -p:SelfContained=true \
-              -p:IlcPath="$ILC_DIR" \
-              -p:ExcludeMagickX64=true \
-              -p:ExcludeMagickArm64=true \
-              -p:DebugType=none \
-              -p:DebugSymbols=false \
-              --verbosity detailed
-          else
-            echo "ILCompiler not found, attempting standard PublishAot..."
-            dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" -c Release -r linux-x86 -o "./publish/linux-x86" \
-              -p:PublishAot=true \
-              -p:SelfContained=true \
-              -p:ExcludeMagickX64=true \
-              -p:ExcludeMagickArm64=true \
-              -p:DebugType=none \
-              -p:DebugSymbols=false \
-              --verbosity detailed
-          fi
-        continue-on-error: true
-
-      - name: Fallback - SelfContained without NativeAOT
-        shell: bash
-        run: |
-          # If NativeAOT failed, fall back to standard self-contained publish
-          if [ ! -f "./publish/linux-x86/Converter" ] || [ ! -x "./publish/linux-x86/Converter" ]; then
-            echo "NativeAOT output not found, falling back to SelfContained..."
-            dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" -c Release -r linux-x86 -o "./publish/linux-x86" \
-              -p:SelfContained=true \
-              -p:PublishSingleFile=true \
-              -p:IncludeAllContentForSelfExtract=true \
-              -p:ExcludeMagickX64=true \
-              -p:ExcludeMagickArm64=true \
-              -p:DebugType=none \
-              -p:DebugSymbols=false
-          fi
-
-      - name: Inject i386 Native Libraries
-        shell: bash
-        run: |
-          cp /usr/lib/i386-linux-gnu/libvlc.so* ./publish/linux-x86/ 2>/dev/null || true
-          cp /usr/lib/i386-linux-gnu/libvlccore.so* ./publish/linux-x86/ 2>/dev/null || true
-          cp -r /usr/lib/i386-linux-gnu/vlc/ ./publish/linux-x86/ 2>/dev/null || true
-          cp /usr/lib/i386-linux-gnu/libMagickCore-6.Q16.so* ./publish/linux-x86/ 2>/dev/null || true
-          cp /usr/lib/i386-linux-gnu/libMagickWand-6.Q16.so* ./publish/linux-x86/ 2>/dev/null || true
-
-          rm -f ./publish/linux-x86/Magick.NET-Q16-x64.dll ./publish/linux-x86/Magick.NET-Q16-arm64.dll
-          rm -f ./publish/linux-x86/libMagick*x64*.so ./publish/linux-x86/libMagick*arm64*.so
-          sed -i '/Magick.NET-Q16-x64/d; /Magick.NET-Q16-arm64/d' ./publish/linux-x86/Converter.deps.json 2>/dev/null || true
-
-      - name: Assemble Final Package
-        shell: bash
-        run: |
-          mkdir -p ./final-linux-x86
-          cp -r ./publish/linux-x86/* ./final-linux-x86/
-
-          cat > ./final-linux-x86/run.sh << 'EOF'
-          #!/bin/bash
-          DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
-          export DOTNET_ROOT="$DIR"
-          export DOTNET_MULTILEVEL_LOOKUP=0
-          export LD_LIBRARY_PATH="$DIR:$DIR/vlc:$LD_LIBRARY_PATH"
-          export DOTNET_GCHeapHardLimit=536870912
-          export DOTNET_gcServer=0
-          export DOTNET_GCHeapCount=1
-          export DOTNET_EnableDiagnostics=0
-          export DOTNET_TieredCompilation=0
-          export DOTNET_ReadyToRun=0
-          export DOTNET_DefaultStackSize=262144
-          export DOTNET_JitMinOpts=1
-          ulimit -s 8192 2>/dev/null || true
-          exec "$DIR/Converter" "$@"
-          EOF
-          chmod +x ./final-linux-x86/run.sh
-
-          mkdir -p ./final-linux-x86/ConverterIcon ./final-linux-x86/Scratch-Format-Converter ./final-linux-x86/Scratch-To-Snap ./final-linux-x86/svg_library_ScratchJnr ./final-linux-x86/wav_library_ScratchJnr
-          cp ./ConverterIcon/* ./final-linux-x86/ConverterIcon/ 2>/dev/null || true
-          cp ./Scratch-Format-Converter/* ./final-linux-x86/Scratch-Format-Converter/ 2>/dev/null || true
-          cp ./Scratch-To-Snap/* ./final-linux-x86/Scratch-To-Snap/ 2>/dev/null || true
-          cp -r ./svg_library_ScratchJnr/* ./final-linux-x86/svg_library_ScratchJnr/ 2>/dev/null || true
-          cp -r ./wav_library_ScratchJnr/* ./final-linux-x86/wav_library_ScratchJnr/ 2>/dev/null || true
-          cp ./README.md ./final-linux-x86/ 2>/dev/null || true
-
-          find ./Translate-Folder -type f -name "*.gz" | while read gz_file; do
-            dir_name=$(basename "$(dirname "$gz_file")")
-            mkdir -p "./final-linux-x86/Translate-Folder/$dir_name"
-            out_file=$(basename "$gz_file" .gz)
-            gzip -d -c "$gz_file" > "./final-linux-x86/Translate-Folder/$dir_name/$out_file"
-          done
-          find ./Translate-Folder -type f \( -name "*.json" -o -name "*.yml" \) | while read file; do
-            dir_name=$(basename "$(dirname "$file")")
-            mkdir -p "./final-linux-x86/Translate-Folder/$dir_name"
-            cp "$file" "./final-linux-x86/Translate-Folder/$dir_name/"
-          done
-
-      - name: Create Linux x86 Archive
-        shell: bash
-        run: tar -cJf Converter-linux-x86.tar.xz -C ./final-linux-x86 .
-
-      - name: Upload Artifact
+          cd "./publish/linux-x86"
+          curl -sLf --retry 5 --retry-connrefused -O "https://github.com/Kron4ek/Wine-Builds/releases/download/11.11/wine-11.11-x86.tar.xz"
+          tar -xf wine-11.11-x86.tar.xz --no-same-owner || true
+          rm wine-11.11-x86.tar.xz
+          echo '#!/bin/bash' > ./AppRun
+          echo 'HERE="$(dirname "$(readlink -f "${0}")")"' >> ./AppRun
+          echo '"$HERE/wine-11.11-x86/bin/wine" "$HERE/Converter.exe"' >> ./AppRun
+          chmod +x ./AppRun   
+          echo "[Desktop Entry]" > Converter.desktop
+          echo "Name=Converter" >> Converter.desktop
+          echo "Exec=AppRun" >> Converter.desktop
+          echo "Type=Application" >> Converter.desktop
+          echo "Icon=Converter" >> Converter.desktop
+          echo "Categories=Utility;" >> Converter.desktop
+          cp ./ConverterIcon/Converter.png ./Converter.png || cp ./ConverterIcon/*.png ./Converter.png || touch Converter.png
+          curl -L -O "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage"
+          chmod +x appimagetool-x86_64.AppImage
+          cd ..
+          ARCH=i686 ./linux-x86/appimagetool-x86_64.AppImage --appimage-extract-and-run ./linux-x86 Converter-linux-x86.AppImage
+      
+      - name: Upload Artifact (linux x86)
         uses: actions/upload-artifact@v4
         with:
           name: vpk-artifact-linux_x86
-          path: ./Converter-linux-x86.tar.xz
+          path: ./publish/Converter-linux-x86.AppImage
 
-      - name: Upload build log on failure
-        if: failure()
+  build_macos-latest_osx-x86:
+   needs: build
+   runs-on: macos-latest
+   steps: 
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Checkout External Dependency (Scratch-Format-Converter)
+        uses: actions/checkout@v4
+        with:
+          repository: 'DaikoGames/Scratch-Format-Converter'
+          path: Scratch-Format-Converter
+          
+      - name: Checkout External Dependency (Translator)
+        uses: actions/checkout@v4
+        with:
+          repository: 'DaikoGames/Translate-Folder'
+          path: Translate-Folder
+          
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Build and Publish App
+        shell: bash
+        run: |
+          dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" \
+            -c Release \
+            -r win-x86 \
+            -o "./publish/macos-x86-app" \
+            -p:SelfContained=true \
+            -p:PublishSingleFile=true
+
+      - name: Build macOS x86 App Bundle with Wine
+        shell: bash
+        run: |
+          mkdir -p "Converter.app/Contents/MacOS"
+          mkdir -p "Converter.app/Contents/Resources/wine"
+          mkdir -p "Converter.app/Contents/Resources/app"
+          
+          cp -R ./publish/macos-x86-app/* "Converter.app/Contents/Resources/app/"
+          
+          # Wine stabil und nativ über Homebrew Cask auf dem Runner installieren
+          brew install --cask wine-stable
+          
+          # Ermittle dynamisch den installierten Pfad von Wine auf dem Runner
+          WINE_PATH=$(which wine)
+          if [ -z "$WINE_PATH" ]; then
+            WINE_PATH="/Applications/Wine Stable.app/Contents/Resources/wine/bin/wine"
+          fi
+          
+          cat << EOF > "Converter.app/Contents/MacOS/launcher"
+          #!/bin/bash
+          DIR="\$(cd "\$(dirname "\$0")" && pwd)"
+          
+          if [ -f "\$DIR/../Resources/wine/bin/wine" ]; then
+              WINE_BIN="\$DIR/../Resources/wine/bin/wine"
+          else
+              WINE_BIN="$WINE_PATH"
+          fi
+          
+          cd "\$DIR/../Resources/app"
+          env WINEDEBUG=-all "\$WINE_BIN" "Converter.exe"
+          EOF
+          
+          chmod +x "Converter.app/Contents/MacOS/launcher"
+          
+          cat << 'EOF' > "Converter.app/Contents/Info.plist"
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>CFBundleExecutable</key>
+              <string>launcher</string>
+              <key>CFBundleIdentifier</key>
+              <string>com.daikogames.converter.x86</string>
+              <key>CFBundleName</key>
+              <string>Converter</string>
+              <key>CFBundlePackageType</key>
+              <string>APPL</string>
+              <key>CFBundleShortVersionString</key>
+              <string>0.9</string>
+          </dict>
+          </plist>
+          EOF
+
+      - name: Package App Bundle into single DMG
+        shell: bash
+        run: |
+          mkdir ./dist
+          hdiutil create -volname "Converter-osx-x86" -srcfolder "Converter.app" -ov -format UDZO "./dist/Converter-osx-x86.dmg"
+
+      - name: Upload Artifact (macos x86)
         uses: actions/upload-artifact@v4
         with:
-          name: linux-x86-build-log
-          path: |
-            ./publish/linux-x86/
-          if-no-files-found: warn
+          name: vpk-artifact-osx-x86
+          path: ./dist/Converter-osx-x86.dmg
 
-  # ═══════════════════════════════════════════════════════════════
-  # JOB 5: Release everything
-  # ═══════════════════════════════════════════════════════════════
   release:
-    needs: [build, build-debian-12_linux-arm32, build-debian-12_linux-x86-nativeaot]
+    needs: [build, build_ubuntu-latest_linux-x86, build_macos-latest_osx-x86]
     runs-on: ubuntu-latest
     steps:
-      - name: Download Artifacts
+      - name: Download
         uses: actions/download-artifact@v4
         with:
           path: ./all-assets
           merge-multiple: true
+
       - name: Push to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v0.9.${{ github.run_number }}
           files: |
-            ./all-assets/*
+                 ./all-assets/Converter-win-x86-Setup.exe
+                 ./all-assets/Converter-win-x64-Setup.exe
+                 ./all-assets/Converter-win-arm64-Setup.exe
+                 ./all-assets/Converter-osx-x64-Setup.pkg
+                 ./all-assets/Converter-osx-arm64-Setup.pkg
+                 ./all-assets/Converter-linux-x86.AppImage
+                 ./all-assets/Converter-linux-x64.AppImage
+                 ./all-assets/Converter-linux-arm64.AppImage
+                 ./all-assets/Converter-osx-x86.dmg
+                 ./all-assets/Converter-win-x86-Portable.zip
+                 ./all-assets/Converter-win-x64-Portable.zip
+                 ./all-assets/Converter-win-arm64-Portable.zip
+                 ./all-assets/Converter-osx-x64-Portable.zip
+                 ./all-assets/Converter-osx-arm64-Portable.zip
