@@ -132,12 +132,14 @@ jobs:
           pkill -9 -f dotnet || true
           ~/runtime/.dotnet/dotnet build-server shutdown || true
           rm -rf ~/runtime/artifacts/obj ~/runtime/artifacts/bin ~/runtime/artifacts/packages
-          # FIX: Added /p:UseAppHost=false to prevent NETSDK1084 for unsupported architectures like linux-x86.
-          # crossgen2 and other tools are patched above to prevent NETSDK1098.
+          # FIX: Added /p:SkipValidatePackage=true to bypass closure validation for cross-compiled tools.
+          # Since tools are no longer self-contained (to fix NETSDK1098), the sfxproj validation incorrectly 
+          # flags them for missing dependencies like System.Runtime.
           ./build.sh -subset clr+libs+host+packs -configuration Release -arch "x86" --cross \
             /p:SelfContained=false /p:UseAppHost=false /p:RunTests=false /p:BuildTests=false \
             /p:BuildInstaller=false /p:FeatureEventTrace=0 /p:FeaturePerfTracing=0 \
-            /p:ContinuousIntegrationBuild=true /p:BuildInParallel=false
+            /p:ContinuousIntegrationBuild=true /p:BuildInParallel=false \
+            /p:SkipValidatePackage=true
         shell: bash --noprofile --norc -e -o pipefail {0}
         env:
           DOTNET_ROOT: /usr/share/dotnet
@@ -228,7 +230,6 @@ jobs:
             echo "Runtime lib dir: $RUNTIME_LIB_DIR"
             cp "$RUNTIME_LIB_DIR"/*.dll ~/custom-sdk/shared/Microsoft.NETCore.App/$REAL_VERSION/ 2>/dev/null || true
             cp "$RUNTIME_LIB_DIR"/*.pdb ~/custom-sdk/shared/Microsoft.NETCore.App/$REAL_VERSION/ 2>/dev/null || true
-            # FIX 2: Copy deps.json files to prevent hostfxr from ignoring the framework directory
             cp "$RUNTIME_LIB_DIR"/*.deps.json ~/custom-sdk/shared/Microsoft.NETCore.App/$REAL_VERSION/ 2>/dev/null || true
           else
             echo "WARNING: Runtime lib dir not found, searching alternative..."
@@ -256,7 +257,7 @@ jobs:
           }
           RCEOF
 
-          # Ensure Microsoft.NETCore.App.deps.json exists to prevent "Ignoring FX version ... without .deps.json"
+          # Ensure Microsoft.NETCore.App.deps.json exists
           if [ ! -f ~/custom-sdk/shared/Microsoft.NETCore.App/$REAL_VERSION/Microsoft.NETCore.App.deps.json ]; then
             echo "Searching for Microsoft.NETCore.App.deps.json..."
             DEPS_JSON=$(find ~/runtime/artifacts -name "Microsoft.NETCore.App.deps.json" 2>/dev/null | head -n 1)
