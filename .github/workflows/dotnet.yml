@@ -135,8 +135,8 @@ jobs:
           ~/runtime/.dotnet/dotnet build-server shutdown || true
           rm -rf ~/runtime/artifacts/obj ~/runtime/artifacts/bin ~/runtime/artifacts/packages
 
-          # Build NativeAOT components: ILCompiler + runtime libs + corelib + framework libs
-          ./build.sh -subset clr.corelib+clr.nativeaotlibs+clr.aot+libs+libs.nativeaot+host+packs \
+          # clr.aot includes everything: ILCompiler + NativeAOT CoreLib + NativeAOT runtime
+          ./build.sh -subset clr+clr.aot+libs+host+packs \
             -configuration Release -arch "x86" --cross \
             /p:SelfContained=false /p:UseAppHost=false /p:RunTests=false /p:BuildTests=false \
             /p:BuildInstaller=false /p:FeatureEventTrace=0 /p:FeaturePerfTracing=0 \
@@ -145,7 +145,7 @@ jobs:
         shell: bash --noprofile --norc -e -o pipefail {0}
         env:
           DOTNET_ROOT: /usr/share/dotnet
-
+          
       - name: Collect NativeAOT artifacts
         shell: bash
         run: |
