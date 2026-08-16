@@ -132,9 +132,7 @@ jobs:
           pkill -9 -f dotnet || true
           ~/runtime/.dotnet/dotnet build-server shutdown || true
           rm -rf ~/runtime/artifacts/obj ~/runtime/artifacts/bin ~/runtime/artifacts/packages
-          # FIX: Added /p:SkipValidatePackage=true to bypass closure validation for cross-compiled tools.
-          # Since tools are no longer self-contained (to fix NETSDK1098), the sfxproj validation incorrectly 
-          # flags them for missing dependencies like System.Runtime.
+          # FIX: Added SkipValidatePackage=true to bypass closure validation for cross-compiled tools.
           ./build.sh -subset clr+libs+host+packs -configuration Release -arch "x86" --cross \
             /p:SelfContained=false /p:UseAppHost=false /p:RunTests=false /p:BuildTests=false \
             /p:BuildInstaller=false /p:FeatureEventTrace=0 /p:FeaturePerfTracing=0 \
@@ -156,13 +154,15 @@ jobs:
           fi
           echo "libcoreclr.so path: $CORECLR_PATH"
           
-          REAL_VERSION=$(strings "$CORECLR_PATH" 2>/dev/null | grep -oE "^[0-9]+\.[0-9]+\.[0-9]+" | sort -V | tail -n 1)
+          # FIX: Added || true to prevent pipefail crash when grep finds no match
+          REAL_VERSION=$(strings "$CORECLR_PATH" 2>/dev/null | grep -oE "^[0-9]+\.[0-9]+\.[0-9]+" | sort -V | tail -n 1 || true)
           if [ -z "$REAL_VERSION" ]; then
             REAL_VERSION="9.0.0"
           fi
           echo "Detected runtime version: $REAL_VERSION"
           
-          COMMIT_HASH=$(strings "$CORECLR_PATH" 2>/dev/null | grep -oE "^[0-9a-f]{40}$" | head -n 1)
+          # FIX: Added || true to prevent pipefail crash when grep finds no match
+          COMMIT_HASH=$(strings "$CORECLR_PATH" 2>/dev/null | grep -oE "^[0-9a-f]{40}$" | head -n 1 || true)
           if [ -z "$COMMIT_HASH" ]; then
             COMMIT_HASH="701ae8136653390e385fccae9f7b192c7713d725"
           fi
@@ -284,7 +284,8 @@ jobs:
           
           echo ""
           echo "=== DLL COUNT ==="
-          DLL_COUNT=$(ls ~/custom-sdk/shared/Microsoft.NETCore.App/$REAL_VERSION/*.dll 2>/dev/null | wc -l)
+          # FIX: Replaced `ls` with `find` to prevent pipefail crash if glob doesn't match
+          DLL_COUNT=$(find ~/custom-sdk/shared/Microsoft.NETCore.App/$REAL_VERSION/ -maxdepth 1 -name "*.dll" 2>/dev/null | wc -l)
           echo "DLL count: $DLL_COUNT"
           
           if [ "$DLL_COUNT" -lt 100 ]; then
@@ -742,7 +743,8 @@ jobs:
           find ./publish/linux-x86 -type f | sort
           echo ""
           echo "=== DLL COUNT in shared ==="
-          ls ./publish/linux-x86/shared/Microsoft.NETCore.App/$RUNTIME_VERSION/*.dll 2>/dev/null | wc -l
+          # FIX: Replaced `ls` with `find` to prevent pipefail crash if glob doesn't match
+          find ./publish/linux-x86/shared/Microsoft.NETCore.App/$RUNTIME_VERSION/ -maxdepth 1 -name "*.dll" 2>/dev/null | wc -l
 
       - name: Assemble Final Package
         shell: bash
