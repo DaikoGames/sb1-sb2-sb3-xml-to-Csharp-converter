@@ -116,8 +116,7 @@ jobs:
           sed -i 's|Components: main universe|Components: main|g' eng/common/cross/build-rootfs.sh
           ./eng/common/cross/build-rootfs.sh "x86" "bookworm" "no-lldb" --skipunmount
 
-      - name: Build .NET Runtime
-        shell: bash
+      - name: Build Runtime
         run: |
           cd ~/runtime
           export ROOTFS_DIR="$HOME/runtime/.tools/rootfs/x86"
@@ -127,7 +126,11 @@ jobs:
           ./build.sh -subset clr+libs+host+packs -configuration Release -arch "x86" --cross \
             /p:SelfContained=false /p:RunTests=false /p:BuildTests=false \
             /p:BuildInstaller=false /p:FeatureEventTrace=0 /p:FeaturePerfTracing=0 \
-            /p:ContinuousIntegrationBuild=true /p:BuildInParallel=false
+            /p:ContinuousIntegrationBuild=true /p:BuildInParallel=false \
+            /p:UseAppHost=false /p:PublishSingleFile=false
+        shell: bash --noprofile --norc -e -o pipefail {0}
+        env:
+          DOTNET_ROOT: /usr/share/dotnet
 
       - name: Assemble Custom SDK
         shell: bash
