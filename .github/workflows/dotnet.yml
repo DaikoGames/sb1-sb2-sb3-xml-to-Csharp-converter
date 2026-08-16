@@ -61,7 +61,7 @@ jobs:
         run: |
           cd ~/runtime
           cat > /tmp/patch.py << 'PYEOF'
-          import os, re
+          import os, re, glob
 
           def replace(filepath, old, new):
               if os.path.exists(filepath):
@@ -83,6 +83,15 @@ jobs:
           replace('src/coreclr/vm/eeprofinterfaces.inl', 'CORProfilerTrackLargeAllocations()', 'FALSE')
           replace('src/coreclr/vm/eeprofinterfaces.inl', 'CORProfilerTrackPinnedAllocations()', 'FALSE')
           replace('src/coreclr/vm/eetoprofinterfaceimpl.inl', 'CORProfilerPresent()', 'FALSE')
+
+          # FIX: Patch tools to prevent NETSDK1098 when UseAppHost=false is passed globally
+          for csproj in glob.glob('src/coreclr/tools/**/*.csproj', recursive=True):
+              replace(csproj, '<PublishTrimmed>true</PublishTrimmed>', '<PublishTrimmed>false</PublishTrimmed>')
+              replace(csproj, '<SelfContained>true</SelfContained>', '<SelfContained>false</SelfContained>')
+              replace(csproj, '<UseLocalAppHostPack>true</UseLocalAppHostPack>', '<UseAppHost>false</UseAppHost>')
+              replace(csproj, '<UseAppHost>true</UseAppHost>', '<UseAppHost>false</UseAppHost>')
+              replace(csproj, '<PublishSingleFile>true</PublishSingleFile>', '<PublishSingleFile>false</PublishSingleFile>')
+              replace(csproj, '<PublishReadyToRun>true</PublishReadyToRun>', '<PublishReadyToRun>false</PublishReadyToRun>')
 
           filepath = 'src/coreclr/inc/profilepriv.inl'
           if os.path.exists(filepath):
@@ -123,9 +132,10 @@ jobs:
           pkill -9 -f dotnet || true
           ~/runtime/.dotnet/dotnet build-server shutdown || true
           rm -rf ~/runtime/artifacts/obj ~/runtime/artifacts/bin ~/runtime/artifacts/packages
-          # FIX 1: Removed /p:UseAppHost=false and /p:PublishSingleFile=false to prevent NETSDK1098 error in crossgen2
+          # FIX: Added /p:UseAppHost=false to prevent NETSDK1084 for unsupported architectures like linux-x86.
+          # crossgen2 and other tools are patched above to prevent NETSDK1098.
           ./build.sh -subset clr+libs+host+packs -configuration Release -arch "x86" --cross \
-            /p:SelfContained=false /p:RunTests=false /p:BuildTests=false \
+            /p:SelfContained=false /p:UseAppHost=false /p:RunTests=false /p:BuildTests=false \
             /p:BuildInstaller=false /p:FeatureEventTrace=0 /p:FeaturePerfTracing=0 \
             /p:ContinuousIntegrationBuild=true /p:BuildInParallel=false
         shell: bash --noprofile --norc -e -o pipefail {0}
