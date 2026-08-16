@@ -38,10 +38,10 @@ I used [ImageMagick](https://imagemagick.org/#gsc.tab=0) for converting the png 
 | Windows | x86 | :white_check_mark: |
 |         | x64 | :white_check_mark: |
 |         | arm64 | :white_check_mark: |
-| Linux | x86 | :white_check_mark: |
+| Linux | x86 | :x: |
 |       | x64 | :white_check_mark: |
 |       | arm64 | :white_check_mark: |
-| MacOS | x86 | :white_check_mark: |
+| MacOS | x86 | :x: |
 |       | x64 | :white_check_mark: |
 |       | arm64 | :white_check_mark: |
 | Web | none | :x: |
