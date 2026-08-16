@@ -123,11 +123,11 @@ jobs:
           pkill -9 -f dotnet || true
           ~/runtime/.dotnet/dotnet build-server shutdown || true
           rm -rf ~/runtime/artifacts/obj ~/runtime/artifacts/bin ~/runtime/artifacts/packages
+          # FIX 1: Removed /p:UseAppHost=false and /p:PublishSingleFile=false to prevent NETSDK1098 error in crossgen2
           ./build.sh -subset clr+libs+host+packs -configuration Release -arch "x86" --cross \
             /p:SelfContained=false /p:RunTests=false /p:BuildTests=false \
             /p:BuildInstaller=false /p:FeatureEventTrace=0 /p:FeaturePerfTracing=0 \
-            /p:ContinuousIntegrationBuild=true /p:BuildInParallel=false \
-            /p:UseAppHost=false /p:PublishSingleFile=false
+            /p:ContinuousIntegrationBuild=true /p:BuildInParallel=false
         shell: bash --noprofile --norc -e -o pipefail {0}
         env:
           DOTNET_ROOT: /usr/share/dotnet
@@ -218,12 +218,15 @@ jobs:
             echo "Runtime lib dir: $RUNTIME_LIB_DIR"
             cp "$RUNTIME_LIB_DIR"/*.dll ~/custom-sdk/shared/Microsoft.NETCore.App/$REAL_VERSION/ 2>/dev/null || true
             cp "$RUNTIME_LIB_DIR"/*.pdb ~/custom-sdk/shared/Microsoft.NETCore.App/$REAL_VERSION/ 2>/dev/null || true
+            # FIX 2: Copy deps.json files to prevent hostfxr from ignoring the framework directory
+            cp "$RUNTIME_LIB_DIR"/*.deps.json ~/custom-sdk/shared/Microsoft.NETCore.App/$REAL_VERSION/ 2>/dev/null || true
           else
             echo "WARNING: Runtime lib dir not found, searching alternative..."
             RUNTIME_LIB_DIR=$(find ~/runtime/artifacts/bin -type d -name "net9.0" 2>/dev/null | head -n 1)
             if [ -n "$RUNTIME_LIB_DIR" ]; then
               echo "Alt runtime lib dir: $RUNTIME_LIB_DIR"
               cp "$RUNTIME_LIB_DIR"/*.dll ~/custom-sdk/shared/Microsoft.NETCore.App/$REAL_VERSION/ 2>/dev/null || true
+              cp "$RUNTIME_LIB_DIR"/*.deps.json ~/custom-sdk/shared/Microsoft.NETCore.App/$REAL_VERSION/ 2>/dev/null || true
             fi
           fi
           
@@ -242,6 +245,31 @@ jobs:
             }
           }
           RCEOF
+
+          # Ensure Microsoft.NETCore.App.deps.json exists to prevent "Ignoring FX version ... without .deps.json"
+          if [ ! -f ~/custom-sdk/shared/Microsoft.NETCore.App/$REAL_VERSION/Microsoft.NETCore.App.deps.json ]; then
+            echo "Searching for Microsoft.NETCore.App.deps.json..."
+            DEPS_JSON=$(find ~/runtime/artifacts -name "Microsoft.NETCore.App.deps.json" 2>/dev/null | head -n 1)
+            if [ -n "$DEPS_JSON" ]; then
+              cp "$DEPS_JSON" ~/custom-sdk/shared/Microsoft.NETCore.App/$REAL_VERSION/
+              echo "Copied $DEPS_JSON"
+            else
+              echo "WARNING: Microsoft.NETCore.App.deps.json not found! Creating minimal fallback..."
+              cat > ~/custom-sdk/shared/Microsoft.NETCore.App/$REAL_VERSION/Microsoft.NETCore.App.deps.json << 'DEPS'
+          {
+            "runtimeTarget": {
+              "name": ".NETCoreApp,Version=v9.0",
+              "signature": ""
+            },
+            "compilationOptions": {},
+            "targets": {
+              ".NETCoreApp,Version=v9.0": {}
+            },
+            "libraries": {}
+          }
+          DEPS
+            fi
+          fi
           
           echo ""
           echo "=== DLL COUNT ==="
