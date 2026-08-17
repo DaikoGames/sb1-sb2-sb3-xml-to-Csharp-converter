@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Scratch → Snap! Converter</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+  body { max-width: 640px; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
+  h1 { font-size: 1.6rem; margin-bottom: 0.2rem; }
+  p.sub { color: #666; margin-top: 0; }
+  #drop {
+    border: 2px dashed #888; border-radius: 12px;
+    padding: 2rem; text-align: center; cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  #drop.hover { border-color: #4a90e2; background: rgba(74,144,226,0.08); }
+  #status { margin-top: 1rem; white-space: pre-wrap; font-family: ui-monospace, monospace; font-size: 0.9rem; }
+  button { font: inherit; padding: 0.5rem 1rem; border-radius: 6px; border: 1px solid #888; cursor: pointer; }
+  code { background: rgba(127,127,127,0.15); padding: 0 4px; border-radius: 3px; }
+  details { margin-top: 1rem; }
+</style>
+</head>
+<body>
+  <h1>Scratch → Snap!</h1>
+  <p class="sub">Drop an <code>.sb3</code> file. Everything runs locally in your browser.</p>
+
+  <div id="drop">
+    <p><strong>Drop .sb3 here</strong> or click to choose a file</p>
+    <input type="file" id="file" accept=".sb3" hidden>
+    <button type="button" id="pick">Choose file</button>
+  </div>
+
+  <div id="status"></div>
+
+  <details>
+    <summary>CLI usage</summary>
+    <pre>npm install jszip
+node converter.js path/to/project.sb3 [output.xml]</pre>
+  </details>
+
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="converter.js"></script>
+<script>
+  const drop = document.getElementById("drop");
+  const fileInput = document.getElementById("file");
+  const pick = document.getElementById("pick");
+  const status = document.getElementById("status");
+
+  function log(msg) { status.textContent = msg; }
+
+  async function handle(file) {
+    if (!file) return;
+    log("Converting " + file.name + "…");
+    try {
+      const buf = await file.arrayBuffer();
+      const { xml, warnings } = await ScratchToSnap.convert(buf);
+      const blob = new Blob([xml], { type: "text/xml" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const outName = file.name.replace(/\.sb3?$/i, "") + ".xml";
+      a.href = url; a.download = outName; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      let msg = "Done: " + outName + " (" + Math.round(xml.length / 1024) + " KB)";
+      if (warnings.length) msg += "\nUnconverted opcodes: " + warnings.join(", ");
+      log(msg);
+    } catch (e) {
+      log("Error: " + (e && e.message ? e.message : e));
+    }
+  }
+
+  pick.addEventListener("click", () => fileInput.click());
+  drop.addEventListener("click", (e) => { if (e.target === drop || e.target.tagName === "P") fileInput.click(); });
+  fileInput.addEventListener("change", () => handle(fileInput.files[0]));
+  ["dragenter", "dragover"].forEach(ev => drop.addEventListener(ev, (e) => {
+    e.preventDefault(); drop.classList.add("hover");
+  }));
+  ["dragleave", "drop"].forEach(ev => drop.addEventListener(ev, (e) => {
+    e.preventDefault(); drop.classList.remove("hover");
+  }));
+  drop.addEventListener("drop", (e) => handle(e.dataTransfer.files[0]));
+</script>
+</body>
+</html>
