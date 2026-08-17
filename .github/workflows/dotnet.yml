@@ -194,170 +194,44 @@ jobs:
           name: vpk-artifacts-${{ matrix.runtime }}
           path: ./Releases/*
           
-  build_ubuntu-latest_linux-x86:
-   needs: build
-   runs-on: ubuntu-latest
-   steps:
+  build-android:
+    name: Build for PrimeOS / Bliss OS (x64 & arm64)
+    runs-on: ubuntu-latest
+    steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Checkout External Dependency (Scratch-Format-Converter)
-        uses: actions/checkout@v4
-        with:
-          repository: 'DaikoGames/Scratch-Format-Converter'
-          path: Scratch-Format-Converter
-          
-      - name: Checkout External Dependency (Translator)
-        uses: actions/checkout@v4
-        with:
-          repository: 'DaikoGames/Translate-Folder'
-          path: Translate-Folder
-          
-      - name: Setup .NET
+      - name: Setup .NET 9.0
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 9.0.x
+          dotnet-version: '9.0.x'
 
-      - name: Build and Publish App
-        shell: bash
+      - name: Setup Android SDK (Die Magie passiert hier!)
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android Workload
+        run: |
+          dotnet workload install android
+          dotnet workload update
+
+      - name: Build Android x64 APK (Für PrimeOS auf normalen PCs)
         run: |
           dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" \
             -c Release \
-            -r win-x86 \
-            -o "./publish/linux-x86" \
-            -p:SelfContained=true \
-            -p:PublishSingleFile=true
-  
-      - name: Add Wine and Build AppImage - (Linux x86)
-        shell: bash
-        run: |
-          cd "./publish/linux-x86"
-          curl -sLf --retry 5 --retry-connrefused -O "https://github.com/Kron4ek/Wine-Builds/releases/download/11.11/wine-11.11-x86.tar.xz"
-          tar -xf wine-11.11-x86.tar.xz --no-same-owner || true
-          rm wine-11.11-x86.tar.xz
-          echo '#!/bin/bash' > ./AppRun
-          echo 'HERE="$(dirname "$(readlink -f "${0}")")"' >> ./AppRun
-          echo '"$HERE/wine-11.11-x86/bin/wine" "$HERE/Converter.exe"' >> ./AppRun
-          chmod +x ./AppRun   
-          echo "[Desktop Entry]" > Converter.desktop
-          echo "Name=Converter" >> Converter.desktop
-          echo "Exec=AppRun" >> Converter.desktop
-          echo "Type=Application" >> Converter.desktop
-          echo "Icon=Converter" >> Converter.desktop
-          echo "Categories=Utility;" >> Converter.desktop
-          cp ./ConverterIcon/Converter.png ./Converter.png || cp ./ConverterIcon/*.png ./Converter.png || touch Converter.png
-          curl -L -O "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage"
-          chmod +x appimagetool-x86_64.AppImage
-          cd ..
-          ARCH=i686 ./linux-x86/appimagetool-x86_64.AppImage --appimage-extract-and-run ./linux-x86 Converter-linux-x86.AppImage
-      
-      - name: Upload Artifact (linux x86)
+            -f net9.0-android \
+            -r android-x64 \
+            -o "./Releases" \
+            -p:AndroidPackageFormat=apk \
+            -p:ApplicationTitle="Converter-android-x64"
+
+      - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: vpk-artifact-linux_x86
-          path: ./publish/Converter-linux-x86.AppImage
-
-  build_macos-latest_osx-x86:
-   needs: build
-   runs-on: macos-latest
-   steps: 
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Checkout External Dependency (Scratch-Format-Converter)
-        uses: actions/checkout@v4
-        with:
-          repository: 'DaikoGames/Scratch-Format-Converter'
-          path: Scratch-Format-Converter
-          
-      - name: Checkout External Dependency (Translator)
-        uses: actions/checkout@v4
-        with:
-          repository: 'DaikoGames/Translate-Folder'
-          path: Translate-Folder
-          
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 9.0.x
-
-      - name: Build and Publish App
-        shell: bash
-        run: |
-          dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" \
-            -c Release \
-            -r win-x86 \
-            -o "./publish/macos-x86-app" \
-            -p:SelfContained=true \
-            -p:PublishSingleFile=true
-
-      - name: Build macOS x86 App Bundle with Wine
-        shell: bash
-        run: |
-          mkdir -p "Converter.app/Contents/MacOS"
-          mkdir -p "Converter.app/Contents/Resources/wine"
-          mkdir -p "Converter.app/Contents/Resources/app"
-          
-          cp -R ./publish/macos-x86-app/* "Converter.app/Contents/Resources/app/"
-          
-          # Wine stabil und nativ über Homebrew Cask auf dem Runner installieren
-          brew install --cask wine-stable
-          
-          # Ermittle dynamisch den installierten Pfad von Wine auf dem Runner
-          WINE_PATH=$(which wine)
-          if [ -z "$WINE_PATH" ]; then
-            WINE_PATH="/Applications/Wine Stable.app/Contents/Resources/wine/bin/wine"
-          fi
-          
-          cat << EOF > "Converter.app/Contents/MacOS/launcher"
-          #!/bin/bash
-          DIR="\$(cd "\$(dirname "\$0")" && pwd)"
-          
-          if [ -f "\$DIR/../Resources/wine/bin/wine" ]; then
-              WINE_BIN="\$DIR/../Resources/wine/bin/wine"
-          else
-              WINE_BIN="$WINE_PATH"
-          fi
-          
-          cd "\$DIR/../Resources/app"
-          env WINEDEBUG=-all "\$WINE_BIN" "Converter.exe"
-          EOF
-          
-          chmod +x "Converter.app/Contents/MacOS/launcher"
-          
-          cat << 'EOF' > "Converter.app/Contents/Info.plist"
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-              <key>CFBundleExecutable</key>
-              <string>launcher</string>
-              <key>CFBundleIdentifier</key>
-              <string>com.daikogames.converter.x86</string>
-              <key>CFBundleName</key>
-              <string>Converter</string>
-              <key>CFBundlePackageType</key>
-              <string>APPL</string>
-              <key>CFBundleShortVersionString</key>
-              <string>0.9</string>
-          </dict>
-          </plist>
-          EOF
-
-      - name: Package App Bundle into single DMG
-        shell: bash
-        run: |
-          mkdir ./dist
-          hdiutil create -volname "Converter-osx-x86" -srcfolder "Converter.app" -ov -format UDZO "./dist/Converter-osx-x86.dmg"
-
-      - name: Upload Artifact (macos x86)
-        uses: actions/upload-artifact@v4
-        with:
-          name: vpk-artifact-osx-x86
-          path: ./dist/Converter-osx-x86.dmg
+          name: vpk-artifacts-${{ matrix.runtime }}
+          path: ./Releases/*
 
   release:
-    needs: [build, build_ubuntu-latest_linux-x86, build_macos-latest_osx-x86]
+    needs: [build, build-android]
     runs-on: ubuntu-latest
     steps:
       - name: Download
@@ -385,3 +259,4 @@ jobs:
                  ./all-assets/Converter-win-arm64-Portable.zip
                  ./all-assets/Converter-osx-x64-Portable.zip
                  ./all-assets/Converter-osx-arm64-Portable.zip
+                 ./all-assets/Converter-android-x64.apk
