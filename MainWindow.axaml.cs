@@ -2,15 +2,14 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
+using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
 using Avalonia.Styling;
 using BergamotTranslatorSharp;
 using CliWrap;
 using CliWrap.Buffered;
 using Downloader;
-using ImageMagick;
-//Gotta check if I still need SVG when I have ImageMagick
-using ImageMagick.Drawing;
+using ExCSS;
 using LibVLCSharp.Shared;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -18,6 +17,8 @@ using PopUpWindowNamespace;
 using SharpCompress;
 using SharpCompress.Archives;
 using SharpCompress.Common;
+using SkiaSharp;
+using SkiaSharp.Extended.Svg;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -25,6 +26,7 @@ using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Net.Http;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -324,7 +326,7 @@ public partial class MainWindow : Window
                 ParallelDownload = true,
                 ChunkCount = 1
             };
-
+           
             string IconFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ConverterIcon");
             if (!Directory.Exists(IconFolder))
             {
@@ -1007,17 +1009,56 @@ public partial class MainWindow : Window
             {
                 try
                 {
-                    if (extensionS.Contains(".sb") | extensionS.Contains(".sb2") | extensionS.Contains(".sb3") | extensionS.Contains(".sjr"))
+                    //Check if it is a File or a Link
+                    if (File.Exists(Filename))
                     {
-                        if (Scratch == true | Snap == true)
+                        if (extensionS.Contains(".sb") | extensionS.Contains(".sb2") | extensionS.Contains(".sb3") | extensionS.Contains(".sjr"))
                         {
-                            await Task.Run(() => sbfiles(extensionS));
+                            if (Scratch == true | Snap == true)
+                            {
+                                await Task.Run(() => sbfiles(extensionS));
+                            }
+                        }
+                        if (extensionS.Contains(".xml"))
+                        {
+                            await Task.Run(() => xmlfiles());
                         }
                     }
-                    if (extensionS.Contains(".xml"))
+                    if (!File.Exists(Filename))
                     {
-                        await Task.Run(() => xmlfiles());
+                        using (HttpClient client = new HttpClient())
+                        {
+                            try
+                            {
+                                string DownloadsFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
+                                var request = new HttpRequestMessage(HttpMethod.Head, Filename);
+                                var response = await client.SendAsync(request);
+                                if (Filename.Contains("https://share.catrobat.org/app/project/"))
+                                {
+                                    //Change the URL and download it
+                                    UriBuilder builder = new UriBuilder(Filename);
+                                    string LinkCode = Filename.Replace("https://share.catrobat.org/app/project/", "").Trim();
+                                    // 2. Gewünschte Bestandteile ändern
+                                    string DownloadLink = "https://share.catrobat.org/api/projects/" + LinkCode + "/catrobat";
+                                    var DownloadOption = new DownloadConfiguration
+                                    {
+                                        ParallelDownload = true,
+                                        ChunkCount = 1
+                                    };
+                                    var CatrobatDownloader = new DownloadService(DownloadOption);
+                                    await CatrobatDownloader.DownloadFileTaskAsync(DownloadLink, new DirectoryInfo(DownloadsFolder));
+                                }
+                            }
+                            catch(Exception ex)
+                            {
+
+                            }
+                            
+                        }
                     }
+                    //https://share.catrobat.org/app/project/18293496-bbdf-4e75-9d7b-068e99d47167
+                    //https://share.catrobat.org/api/projects/18293496-bbdf-4e75-9d7b-068e99d47167/catrobat
+                    
                 }
                 catch (Exception ex)
                 {
@@ -1281,7 +1322,7 @@ public partial class MainWindow : Window
 
                         //Values (Messages) are the same names as Images currently -FIX IT ASAP lol
 
-                        string NewImageName = Path.Combine(GameFolder, Path.GetFileNameWithoutExtension(SpriteName) + ".png");
+                        /*string NewImageName = Path.Combine(GameFolder, Path.GetFileNameWithoutExtension(SpriteName) + ".png");
 
                         using (var SVGImage = new MagickImage(SpriteFolder))
                         {
@@ -1305,9 +1346,55 @@ public partial class MainWindow : Window
                             File.AppendAllText(WindowEditorFile, ">");
                             File.AppendAllText(WindowEditorFile, "\n           </Image>");
                             File.AppendAllText(WindowCsFile, "\n " + Path.GetFileNameWithoutExtension(SpriteName) + ".Source = new Bitmap(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, \"" + Path.GetFileName(NewImageName) + "\"));");
-                        }
+                        }*/
 
+                       
+                        string NewImageName = Path.Combine(GameFolder, Path.GetFileNameWithoutExtension(SpriteName) + ".png");
+
+                        var svg = new SkiaSharp.Extended.Svg.SKSvg();
+                        using (var picture = svg.Load(SpriteFolder)) 
+                        {
+                            
+                            var bounds = picture.CullRect;
+                            int width = (int)Math.Ceiling(bounds.Width);
+                            int height = (int)Math.Ceiling(bounds.Height);
+
+                            using (var bitmap = new SKBitmap(width, height))
+                            using (var canvas = new SKCanvas(bitmap))
+                            {
+                                canvas.Clear(SKColors.Transparent);
+                                canvas.DrawPicture(picture);
+                                canvas.Flush();
+
+                                
+                                using (var image = SKImage.FromBitmap(bitmap))
+                                using (var data = image.Encode(SKEncodedImageFormat.Png, 100))
+                                using (var stream = File.OpenWrite(NewImageName))
+                                {
+                                    data.SaveTo(stream);
+                                }
+                            }
+                        }
+                        using (var PNGimage = SKBitmap.Decode(NewImageName))
+                        {
+                            string RoughPNGwidth = Convert.ToString(PNGimage.Width);
+                            string RoughPNGheight = Convert.ToString(PNGimage.Height);
+                            double PNGwidth = Convert.ToDouble(RoughPNGwidth);
+                            double PNGheight = Convert.ToDouble(RoughPNGheight);
+
+                            File.AppendAllText(WindowEditorFile, "\n <Image");
+                            File.AppendAllText(WindowEditorFile, " Name=\"" + Path.GetFileNameWithoutExtension(SpriteName) + "\"");
+                            File.AppendAllText(WindowEditorFile, "\n                  Width=\"" + (PNGwidth) + "\"");
+                            File.AppendAllText(WindowEditorFile, "\n                  Height=\"" + (PNGheight) + "\"");
+                            //THESE COORDINATE SYSTEMS ARE DIFFERENT -need to understand canvas coordinate system correctly
+                            File.AppendAllText(WindowEditorFile, "\n                  Canvas.Left=\"" + 0 + "\"");
+                            File.AppendAllText(WindowEditorFile, "\n                  Canvas.Top=\"" + 0 + "\"");
+                            File.AppendAllText(WindowEditorFile, ">");
+                            File.AppendAllText(WindowEditorFile, "\n           </Image>");
+                            File.AppendAllText(WindowCsFile, "\n " + Path.GetFileNameWithoutExtension(SpriteName) + ".Source = new Bitmap(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, \"" + Path.GetFileName(NewImageName) + "\"));");
+                        }
                     }
+
                 }
 
                 if (LINE.Contains("playsnd"))
@@ -1613,12 +1700,38 @@ public partial class MainWindow : Window
                                 //This is the svg to png converter XD
                                 try
                                 {
-                                    string pngfolder = ImageName.Replace(".svg", ".png");
+                                    /*string pngfolder = ImageName.Replace(".svg", ".png");
                                     using (var PNGImage = new MagickImage(ImageName))
                                     {
                                         PNGImage.BackgroundColor = MagickColors.Transparent;
                                         PNGImage.Format = MagickFormat.Png;
                                         PNGImage.Write(pngfolder);
+                                    }
+                                     File.Delete(ImageName);*/
+
+                                    string pngfolder = ImageName.Replace(".svg", ".png");
+
+                                    var svg = new SkiaSharp.Extended.Svg.SKSvg();
+                                    using (var picture = svg.Load(ImageName))
+                                    {
+                                        var bounds = picture.CullRect;
+                                        int width = (int)Math.Ceiling(bounds.Width);
+                                        int height = (int)Math.Ceiling(bounds.Height);
+
+                                        using (var bitmap = new SKBitmap(width, height))
+                                        using (var canvas = new SKCanvas(bitmap))
+                                        {
+                                            canvas.Clear(SKColors.Transparent); // Equivalent to PNGImage.BackgroundColor = MagickColors.Transparent;
+                                            canvas.DrawPicture(picture);
+                                            canvas.Flush();
+
+                                            using (var image = SKImage.FromBitmap(bitmap))
+                                            using (var data = image.Encode(SKEncodedImageFormat.Png, 100))
+                                            using (var stream = File.Create(pngfolder))
+                                            {
+                                                data.SaveTo(stream); // Equivalent to PNGImage.Write(pngfolder);
+                                            }
+                                        }
                                     }
                                     File.Delete(ImageName);
                                 }
@@ -1763,7 +1876,7 @@ public partial class MainWindow : Window
                     ImageNameN = Path.Combine(GameFolder, "Game.ico");
                     File.Copy(ICON, ImageNameN, true);
                 }
-                if (ICON.Contains("png"))
+                /*if (ICON.Contains("png"))
                 {
                     ImageNameN = Path.Combine(GameFolder, "Game.png");
                     NewImageName = Path.Combine(GameFolder, "GameIcon.ico");
@@ -1798,7 +1911,75 @@ public partial class MainWindow : Window
                         SVGImage.Format = MagickFormat.Icon;
                         SVGImage.Write(NewImageName);
                     }
+                }*/
+                // Note: SkiaSharp does not natively support encoding .ICO files, which means i will drop support
+
+                if (ICON.Contains("jpg"))
+                {
+                    ImageNameN = Path.Combine(GameFolder, "Game.jpg");
+                    // Changed to .png to honor your decision to drop .ico support!
+                    NewImageName = Path.Combine(GameFolder, "GameIcon.png");
+                    File.Copy(ICON, ImageNameN, true);
+
+                    // Load JPG and convert to PNG using SkiaSharp
+                    using (var stream = File.OpenRead(ImageNameN))
+                    {
+                        using (var jpgImage = SKBitmap.Decode(stream))
+                        {
+                            using (var image = SKImage.FromBitmap(jpgImage))
+                            {
+                                using (var data = image.Encode(SKEncodedImageFormat.Png, 100))
+                                {
+                                    using (var outStream = File.OpenWrite(NewImageName))
+                                    {
+                                        data.SaveTo(outStream);
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
+
+                //This should work - i am testing it right away :)
+                if (ICON.Contains("svg"))
+                {
+                    ImageNameN = Path.Combine(GameFolder, "Game.svg");
+                    // Changed to .png to honor your decision to drop .ico support!
+                    NewImageName = Path.Combine(GameFolder, "GameIcon.png");
+                    File.Copy(ICON, ImageNameN, true);
+
+                    // Load SVG and convert to PNG using SkiaSharp
+                    var svg = new SkiaSharp.Extended.Svg.SKSvg();
+                    using (var picture = svg.Load(ImageNameN))
+                    {
+                        var bounds = picture.CullRect;
+                        int width = (int)Math.Ceiling(bounds.Width);
+                        int height = (int)Math.Ceiling(bounds.Height);
+
+                        using (var bitmap = new SKBitmap(width, height))
+                        {
+                            using (var canvas = new SKCanvas(bitmap))
+                            {
+                                canvas.Clear(SKColors.Transparent);
+                                canvas.DrawPicture(picture);
+                                canvas.Flush();
+                            }
+
+                            using (var image = SKImage.FromBitmap(bitmap))
+                            {
+                                using (var data = image.Encode(SKEncodedImageFormat.Png, 100))
+                                {
+                                    using (var outStream = File.OpenWrite(NewImageName))
+                                    {
+                                        data.SaveTo(outStream);
+                                    }
+                                }
+                            }
+                        }
+                        
+                    }
+                }
+
             }
 
             if (Scratch == false && Snap == true)
@@ -1952,8 +2133,34 @@ public partial class MainWindow : Window
                         {
                             if (jsonline.Contains("\"@name\":") && NextisImageName == true)
                             {
-                                string ImageName = jsonline.Replace("\"@name\":", "").Replace("\"", "").Replace(",", "").Trim();
+                                /*string ImageName = jsonline.Replace("\"@name\":", "").Replace("\"", "").Replace(",", "").Trim();
                                 using (var PNGimage = new MagickImage(Path.Combine(GameFolder, File.ReadAllLines(jsonPath).Skip(Line - 1).Take(1).First().Replace("\"@name\":", "").Replace("\"", "").Replace(",", "").Trim() + ".png")))
+                                {
+                                    string RoughPNGwidth = Convert.ToString(PNGimage.Width);
+                                    string RoughPNGheight = Convert.ToString(PNGimage.Height);
+                                    double PNGwidth = Convert.ToDouble(RoughPNGwidth);
+                                    double PNGheight = Convert.ToDouble(RoughPNGheight);
+                                    double SCALEROUGH = double.Parse(File.ReadAllLines(jsonPath).Skip(ScaleNumber).Take(1).First().Replace("\"@scale\":", "").Replace("\"", "").Replace(",", "").Trim(), CultureInfo.InvariantCulture);
+                                    double ScALE = SCALEROUGH;
+                                    double XCOORDINATEROUGH = double.Parse(File.ReadAllLines(jsonPath).Skip(XCoordinateLine).Take(1).First().Replace("\"@x\":", "").Replace("\"", "").Replace(",", "").Trim(), CultureInfo.InvariantCulture);
+                                    double XCOORDINATE = XCOORDINATEROUGH;
+                                    double YCOORDINATEROUGH = double.Parse(File.ReadAllLines(jsonPath).Skip(YCoordinateLine).Take(1).First().Replace("\"@y\":", "").Replace("\"", "").Replace(",", "").Trim(), CultureInfo.InvariantCulture);
+                                    double YCOORDINATE = YCOORDINATEROUGH;
+                                    File.AppendAllText(WindowEditorFile, "\n                  Width=\"" + ((PNGwidth) * ScALE) + "\"");
+                                    File.AppendAllText(WindowEditorFile, "\n                  Height=\"" + ((PNGheight) * ScALE) + "\"");
+                                    //THESE COORDINATE SYSTEMS ARE DIFFERENT -need to understand canvas coordinate system correctly
+                                    File.AppendAllText(WindowEditorFile, "\n                  Canvas.Left=\"" + (240 + XCOORDINATE - ((PNGwidth * ScALE) / 2)) + "\"");
+                                    File.AppendAllText(WindowEditorFile, "\n                  Canvas.Top=\"" + (180 + (-YCOORDINATE) - ((PNGheight * ScALE) / 2)) + "\"");
+                                    File.AppendAllText(WindowEditorFile, ">");
+                                    File.AppendAllText(WindowEditorFile, "\n           </Image>");
+                                }
+                                File.AppendAllText(WindowCsFile, "@" + ImageName + ".png\"));");
+                                //Now write the whole thing into the File
+                                NextisImageName = false;*/
+
+                                string ImageName = jsonline.Replace("\"@name\":", "").Replace("\"", "").Replace(",", "").Trim();
+
+                                using (var PNGimage = SKBitmap.Decode(Path.Combine(GameFolder, File.ReadAllLines(jsonPath).Skip(Line - 1).Take(1).First().Replace("\"@name\":", "").Replace("\"", "").Replace(",", "").Trim() + ".png")))
                                 {
                                     string RoughPNGwidth = Convert.ToString(PNGimage.Width);
                                     string RoughPNGheight = Convert.ToString(PNGimage.Height);
@@ -2023,8 +2230,9 @@ public partial class MainWindow : Window
                         string Text = File.ReadAllLines(jsonPath).Skip(Line).Take(1).First().Replace("\"l\": ", "").Replace("\"", "").Replace(",", "").Trim();
                         TextNumber = TextNumber + 1;
                         string FileNameTitle = Text.Replace(" ", "_").Replace("�", "").Replace("^", "").Replace("!", "").Replace("\"", "").Replace("�", "").Replace("$", "").Replace("%", "").Replace("&", "").Replace("/", "").Replace("{", "").Replace("(", "").Replace("[", "").Replace(")", "").Replace("]", "").Replace("=", "").Replace("}", "").Replace("?", "").Replace("\\", "").Replace("`", "").Replace("�", "").Replace("@", "").Replace("*", "").Replace("+", "").Replace("~", "").Replace("'", "").Replace("#", "").Replace(">", "").Replace("<", "").Replace("|", "").Replace(";", "").Replace(",", "").Replace(":", "").Replace(".", "").Replace("-", "").Replace("_", "").Trim();
-                        string FileName = Path.Combine(GameFolder, FileNameTitle + ".png");
-                        if (!File.Exists(FileName))
+
+                        //string FileName = Path.Combine(GameFolder, FileNameTitle + ".png");
+                        /*if (!File.Exists(FileName))
                         {
                             using var ImagePath = new MagickImage(MagickColors.Transparent, 480, 360);
                             new Drawables()
@@ -2035,6 +2243,51 @@ public partial class MainWindow : Window
                                 .Text(240, 180, Text)
                                 .Draw(ImagePath);
                             ImagePath.Write(FileName);
+                        }*/
+
+                        string FileName = Path.Combine(GameFolder, FileNameTitle + ".png");
+                        if (!File.Exists(FileName))
+                        {
+                            // 1. Bitmap und Canvas erstellen (damit 'canvas' im Kontext existiert!)
+                            using (var bitmap = new SKBitmap(480, 360))
+                            using (var canvas = new SKCanvas(bitmap))
+                            {
+                                canvas.Clear(SKColors.Transparent);
+
+                                // 2. Typografie definieren (SKFont)
+                                using (var typeface = SKTypeface.FromFamilyName("Calibri"))
+                                using (var font = new SKFont(typeface, 67))
+                                // 3. Visuelles Styling definieren (SKPaint)
+                                using (var paint = new SKPaint())
+                                {
+                                    paint.Color = SKColors.Black;
+                                    paint.IsAntialias = true;
+
+                                    // 4. X berechnen (Horizontale Zentrierung)
+                                    float textWidth = font.MeasureText(Text, paint);
+                                    float x = 240 - (textWidth / 2f);
+
+                                    // 5. Y berechnen (Vertikale Zentrierung)
+                                    SKRect bounds;
+                                    // WICHTIG: Hier muss zwingend 'out' stehen, nicht 'ref'!
+                                    font.MeasureText(Text, out bounds, paint);
+
+                                    float y = 180 - bounds.MidY;
+
+                                    // 6. Text auf den Canvas zeichnen
+                                    canvas.DrawText(Text, x, y, font, paint);
+                                }
+
+                                canvas.Flush();
+
+                                // 7. Als PNG speichern
+                                using (var image = SKImage.FromBitmap(bitmap))
+                                using (var data = image.Encode(SKEncodedImageFormat.Png, 100))
+                                using (var stream = File.OpenWrite(FileName))
+                                {
+                                    data.SaveTo(stream);
+                                }
+                            }
                         }
 
                         File.AppendAllText(WindowEditorFile, "\n           <Image Name=\"Image" + TextNumber + "\"");
@@ -2837,10 +3090,21 @@ public partial class MainWindow : Window
                                 string NewScaleRough = File.ReadAllLines(jsonPath).Skip(Line).Take(1).First();
                                 int NewScale = Convert.ToInt32(NewScaleRough.Replace("\"l\":", "").Replace("\"", "").Trim());
 
-                                using (var image = new MagickImage(Path.Combine(GameFolder, LastObject + ".png"))) // it somehow uses sounds too - error !!!IMPORTANT
+                                /*using (var image = new MagickImage(Path.Combine(GameFolder, LastObject + ".png"))) // it somehow uses sounds too - error !!!IMPORTANT
                                 {
                                     double SizeX = image.Width;
                                     double SizeY = image.Height;
+                                    File.AppendAllText(WindowCsFile, "\n var Image" + LastObject + "= this.FindControl<Image>(\"" + LastObject + "\");");
+                                    File.AppendAllText(WindowCsFile, "\n Image" + LastObject + ".Width = " + (SizeX * NewScale) + ";");
+                                    File.AppendAllText(WindowCsFile, "\n Image" + LastObject + ".Height = " + (SizeY * NewScale) + ";");*/
+                                //File.AppendAllText(WindowCsFile, "/*" + Line + "*/");
+                                // }
+
+                                using (var stream = File.OpenRead(Path.Combine(GameFolder, LastObject + ".png")))
+                                using (var codec = SKCodec.Create(stream))
+                                {
+                                    double SizeX = codec.Info.Width;
+                                    double SizeY = codec.Info.Height;
                                     File.AppendAllText(WindowCsFile, "\n var Image" + LastObject + "= this.FindControl<Image>(\"" + LastObject + "\");");
                                     File.AppendAllText(WindowCsFile, "\n Image" + LastObject + ".Width = " + (SizeX * NewScale) + ";");
                                     File.AppendAllText(WindowCsFile, "\n Image" + LastObject + ".Height = " + (SizeY * NewScale) + ";");
