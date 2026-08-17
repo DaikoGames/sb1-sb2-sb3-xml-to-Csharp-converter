@@ -1,60 +1,81 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <OutputType>WinExe</OutputType>
-    <TargetFramework>net9.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
-    <ApplicationManifest>app.manifest</ApplicationManifest>
-    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
-    <AssemblyName>Converter</AssemblyName>
-    <AssemblyTitle>Converter</AssemblyTitle>
-    <RootNamespace>Converter</RootNamespace>
-  </PropertyGroup>
-  <PropertyGroup Label="Avalonia">
-    <AvaloniaXamlIlDebuggerLaunch>False</AvaloniaXamlIlDebuggerLaunch>
-    <PlatformTarget>AnyCPU</PlatformTarget>
-    <SignAssembly>False</SignAssembly>
-    <GeneratePackageOnBuild>False</GeneratePackageOnBuild>
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFrameworks>net10.0</TargetFrameworks>
+		<OutputType>WinExe</OutputType>
+		<Nullable>enable</Nullable>
+		<BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+		<ApplicationManifest Condition="!$(TargetFramework.Contains('-android'))">app.manifest</ApplicationManifest>
+		<AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+		<AssemblyName>Converter</AssemblyName>
+		<AssemblyTitle>Converter</AssemblyTitle>
+		<RootNamespace>Converter</RootNamespace>
+	</PropertyGroup>
 
-  <PropertyGroup Label="Avalonia" Condition="('$(Configuration)' == 'Release' and '$(RuntimeIdentifier)' == 'win-x64')">
-    <VlcWindowsX64Enabled>true</VlcWindowsX64Enabled>
-    <VlcWindowsX86Enabled>false</VlcWindowsX86Enabled>
-    <VlcWindowsArm64Enabled>false</VlcWindowsArm64Enabled>
-  </PropertyGroup>
+	<!-- ANDROID SPEZIFISCHE EINSTELLUNGEN -->
+	<PropertyGroup Condition="'$(TargetFramework)' == 'net10.0-android'">
+		<SupportedOSPlatformVersion>21.0</SupportedOSPlatformVersion>
+		<ApplicationTitle>Converter Desktop</ApplicationTitle>
+		<ApplicationId>com.daikogames.converter.desktop</ApplicationId>
+		<AndroidPackageFormat>apk</AndroidPackageFormat>
+		<RuntimeIdentifiers>android-arm64;android-x64</RuntimeIdentifiers>
+	</PropertyGroup>
 
-  <PropertyGroup Label="Avalonia" Condition="('$(Configuration)' == 'Release' and '$(RuntimeIdentifier)' == 'win-x86')">
-    <VlcWindowsX64Enabled>false</VlcWindowsX64Enabled>
-    <VlcWindowsX86Enabled>true</VlcWindowsX86Enabled>
-    <VlcWindowsArm64Enabled>false</VlcWindowsArm64Enabled>
-  </PropertyGroup>
+	<PropertyGroup Label="Avalonia">
+		<AvaloniaXamlIlDebuggerLaunch>False</AvaloniaXamlIlDebuggerLaunch>
+		<PlatformTarget>AnyCPU</PlatformTarget>
+		<SignAssembly>False</SignAssembly>
+		<GeneratePackageOnBuild>False</GeneratePackageOnBuild>
+	</PropertyGroup>
 
-  <PropertyGroup Label="Avalonia" Condition="('$(Configuration)' == 'Release' and '$(RuntimeIdentifier)' == 'win-arm64')">
-    <VlcWindowsX64Enabled>false</VlcWindowsX64Enabled>
-    <VlcWindowsX86Enabled>false</VlcWindowsX86Enabled>
-    <VlcWindowsArm64Enabled>true</VlcWindowsArm64Enabled>
-  </PropertyGroup>
+	<!-- VLC Konfigurationen für Windows -->
+	<PropertyGroup Label="Avalonia" Condition="('$(Configuration)' == 'Release' and '$(RuntimeIdentifier)' == 'win-x64')">
+		<VlcWindowsX64Enabled>true</VlcWindowsX64Enabled>
+		<VlcWindowsX86Enabled>false</VlcWindowsX86Enabled>
+		<VlcWindowsArm64Enabled>false</VlcWindowsArm64Enabled>
+	</PropertyGroup>
+	<PropertyGroup Label="Avalonia" Condition="('$(Configuration)' == 'Release' and '$(RuntimeIdentifier)' == 'win-x86')">
+		<VlcWindowsX64Enabled>false</VlcWindowsX64Enabled>
+		<VlcWindowsX86Enabled>true</VlcWindowsX86Enabled>
+		<VlcWindowsArm64Enabled>false</VlcWindowsArm64Enabled>
+	</PropertyGroup>
+	<PropertyGroup Label="Avalonia" Condition="('$(Configuration)' == 'Release' and '$(RuntimeIdentifier)' == 'win-arm64')">
+		<VlcWindowsX64Enabled>false</VlcWindowsX64Enabled>
+		<VlcWindowsX86Enabled>false</VlcWindowsX86Enabled>
+		<VlcWindowsArm64Enabled>true</VlcWindowsArm64Enabled>
+	</PropertyGroup>
 
-  <ItemGroup>
-	 <PackageReference Include="Avalonia" Version="12.1.1" />
-	 <PackageReference Include="Avalonia.Desktop" Version="12.1.1" />
-	 <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.1" />
-	 <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.1" />
-     <PackageReference Include="CliWrap" Version="3.10.4" />
-	 <PackageReference Include="LibVLCSharp" Version="3.10.1" />
-	 <PackageReference Include="LibVLCSharp.Avalonia" Version="3.10.1" />
-	 <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
-	 <PackageReference Include="SkiaSharp" Version="4.151.1" />
-	 <PackageReference Include="SkiaSharp.Svg" Version="1.60.0" />
-	 <PackageReference Include="System.Diagnostics.Process" Version="4.3.0" />
-	 <PackageReference Include="System.Xml.Linq" Version="3.5.21022.801" />
-	 <PackageReference Include="Velopack" Version="1.2.0" />
-	 <PackageReference Include="VideoLAN.LibVLC.Android" Version="3.6.5" Condition="$([MSBuild]::IsOSPlatform('Android'))" />
-	 <PackageReference Include="VideoLAN.LibVLC.Windows" Version="3.0.23.1" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
-	 <PackageReference Include="VideoLAN.LibVLC.Mac" Version="3.1.3.1" Condition="$([MSBuild]::IsOSPlatform('MacOS'))" />
-	 <PackageReference Include="Downloader" Version="5.9.5" />
-	 <PackageReference Include="PopUpWindow" Version="1.0.9.1"/>
-	 <PackageReference Include="BergamotTranslatorSharp" Version="0.5.1"/>
-	 <PackageReference Include="SharpCompress" Version="0.50.4" />
-  </ItemGroup>
+	<ItemGroup>
+		<!-- 1. CORE AVALONIA (Auf 11.3.13 angehoben, um LibVLCSharp.Avalonia zufriedenzustellen) -->
+		<PackageReference Include="Avalonia" Version="12.1.1" />
+		<PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.1" />
+		<PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.1" />
+
+		<!-- 2. PLATTFORM-SPEZIFISCHE RENDERER -->
+		<PackageReference Include="Avalonia.Desktop" Version="12.1.1" Condition="!$(TargetFramework.Contains('-android'))" />
+		<PackageReference Include="Avalonia.Android" Version="11.3.13" Condition="$(TargetFramework.Contains('-android'))" />
+		<PackageReference Include="PopUpWindow" Version="1.0.9.1" />
+		<PackageReference Include="Xamarin.AndroidX.Core.SplashScreen" Version="1.0.1.1" Condition="$(TargetFramework.Contains('-android'))" />
+
+		<!-- 3. SHARED UTILITIES & LOGIK -->
+		<PackageReference Include="CliWrap" Version="3.10.4" />
+		<PackageReference Include="LibVLCSharp" Version="3.10.1" />
+		<PackageReference Include="LibVLCSharp.Avalonia" Version="3.10.1" />
+		<!-- HINWEIS: "LibVLCSharp.Android" gibt es nicht. Das normale LibVLCSharp ist plattformübergreifend. -->
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+		<PackageReference Include="System.Diagnostics.Process" Version="4.3.0" />
+		<PackageReference Include="System.Xml.Linq" Version="3.5.21022.801" />
+		<PackageReference Include="Velopack" Version="1.2.0" />
+		<PackageReference Include="Downloader" Version="5.9.5" />
+		<PackageReference Include="BergamotTranslatorSharp" Version="0.5.1" />
+		<PackageReference Include="SharpCompress" Version="0.50.4" />
+
+		<!-- 4. SKIA SHARP (Zurück zu deiner ursprünglichen, funktionierenden Version) -->
+		<PackageReference Include="SkiaSharp" Version="4.151.1" />
+		<PackageReference Include="SkiaSharp.Svg" Version="1.60.0" />
+
+		<!-- 5. NATIVE VLC BINARIES -->
+		<PackageReference Include="VideoLAN.LibVLC.Android" Version="3.6.5" Condition="$(TargetFramework.Contains('-android'))" />
+		<PackageReference Include="VideoLAN.LibVLC.Windows" Version="3.0.23.1" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
+		<PackageReference Include="VideoLAN.LibVLC.Mac" Version="3.1.3.1" Condition="$([MSBuild]::IsOSPlatform('MacOS'))" />
+	</ItemGroup>
 </Project>
