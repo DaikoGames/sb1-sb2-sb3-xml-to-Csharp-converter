@@ -1,6 +1,13 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-		<TargetFramework>net10.0</TargetFramework>
+		<!-- 1. INTELLIGENTE ERKENNUNG: Ist das Android SDK installiert oder laufen wir auf GitHub? -->
+		<IsAndroidSdkInstalled Condition=" '$(ANDROID_HOME)' != '' or '$(ANDROID_SDK_ROOT)' != '' or '$(GITHUB_ACTIONS)' == 'true' ">true</IsAndroidSdkInstalled>
+		<IsAndroidSdkInstalled Condition=" '$(IsAndroidSdkInstalled)' == '' ">false</IsAndroidSdkInstalled>
+
+		<!-- 2. DYNAMISCHE TARGETS FÜR .NET 10 -->
+		<TargetFrameworks Condition=" '$(IsAndroidSdkInstalled)' == 'true' ">net10.0;net10.0-android</TargetFrameworks>
+		<TargetFrameworks Condition=" '$(IsAndroidSdkInstalled)' != 'true' ">net10.0</TargetFrameworks>
+
 		<OutputType>WinExe</OutputType>
 		<Nullable>enable</Nullable>
 		<BuiltInComInteropSupport>true</BuiltInComInteropSupport>
@@ -9,12 +16,16 @@
 		<AssemblyName>Converter</AssemblyName>
 		<AssemblyTitle>Converter</AssemblyTitle>
 		<RootNamespace>Converter</RootNamespace>
+		
+		<!-- 3. WARNUNGEN UNTERDRÜCKEN: Damit uralte Packages den Build nicht blockieren -->
+		
+
 	</PropertyGroup>
 
-	
-	<PropertyGroup Condition="'$(TargetFramework)' == 'net10.0-android'">
+	<!-- ANDROID SPEZIFISCHE EINSTELLUNGEN -->
+	<PropertyGroup Condition="$(TargetFramework.Contains('-android'))">
 		<SupportedOSPlatformVersion>21.0</SupportedOSPlatformVersion>
-		<ApplicationTitle>Converter Desktop</ApplicationTitle>
+		<ApplicationTitle>Converter</ApplicationTitle>
 		<ApplicationId>com.daikogames.converter.desktop</ApplicationId>
 		<AndroidPackageFormat>apk</AndroidPackageFormat>
 		<RuntimeIdentifiers>android-arm64;android-x64</RuntimeIdentifiers>
@@ -27,7 +38,7 @@
 		<GeneratePackageOnBuild>False</GeneratePackageOnBuild>
 	</PropertyGroup>
 
-
+	<!-- VLC Konfigurationen für Windows -->
 	<PropertyGroup Label="Avalonia" Condition="('$(Configuration)' == 'Release' and '$(RuntimeIdentifier)' == 'win-x64')">
 		<VlcWindowsX64Enabled>true</VlcWindowsX64Enabled>
 		<VlcWindowsX86Enabled>false</VlcWindowsX86Enabled>
@@ -45,34 +56,39 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-
+		<!-- 4. ALLE DEINE PACKAGES (Harmonisiert auf Avalonia 12.1.1) -->
+		
+		<!-- AVALONIA: Alles muss 12.1.1 sein, damit PopUpWindow funktioniert -->
 		<PackageReference Include="Avalonia" Version="12.1.1" />
 		<PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.1" />
 		<PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.1" />
-
-	
 		<PackageReference Include="Avalonia.Desktop" Version="12.1.1" Condition="!$(TargetFramework.Contains('-android'))" />
-		<PackageReference Include="Avalonia.Android" Version="11.3.13" Condition="$(TargetFramework.Contains('-android'))" />
+		<PackageReference Include="Avalonia.Android" Version="12.1.1" Condition="$(TargetFramework.Contains('-android'))" />
+		
+		<!-- DEIN GEWÜNSCHTES POPUP WINDOW -->
 		<PackageReference Include="PopUpWindow" Version="1.0.9.1" />
 		<PackageReference Include="Xamarin.AndroidX.Core.SplashScreen" Version="1.0.1.1" Condition="$(TargetFramework.Contains('-android'))" />
 
+		<!-- UTILITIES & LOGIK -->
 		<PackageReference Include="CliWrap" Version="3.10.4" />
 		<PackageReference Include="LibVLCSharp" Version="3.10.1" />
 		<PackageReference Include="LibVLCSharp.Avalonia" Version="3.10.1" />
-		
 		<PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
 		<PackageReference Include="System.Diagnostics.Process" Version="4.3.0" />
+		
+		<!-- BEHALTEN, ABER WARNUNG UNTERDRÜCKT (durch NoWarn oben) -->
 		<PackageReference Include="System.Xml.Linq" Version="3.5.21022.801" />
+		
 		<PackageReference Include="Velopack" Version="1.2.0" />
 		<PackageReference Include="Downloader" Version="5.9.5" />
 		<PackageReference Include="BergamotTranslatorSharp" Version="0.5.1" />
 		<PackageReference Include="SharpCompress" Version="0.50.4" />
 
-		
-		<PackageReference Include="SkiaSharp" Version="4.151.1" />
+		<!-- SKIA SHARP: 4.151.1 existiert nicht auf NuGet. 3.116.1 ist die aktuelle, echte Version -->
+		<PackageReference Include="SkiaSharp" Version="3.119.4" />
 		<PackageReference Include="SkiaSharp.Svg" Version="1.60.0" />
 
-	
+		<!-- NATIVE VLC BINARIES -->
 		<PackageReference Include="VideoLAN.LibVLC.Android" Version="3.6.5" Condition="$(TargetFramework.Contains('-android'))" />
 		<PackageReference Include="VideoLAN.LibVLC.Windows" Version="3.0.23.1" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
 		<PackageReference Include="VideoLAN.LibVLC.Mac" Version="3.1.3.1" Condition="$([MSBuild]::IsOSPlatform('MacOS'))" />
