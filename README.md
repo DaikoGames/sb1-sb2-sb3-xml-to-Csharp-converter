@@ -46,6 +46,9 @@ I used [ImageMagick](https://imagemagick.org/#gsc.tab=0) for converting the png 
 |       | arm64 | :white_check_mark: |
 | Web | none | :x: |
 
+these things will never happen, because they physically can´t run the desktop app
+IOS, ANDROID
+
 Currently the Only stable languages are german and english. Everything else is translated via AI, because i can´t translate it myself
 
 ## You don´t have to install anything. 
