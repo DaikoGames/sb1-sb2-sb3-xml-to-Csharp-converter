@@ -54,7 +54,6 @@ jobs:
       - name: Build and Publish App
         shell: bash
         run: |
-          # WICHTIG: Kein -p:BuildAndroid hier! Baut daher NUR net10.0
           dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" \
             -f net10.0 \
             -c Release \
@@ -164,21 +163,28 @@ jobs:
       - name: Build Android x64 APK
         shell: bash
         run: |
-          # WICHTIG: -p:BuildAndroid=true aktiviert hier erst das net10.0-android Target
           dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" \
             -p:BuildAndroid=true \
             -f net10.0-android \
             -c Release \
             -r android-x64 \
-            -o "./Releases" \
-            -p:AndroidPackageFormat=apk \
-            -p:ApplicationTitle="Converter-android-x64"
+            -o "./publish/android" \
+            -p:AndroidPackageFormat=apk
+
+      - name: Rename APK to exact expected filename
+        shell: bash
+        run: |
+          mkdir -p ./Releases
+          # .NET benennt Android-APKs oft um (z.B. mit -Signed). Wir finden die Datei und benennen sie exakt so um, wie der Release-Job sie erwartet.
+          find ./publish/android -name "*.apk" -exec cp {} ./Releases/Converter-android-x64.apk \;
+          echo "✅ APK erfolgreich umbenannt:"
+          ls -la ./Releases/
 
       - name: Upload Android Artifact
         uses: actions/upload-artifact@v4
         with:
           name: vpk-artifacts-android-x64
-          path: ./Releases/*.apk
+          path: ./Releases/Converter-android-x64.apk
 
   release:
     needs: [build, build-android]
