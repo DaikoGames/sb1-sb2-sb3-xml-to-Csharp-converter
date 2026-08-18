@@ -171,13 +171,16 @@ jobs:
             -o "./publish/android" \
             -p:AndroidPackageFormat=apk
 
-      - name: Rename APK to exact expected filename
+      - name: Nuklearer APK-Finder und Umbenennung
         shell: bash
         run: |
           mkdir -p ./Releases
-          # .NET benennt Android-APKs oft um (z.B. mit -Signed). Wir finden die Datei und benennen sie exakt so um, wie der Release-Job sie erwartet.
-          find ./publish/android -name "*.apk" -exec cp {} ./Releases/Converter-android-x64.apk \;
-          echo "✅ APK erfolgreich umbenannt:"
+          # Durchsucht den GESAMTEN Workspace nach der APK, egal wo .NET sie versteckt hat
+          find . -type f -name "*.apk" | head -n 1 | xargs -I {} cp {} ./Releases/Converter-android-x64.apk
+          
+          echo "✅ Gefundene APKs im Workspace:"
+          find . -name "*.apk"
+          echo "✅ Finale APK im Releases Ordner:"
           ls -la ./Releases/
 
       - name: Upload Android Artifact
@@ -206,11 +209,13 @@ jobs:
             ./all-assets/Converter-win-arm64-Setup.exe
             ./all-assets/Converter-osx-x64-Setup.pkg
             ./all-assets/Converter-osx-arm64-Setup.pkg
-            ./all-assets/Converter-linux-x64-Setup.deb
-            ./all-assets/Converter-linux-arm64-Setup.deb
+            # FIX: Zurück zu .AppImage, da Velopack das standardmäßig unter Linux erstellt
+            ./all-assets/Converter-linux-x64.AppImage
+            ./all-assets/Converter-linux-arm64.AppImage
             ./all-assets/Converter-win-x86-Portable.zip
             ./all-assets/Converter-win-x64-Portable.zip
             ./all-assets/Converter-win-arm64-Portable.zip
             ./all-assets/Converter-osx-x64-Portable.zip
             ./all-assets/Converter-osx-arm64-Portable.zip
+            # FIX: Der nukleare Finder stellt sicher, dass diese Datei jetzt existiert
             ./all-assets/Converter-android-x64.apk
