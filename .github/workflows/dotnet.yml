@@ -54,6 +54,7 @@ jobs:
       - name: Build and Publish App
         shell: bash
         run: |
+          # WICHTIG: Kein -p:BuildAndroid hier! Baut daher NUR net10.0
           dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" \
             -f net10.0 \
             -c Release \
@@ -74,120 +75,53 @@ jobs:
         if: contains(matrix.runtime, 'win')  
         run: |
           $baseDir = "./publish/${{ matrix.runtime }}"
-          New-Item -ItemType Directory -Force -Path "$baseDir/ConverterIcon"
-          Copy-Item "./ConverterIcon/Converter.ico" "$baseDir/ConverterIcon/Converter.ico"
-          Copy-Item "./ConverterIcon/Converter.png" "$baseDir/ConverterIcon/Converter.png"
-          New-Item -ItemType Directory -Force -Path "$baseDir/Scratch-Format-Converter"
-          Copy-Item "./Scratch-Format-Converter/Convert.js" "$baseDir/Scratch-Format-Converter/Convert.js"
-          Copy-Item "./Scratch-Format-Converter/package.json" "$baseDir/Scratch-Format-Converter/package.json"
-          Copy-Item "./Scratch-Format-Converter/package-lock.json" "$baseDir/Scratch-Format-Converter/package-lock.json"
-          New-Item -ItemType Directory -Force -Path "$baseDir/Install"
-          Copy-Item "./Install/dotnet-install.ps1" "$baseDir/Install/dotnet-install.ps1"
-          New-Item -ItemType Directory -Force -Path "$baseDir/svg_library_ScratchJnr"
-          Copy-Item -Path "./svg_library_ScratchJnr/*" "$baseDir/svg_library_ScratchJnr"
-          New-Item -ItemType Directory -Force -Path "$baseDir/wav_library_ScratchJnr"
-          Copy-Item "./wav_library_ScratchJnr/*" "$baseDir/wav_library_ScratchJnr" 
-          $GZfiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.gz" -ErrorAction Stop
-          foreach ($GZfile in $GZfiles) {
-            $GZDirectoryName = $GZfile.Directory.Name
-            New-Item -ItemType Directory -Force -Path "$baseDir/Translate-Folder/$GZDirectoryName" | Out-Null
-            $OutFileName = $GZfile.Name -replace '\.gz$', ''
-            gzip -d -c $GZfile.FullName > "$baseDir/Translate-Folder/$GZDirectoryName/$OutFileName"
-            Remove-Item $GZfile.FullName -Force
+          New-Item -ItemType Directory -Force -Path "$baseDir/ConverterIcon", "$baseDir/Scratch-Format-Converter", "$baseDir/Install", "$baseDir/svg_library_ScratchJnr", "$baseDir/wav_library_ScratchJnr"
+          Copy-Item "./ConverterIcon/Converter.ico", "./ConverterIcon/Converter.png" "$baseDir/ConverterIcon/"
+          Copy-Item "./Scratch-Format-Converter/Convert.js", "./Scratch-Format-Converter/package.json", "./Scratch-Format-Converter/package-lock.json" "$baseDir/Scratch-Format-Converter/"
+          Copy-Item "./Install/dotnet-install.ps1" "$baseDir/Install/"
+          Copy-Item -Path "./svg_library_ScratchJnr/*" "$baseDir/svg_library_ScratchJnr/"
+          Copy-Item "./wav_library_ScratchJnr/*" "$baseDir/wav_library_ScratchJnr/" 
+          Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.gz" | ForEach-Object { 
+            $dn = $_.Directory.Name; New-Item -ItemType Directory -Force -Path "$baseDir/Translate-Folder/$dn" | Out-Null
+            $out = $_.Name -replace '\.gz$', ''; gzip -d -c $_.FullName > "$baseDir/Translate-Folder/$dn/$out"; Remove-Item $_.FullName -Force 
           }
-          $JSONFiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.json" -ErrorAction Stop 
-          foreach ($JSONfile in $JSONFiles){
-            $JSONFileName = $JSONfile.Name
-            $JSONDirectoryName = (Get-Item $JSONfile).Directory.Name
-            Copy-Item -Path $JSONfile.FullName "$baseDir/Translate-Folder/$JSONDirectoryName/$JSONFileName" -Force
-          }
-          $YMLFiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.yml" -ErrorAction Stop 
-          foreach ($YMLfile in $YMLFiles){
-            $JYMLFileName = $YMLfile.Name
-            $YMLDirectoryName = (Get-Item $YMLfile).Directory.Name
-            Copy-Item -Path $YMLfile.FullName "$baseDir/Translate-Folder/$YMLDirectoryName/$JYMLFileName" -Force
-          }
-          Copy-Item "./README.md" "$baseDir/README.md"
+          Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.json" | ForEach-Object { Copy-Item $_.FullName "$baseDir/Translate-Folder/$($_.Directory.Name)/" -Force }
+          Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.yml" | ForEach-Object { Copy-Item $_.FullName "$baseDir/Translate-Folder/$($_.Directory.Name)/" -Force }
+          Copy-Item "./README.md" "$baseDir/"
   
       - name: Add Files (Linux, MacOS)
         shell: pwsh
         if: contains(matrix.runtime, 'linux') || contains(matrix.runtime, 'osx')
         run: |
           $baseDir = "./publish/${{ matrix.runtime }}"
-          New-Item -ItemType Directory -Force -Path "$baseDir/ConverterIcon"
-          Copy-Item "./ConverterIcon/Converter.ico" "$baseDir/ConverterIcon/Converter.ico"
-          Copy-Item "./ConverterIcon/Converter.png" "$baseDir/ConverterIcon/Converter.png"
-          New-Item -ItemType Directory -Force -Path "$baseDir/Scratch-Format-Converter"
-          Copy-Item "./Scratch-Format-Converter/Convert.js" "$baseDir/Scratch-Format-Converter/Convert.js"
-          Copy-Item "./Scratch-Format-Converter/package.json" "$baseDir/Scratch-Format-Converter/package.json"
-          Copy-Item "./Scratch-Format-Converter/package-lock.json" "$baseDir/Scratch-Format-Converter/package-lock.json"
-          New-Item -ItemType Directory -Force -Path "$baseDir/Install"
-          Copy-Item "./Install/dotnet-install.sh" "$baseDir/Install/dotnet-install.sh"
-          New-Item -ItemType Directory -Force -Path "$baseDir/svg_library_ScratchJnr"
-          Copy-Item "./svg_library_ScratchJnr/*" "$baseDir/svg_library_ScratchJnr" 
-          New-Item -ItemType Directory -Force -Path "$baseDir/wav_library_ScratchJnr"
-          Copy-Item "./wav_library_ScratchJnr/*" "$baseDir/wav_library_ScratchJnr" 
-          $GZfiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.gz" -ErrorAction Stop
-          foreach ($GZfile in $GZfiles) {
-            $GZDirectoryName = $GZfile.Directory.Name
-            New-Item -ItemType Directory -Force -Path "$baseDir/Translate-Folder/$GZDirectoryName" | Out-Null
-            $OutFileName = $GZfile.Name -replace '\.gz$', ''
-            gzip -d -c $GZfile.FullName > "$baseDir/Translate-Folder/$GZDirectoryName/$OutFileName"
-            Remove-Item $GZfile.FullName -Force
+          New-Item -ItemType Directory -Force -Path "$baseDir/ConverterIcon", "$baseDir/Scratch-Format-Converter", "$baseDir/Install", "$baseDir/svg_library_ScratchJnr", "$baseDir/wav_library_ScratchJnr"
+          Copy-Item "./ConverterIcon/Converter.ico", "./ConverterIcon/Converter.png" "$baseDir/ConverterIcon/"
+          Copy-Item "./Scratch-Format-Converter/Convert.js", "./Scratch-Format-Converter/package.json", "./Scratch-Format-Converter/package-lock.json" "$baseDir/Scratch-Format-Converter/"
+          Copy-Item "./Install/dotnet-install.sh" "$baseDir/Install/"
+          Copy-Item -Path "./svg_library_ScratchJnr/*" "$baseDir/svg_library_ScratchJnr/" 
+          Copy-Item "./wav_library_ScratchJnr/*" "$baseDir/wav_library_ScratchJnr/" 
+          Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.gz" | ForEach-Object { 
+            $dn = $_.Directory.Name; New-Item -ItemType Directory -Force -Path "$baseDir/Translate-Folder/$dn" | Out-Null
+            $out = $_.Name -replace '\.gz$', ''; gzip -d -c $_.FullName > "$baseDir/Translate-Folder/$dn/$out"; Remove-Item $_.FullName -Force 
           }
-          $JSONFiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.json" -ErrorAction Stop 
-          foreach ($JSONfile in $JSONFiles){
-            $JSONFileName = $JSONfile.Name
-            $JSONDirectoryName = (Get-Item $JSONfile).Directory.Name
-            Copy-Item -Path $JSONfile.FullName "$baseDir/Translate-Folder/$JSONDirectoryName/$JSONFileName" -Force
-          }
-          $YMLFiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.yml" -ErrorAction Stop 
-          foreach ($YMLfile in $YMLFiles){
-            $JYMLFileName = $YMLfile.Name
-            $YMLDirectoryName = (Get-Item $YMLfile).Directory.Name
-            Copy-Item -Path $YMLfile.FullName "$baseDir/Translate-Folder/$YMLDirectoryName/$JYMLFileName" -Force
-          }
-          Copy-Item "./README.md" "$baseDir/README.md"
-          
-      - name: Check Help
-        shell: bash
-        run: vpk pack --help
+          Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.json" | ForEach-Object { Copy-Item $_.FullName "$baseDir/Translate-Folder/$($_.Directory.Name)/" -Force }
+          Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.yml" | ForEach-Object { Copy-Item $_.FullName "$baseDir/Translate-Folder/$($_.Directory.Name)/" -Force }
+          Copy-Item "./README.md" "$baseDir/"
           
       - name: Pack with Velopack Windows
         shell: bash
         if: contains(matrix.runtime, 'win')
-        run: |
-          vpk pack \
-            -u "Converter" \
-            -v "0.9.${{ github.run_number }}" \
-            --packDir "./publish/${{ matrix.runtime }}" \
-            --outputDir "./Releases" \
-            --icon "./ConverterIcon/Converter.ico" \
-            --channel "${{ matrix.runtime }}"
+        run: vpk pack -u "Converter" -v "0.9.${{ github.run_number }}" --packDir "./publish/${{ matrix.runtime }}" --outputDir "./Releases" --icon "./ConverterIcon/Converter.ico" --channel "${{ matrix.runtime }}"
             
       - name: Pack with Velopack Linux
         shell: bash
         if: contains(matrix.runtime, 'linux')
-        run: |
-          vpk pack \
-            -u "Converter" \
-            -v "0.9.${{ github.run_number }}" \
-            --packDir "./publish/${{ matrix.runtime }}" \
-            --outputDir "./Releases" \
-            --icon "./ConverterIcon/Converter.png" \
-            --channel "${{ matrix.runtime }}"
+        run: vpk pack -u "Converter" -v "0.9.${{ github.run_number }}" --packDir "./publish/${{ matrix.runtime }}" --outputDir "./Releases" --icon "./ConverterIcon/Converter.png" --channel "${{ matrix.runtime }}"
             
       - name: Pack with Velopack MacOS
         shell: bash
         if: contains(matrix.runtime, 'osx')
-        run: |
-          vpk pack \
-            -u "Converter" \
-            -v "0.9.${{ github.run_number }}" \
-            --packDir "./publish/${{ matrix.runtime }}" \
-            --outputDir "./Releases" \
-            --icon "./ConverterIcon/Converter.icns" \
-            --channel "${{ matrix.runtime }}"
+        run: vpk pack -u "Converter" -v "0.9.${{ github.run_number }}" --packDir "./publish/${{ matrix.runtime }}" --outputDir "./Releases" --icon "./ConverterIcon/Converter.icns" --channel "${{ matrix.runtime }}"
             
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
@@ -230,7 +164,9 @@ jobs:
       - name: Build Android x64 APK
         shell: bash
         run: |
+          # WICHTIG: -p:BuildAndroid=true aktiviert hier erst das net10.0-android Target
           dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" \
+            -p:BuildAndroid=true \
             -f net10.0-android \
             -c Release \
             -r android-x64 \
@@ -248,7 +184,7 @@ jobs:
     needs: [build, build-android]
     runs-on: ubuntu-latest
     steps:
-      - name: Download
+      - name: Download All Artifacts
         uses: actions/download-artifact@v4
         with:
           path: ./all-assets
