@@ -3,7 +3,6 @@
 		<TargetFrameworks Condition=" '$(BuildAndroid)' == 'true' ">net10.0;net10.0-android</TargetFrameworks>
 		<TargetFrameworks Condition=" '$(BuildAndroid)' != 'true' ">net10.0</TargetFrameworks>
 		
-		<!-- DER FIX: WinExe für Desktop, Exe für Android! -->
 		<OutputType Condition="!$(TargetFramework.Contains('-android'))">WinExe</OutputType>
 		<OutputType Condition="$(TargetFramework.Contains('-android'))">Exe</OutputType>
 		
@@ -19,7 +18,8 @@
 	</PropertyGroup>
 
 	<PropertyGroup Condition="$(TargetFramework.Contains('-android'))">
-		<SupportedOSPlatformVersion>21.0</SupportedOSPlatformVersion>
+		<!-- DER FIX: Von 21.0 auf 23.0 erhöht, damit die AndroidX-Bibliotheken zufrieden sind -->
+		<SupportedOSPlatformVersion>23.0</SupportedOSPlatformVersion>
 		<ApplicationTitle>Converter</ApplicationTitle>
 		<ApplicationId>com.daikogames.converter.desktop</ApplicationId>
 		<AndroidPackageFormat>apk</AndroidPackageFormat>
