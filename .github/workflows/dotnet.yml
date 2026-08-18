@@ -209,16 +209,14 @@ jobs:
       - name: Setup Android SDK (Die Magie passiert hier!)
         uses: android-actions/setup-android@v3
 
-      - name: Install Android Workload
-        run: |
-          dotnet workload install android
-          dotnet workload update
+      - name: Install .NET Android Workload
+        run: dotnet workload install android
 
-      - name: Build Android x64 APK (Für PrimeOS auf normalen PCs)
+      - name: Publish Android APK
         run: |
           dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" \
             -c Release \
-            -f net9.0-android \
+            -f net10.0-android \
             -r android-x64 \
             -o "./Releases" \
             -p:AndroidPackageFormat=apk \
