@@ -171,23 +171,20 @@ jobs:
             -o "./publish/android" \
             -p:AndroidPackageFormat=apk
 
-      - name: Nuklearer APK-Finder und Umbenennung
+      - name: Debug - Show all APKs in workspace
         shell: bash
         run: |
-          mkdir -p ./Releases
-          # Durchsucht den GESAMTEN Workspace nach der APK, egal wo .NET sie versteckt hat
-          find . -type f -name "*.apk" | head -n 1 | xargs -I {} cp {} ./Releases/Converter-android-x64.apk
-          
-          echo "✅ Gefundene APKs im Workspace:"
-          find . -name "*.apk"
-          echo "✅ Finale APK im Releases Ordner:"
-          ls -la ./Releases/
+          echo "🔍 Searching for ALL .apk files in the entire workspace:"
+          find . -type f -name "*.apk" -ls
 
-      - name: Upload Android Artifact
+      - name: Upload ALL APKs as Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: vpk-artifacts-android-x64
-          path: ./Releases/Converter-android-x64.apk
+          name: android-apk-artifact
+          # NUKLEARE OPTION: Lädt JEDE .apk hoch, die irgendwo im Workspace existiert
+          path: |
+            **/*.apk
+          if-no-files-found: error
 
   release:
     needs: [build, build-android]
@@ -199,23 +196,17 @@ jobs:
           path: ./all-assets
           merge-multiple: true
 
-      - name: Push to GitHub Release
+      - name: Debug - Show downloaded files
+        shell: bash
+        run: |
+          echo "📦 All downloaded artifacts:"
+          find ./all-assets -type f -ls
+
+      - name: Push EVERYTHING to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v0.9.${{ github.run_number }}
+          # NUKLEARE OPTION: Lädt ALLE Dateien aus all-assets hoch. 
+          # Kein hartkodiertes Matching mehr. Was gebaut wurde, wird released.
           files: |
-            ./all-assets/Converter-win-x86-Setup.exe
-            ./all-assets/Converter-win-x64-Setup.exe
-            ./all-assets/Converter-win-arm64-Setup.exe
-            ./all-assets/Converter-osx-x64-Setup.pkg
-            ./all-assets/Converter-osx-arm64-Setup.pkg
-            # FIX: Zurück zu .AppImage, da Velopack das standardmäßig unter Linux erstellt
-            ./all-assets/Converter-linux-x64.AppImage
-            ./all-assets/Converter-linux-arm64.AppImage
-            ./all-assets/Converter-win-x86-Portable.zip
-            ./all-assets/Converter-win-x64-Portable.zip
-            ./all-assets/Converter-win-arm64-Portable.zip
-            ./all-assets/Converter-osx-x64-Portable.zip
-            ./all-assets/Converter-osx-arm64-Portable.zip
-            # FIX: Der nukleare Finder stellt sicher, dass diese Datei jetzt existiert
-            ./all-assets/Converter-android-x64.apk
+            ./all-assets/**/*
