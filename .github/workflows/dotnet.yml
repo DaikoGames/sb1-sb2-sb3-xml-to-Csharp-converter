@@ -22,6 +22,10 @@ jobs:
             runtime: linux-x64
           - os: ubuntu-latest
             runtime: linux-arm64
+          - os: ubuntu-latest
+            runtime: freebsd-x64
+          - os: ubuntu-latest
+            runtime: freebsd-arm64
           - os: macos-latest
             runtime: osx-x64
           - os: macos-latest
@@ -109,7 +113,7 @@ jobs:
   
       - name: Add Files (Linux, MacOS)
         shell: pwsh
-        if: contains(matrix.runtime, 'linux') || contains(matrix.runtime, 'osx')
+        if: contains(matrix.runtime, 'linux') || contains(matrix.runtime, 'osx' || contains(matrix.runtime, 'freebsd'))
         run: |
           $baseDir = "./publish/${{ matrix.runtime }}"
           New-Item -ItemType Directory -Force -Path "$baseDir/ConverterIcon"
@@ -187,6 +191,15 @@ jobs:
             --outputDir "./Releases" \
             --icon "./ConverterIcon/Converter.icns" \
             --channel "${{ matrix.runtime }}"
+      - name: Pack for FreeBSD (Portable Archive)
+        if: contains(matrix.runtime, 'freebsd')
+        shell: bash
+        run: |
+          mkdir -p ./Releases
+          # Wir nutzen tar.gz, da das auf BSD-Systemen nativer ist als zip. 
+          # Wenn du zwingend zip willst, nutze: zip -r ...
+          tar -czvf "./Releases/Converter-${{ matrix.runtime }}-Portable.tar.gz" \
+            -C "./publish/${{ matrix.runtime }}" .      
             
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
@@ -217,9 +230,12 @@ jobs:
                  ./all-assets/Converter-linux-x86.AppImage
                  ./all-assets/Converter-linux-x64.AppImage
                  ./all-assets/Converter-linux-arm64.AppImage
+                 ./all-assets/Converter-freebsd-x64-Portable.tar.gz
+                 ./all-assets/Converter-freebsd-arm64-Portable.tar.gz
                  ./all-assets/Converter-osx-x86.dmg
                  ./all-assets/Converter-win-x86-Portable.zip
                  ./all-assets/Converter-win-x64-Portable.zip
                  ./all-assets/Converter-win-arm64-Portable.zip
                  ./all-assets/Converter-osx-x64-Portable.zip
-                 ./all-assets/Converter-osx-arm64-Portable.zip
+                 ./all-assets/Converter-osx-arm64-Portable.zip# 
+                 
