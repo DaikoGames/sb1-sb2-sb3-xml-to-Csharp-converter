@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-		<!-- STANDARD: Nur Desktop. Android wird NUR hinzugefügt, wenn -p:BuildAndroid=true übergeben wird -->
+		<!-- DER FIX: Android wird NUR hinzugefügt, wenn -p:BuildAndroid=true übergeben wird -->
 		<TargetFrameworks Condition=" '$(BuildAndroid)' == 'true' ">net10.0;net10.0-android</TargetFrameworks>
 		<TargetFrameworks Condition=" '$(BuildAndroid)' != 'true' ">net10.0</TargetFrameworks>
 		
@@ -13,9 +13,11 @@
 		<AssemblyTitle>Converter</AssemblyTitle>
 		<RootNamespace>Converter</RootNamespace>
 		
+		<!-- Unterdrücke bekannte, harmlose Warnungen -->
 		<NoWarn>NU1701;NU1605;NETSDK1202;NU1510</NoWarn>
 	</PropertyGroup>
 
+	<!-- ANDROID SPEZIFISCHE EINSTELLUNGEN -->
 	<PropertyGroup Condition="$(TargetFramework.Contains('-android'))">
 		<SupportedOSPlatformVersion>21.0</SupportedOSPlatformVersion>
 		<ApplicationTitle>Converter</ApplicationTitle>
@@ -31,18 +33,25 @@
 		<GeneratePackageOnBuild>False</GeneratePackageOnBuild>
 	</PropertyGroup>
 
+	<!-- VLC Konfigurationen für Windows -->
 	<PropertyGroup Label="Avalonia" Condition="('$(Configuration)' == 'Release' and '$(RuntimeIdentifier)' == 'win-x64')">
-		<VlcWindowsX64Enabled>true</VlcWindowsX64Enabled><VlcWindowsX86Enabled>false</VlcWindowsX86Enabled><VlcWindowsArm64Enabled>false</VlcWindowsArm64Enabled>
+		<VlcWindowsX64Enabled>true</VlcWindowsX64Enabled>
+		<VlcWindowsX86Enabled>false</VlcWindowsX86Enabled>
+		<VlcWindowsArm64Enabled>false</VlcWindowsArm64Enabled>
 	</PropertyGroup>
 	<PropertyGroup Label="Avalonia" Condition="('$(Configuration)' == 'Release' and '$(RuntimeIdentifier)' == 'win-x86')">
-		<VlcWindowsX64Enabled>false</VlcWindowsX64Enabled><VlcWindowsX86Enabled>true</VlcWindowsX86Enabled><VlcWindowsArm64Enabled>false</VlcWindowsArm64Enabled>
+		<VlcWindowsX64Enabled>false</VlcWindowsX64Enabled>
+		<VlcWindowsX86Enabled>true</VlcWindowsX86Enabled>
+		<VlcWindowsArm64Enabled>false</VlcWindowsArm64Enabled>
 	</PropertyGroup>
 	<PropertyGroup Label="Avalonia" Condition="('$(Configuration)' == 'Release' and '$(RuntimeIdentifier)' == 'win-arm64')">
-		<VlcWindowsX64Enabled>false</VlcWindowsX64Enabled><VlcWindowsX86Enabled>false</VlcWindowsX86Enabled><VlcWindowsArm64Enabled>true</VlcWindowsArm64Enabled>
+		<VlcWindowsX64Enabled>false</VlcWindowsX64Enabled>
+		<VlcWindowsX86Enabled>false</VlcWindowsX86Enabled>
+		<VlcWindowsArm64Enabled>true</VlcWindowsArm64Enabled>
 	</PropertyGroup>
 
 	<ItemGroup>
-		<!-- ALLE DEINE PACKAGES -->
+		<!-- ALLE DEINE PACKAGES (Harmonisiert auf Avalonia 12.1.1) -->
 		<PackageReference Include="Avalonia" Version="12.1.1" />
 		<PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.1" />
 		<PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.1" />
@@ -62,6 +71,7 @@
 		<PackageReference Include="BergamotTranslatorSharp" Version="0.5.1" />
 		<PackageReference Include="SharpCompress" Version="0.50.4" />
 		
+		<!-- SkiaSharp 3.116.1 ist die aktuellste, existierende Version -->
 		<PackageReference Include="SkiaSharp" Version="3.116.1" />
 		<PackageReference Include="SkiaSharp.Svg" Version="1.60.0" />
 
