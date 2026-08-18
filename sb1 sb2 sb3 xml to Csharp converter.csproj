@@ -1,13 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-		<!-- 1. INTELLIGENTE ERKENNUNG: Ist das Android SDK installiert oder laufen wir auf GitHub? -->
-		<IsAndroidSdkInstalled Condition=" '$(ANDROID_HOME)' != '' or '$(ANDROID_SDK_ROOT)' != '' or '$(GITHUB_ACTIONS)' == 'true' ">true</IsAndroidSdkInstalled>
-		<IsAndroidSdkInstalled Condition=" '$(IsAndroidSdkInstalled)' == '' ">false</IsAndroidSdkInstalled>
-
-		<!-- 2. DYNAMISCHE TARGETS FÜR .NET 10 -->
-		<TargetFrameworks Condition=" '$(IsAndroidSdkInstalled)' == 'true' ">net10.0;net10.0-android</TargetFrameworks>
-		<TargetFrameworks Condition=" '$(IsAndroidSdkInstalled)' != 'true' ">net10.0</TargetFrameworks>
-
+		<!-- Wir deklarieren einfach, was das Projekt unterstützt. MSBuild baut nur das, was wir anfordern. -->
+		<TargetFrameworks>net10.0;net10.0-android</TargetFrameworks>
+		
 		<OutputType>WinExe</OutputType>
 		<Nullable>enable</Nullable>
 		<BuiltInComInteropSupport>true</BuiltInComInteropSupport>
@@ -17,11 +12,10 @@
 		<AssemblyTitle>Converter</AssemblyTitle>
 		<RootNamespace>Converter</RootNamespace>
 		
-		<!-- 3. WARNUNGEN UNTERDRÜCKEN: Entfernt die NU1510 und NU1701 Fehler sauber -->
-		<NoWarn>$(NoWarn);NU1510;NU1701;NETSDK1202</NoWarn>
+		<!-- Unterdrücke harmlose Warnungen -->
+		<NoWarn>NU1701;NU1605;NETSDK1202;NU1510</NoWarn>
 	</PropertyGroup>
 
-	<!-- ANDROID SPEZIFISCHE EINSTELLUNGEN -->
 	<PropertyGroup Condition="$(TargetFramework.Contains('-android'))">
 		<SupportedOSPlatformVersion>21.0</SupportedOSPlatformVersion>
 		<ApplicationTitle>Converter</ApplicationTitle>
@@ -37,31 +31,23 @@
 		<GeneratePackageOnBuild>False</GeneratePackageOnBuild>
 	</PropertyGroup>
 
-	<!-- VLC Konfigurationen für Windows -->
 	<PropertyGroup Label="Avalonia" Condition="('$(Configuration)' == 'Release' and '$(RuntimeIdentifier)' == 'win-x64')">
-		<VlcWindowsX64Enabled>true</VlcWindowsX64Enabled>
-		<VlcWindowsX86Enabled>false</VlcWindowsX86Enabled>
-		<VlcWindowsArm64Enabled>false</VlcWindowsArm64Enabled>
+		<VlcWindowsX64Enabled>true</VlcWindowsX64Enabled><VlcWindowsX86Enabled>false</VlcWindowsX86Enabled><VlcWindowsArm64Enabled>false</VlcWindowsArm64Enabled>
 	</PropertyGroup>
 	<PropertyGroup Label="Avalonia" Condition="('$(Configuration)' == 'Release' and '$(RuntimeIdentifier)' == 'win-x86')">
-		<VlcWindowsX64Enabled>false</VlcWindowsX64Enabled>
-		<VlcWindowsX86Enabled>true</VlcWindowsX86Enabled>
-		<VlcWindowsArm64Enabled>false</VlcWindowsArm64Enabled>
+		<VlcWindowsX64Enabled>false</VlcWindowsX64Enabled><VlcWindowsX86Enabled>true</VlcWindowsX86Enabled><VlcWindowsArm64Enabled>false</VlcWindowsArm64Enabled>
 	</PropertyGroup>
 	<PropertyGroup Label="Avalonia" Condition="('$(Configuration)' == 'Release' and '$(RuntimeIdentifier)' == 'win-arm64')">
-		<VlcWindowsX64Enabled>false</VlcWindowsX64Enabled>
-		<VlcWindowsX86Enabled>false</VlcWindowsX86Enabled>
-		<VlcWindowsArm64Enabled>true</VlcWindowsArm64Enabled>
+		<VlcWindowsX64Enabled>false</VlcWindowsX64Enabled><VlcWindowsX86Enabled>false</VlcWindowsX86Enabled><VlcWindowsArm64Enabled>true</VlcWindowsArm64Enabled>
 	</PropertyGroup>
 
 	<ItemGroup>
-		<!-- 4. HARMONISIERTE PACKAGES -->
+		<!-- ALLE DEINE PACKAGES -->
 		<PackageReference Include="Avalonia" Version="12.1.1" />
 		<PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.1" />
 		<PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.1" />
 		<PackageReference Include="Avalonia.Desktop" Version="12.1.1" Condition="!$(TargetFramework.Contains('-android'))" />
 		<PackageReference Include="Avalonia.Android" Version="12.1.1" Condition="$(TargetFramework.Contains('-android'))" />
-		
 		<PackageReference Include="PopUpWindow" Version="1.0.9.1" />
 		<PackageReference Include="Xamarin.AndroidX.Core.SplashScreen" Version="1.0.1.1" Condition="$(TargetFramework.Contains('-android'))" />
 
@@ -69,18 +55,16 @@
 		<PackageReference Include="LibVLCSharp" Version="3.10.1" />
 		<PackageReference Include="LibVLCSharp.Avalonia" Version="3.10.1" />
 		<PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
-		
-		<!-- System.Diagnostics.Process und System.Xml.Linq wurden entfernt, da sie in .NET 10 bereits eingebaut sind und sonst Warnungen/Errors werfen -->
-
+		<PackageReference Include="System.Diagnostics.Process" Version="4.3.0" />
+		<PackageReference Include="System.Xml.Linq" Version="3.5.21022.801" />
 		<PackageReference Include="Velopack" Version="1.2.0" />
 		<PackageReference Include="Downloader" Version="5.9.5" />
 		<PackageReference Include="BergamotTranslatorSharp" Version="0.5.1" />
 		<PackageReference Include="SharpCompress" Version="0.50.4" />
-
-		<PackageReference Include="SkiaSharp" Version="3.119.4" />
+		
+		<PackageReference Include="SkiaSharp" Version="3.116.1" />
 		<PackageReference Include="SkiaSharp.Svg" Version="1.60.0" />
 
-		<!-- NATIVE VLC BINARIES -->
 		<PackageReference Include="VideoLAN.LibVLC.Android" Version="3.6.5" Condition="$(TargetFramework.Contains('-android'))" />
 		<PackageReference Include="VideoLAN.LibVLC.Windows" Version="3.0.23.1" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
 		<PackageReference Include="VideoLAN.LibVLC.Mac" Version="3.1.3.1" Condition="$([MSBuild]::IsOSPlatform('MacOS'))" />
