@@ -1,4 +1,5 @@
 name: Deploy to GitHub Releases
+
 on: 
   schedule:
      - cron: '30 14 * * 6' 
@@ -45,12 +46,12 @@ jobs:
           repository: 'DaikoGames/Translate-Folder'
           path: Translate-Folder
           
-      - name: Setup .NET
+      - name: Setup .NET 10.0
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 9.0.x
+          dotnet-version: '10.0.x'
 
-            - name: Build and Publish App
+      - name: Build and Publish App
         shell: bash
         run: |
           dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" \
@@ -88,23 +89,23 @@ jobs:
           Copy-Item "./wav_library_ScratchJnr/*" "$baseDir/wav_library_ScratchJnr" 
           $GZfiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.gz" -ErrorAction Stop
           foreach ($GZfile in $GZfiles) {
-          $GZDirectoryName = $GZfile.Directory.Name
-          New-Item -ItemType Directory -Force -Path "$baseDir/Translate-Folder/$GZDirectoryName" | Out-Null
-          $OutFileName = $GZfile.Name -replace '\.gz$', ''
-          gzip -d -c $GZfile.FullName > "$baseDir/Translate-Folder/$GZDirectoryName/$OutFileName"
-          Remove-Item $GZfile.FullName -Force
+            $GZDirectoryName = $GZfile.Directory.Name
+            New-Item -ItemType Directory -Force -Path "$baseDir/Translate-Folder/$GZDirectoryName" | Out-Null
+            $OutFileName = $GZfile.Name -replace '\.gz$', ''
+            gzip -d -c $GZfile.FullName > "$baseDir/Translate-Folder/$GZDirectoryName/$OutFileName"
+            Remove-Item $GZfile.FullName -Force
           }
           $JSONFiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.json" -ErrorAction Stop 
           foreach ($JSONfile in $JSONFiles){
-          $JSONFileName = $JSONfile.Name
-          $JSONDirectoryName = (Get-Item $JSONfile).Directory.Name
-          Copy-Item -Path $JSONfile.FullName "$baseDir/Translate-Folder/$JSONDirectoryName/$JSONFileName" -Force
+            $JSONFileName = $JSONfile.Name
+            $JSONDirectoryName = (Get-Item $JSONfile).Directory.Name
+            Copy-Item -Path $JSONfile.FullName "$baseDir/Translate-Folder/$JSONDirectoryName/$JSONFileName" -Force
           }
           $YMLFiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.yml" -ErrorAction Stop 
           foreach ($YMLfile in $YMLFiles){
-          $JYMLFileName = $YMLfile.Name
-          $YMLDirectoryName = (Get-Item $YMLfile).Directory.Name
-          Copy-Item -Path $YMLfile.FullName "$baseDir/Translate-Folder/$YMLDirectoryName/$JYMLFileName" -Force
+            $JYMLFileName = $YMLfile.Name
+            $YMLDirectoryName = (Get-Item $YMLfile).Directory.Name
+            Copy-Item -Path $YMLfile.FullName "$baseDir/Translate-Folder/$YMLDirectoryName/$JYMLFileName" -Force
           }
           Copy-Item "./README.md" "$baseDir/README.md"
   
@@ -128,30 +129,29 @@ jobs:
           Copy-Item "./wav_library_ScratchJnr/*" "$baseDir/wav_library_ScratchJnr" 
           $GZfiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.gz" -ErrorAction Stop
           foreach ($GZfile in $GZfiles) {
-          $GZDirectoryName = $GZfile.Directory.Name
-          New-Item -ItemType Directory -Force -Path "$baseDir/Translate-Folder/$GZDirectoryName" | Out-Null
-          $OutFileName = $GZfile.Name -replace '\.gz$', ''
-          gzip -d -c $GZfile.FullName > "$baseDir/Translate-Folder/$GZDirectoryName/$OutFileName"
-          Remove-Item $GZfile.FullName -Force
+            $GZDirectoryName = $GZfile.Directory.Name
+            New-Item -ItemType Directory -Force -Path "$baseDir/Translate-Folder/$GZDirectoryName" | Out-Null
+            $OutFileName = $GZfile.Name -replace '\.gz$', ''
+            gzip -d -c $GZfile.FullName > "$baseDir/Translate-Folder/$GZDirectoryName/$OutFileName"
+            Remove-Item $GZfile.FullName -Force
           }
           $JSONFiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.json" -ErrorAction Stop 
           foreach ($JSONfile in $JSONFiles){
-          $JSONFileName = $JSONfile.Name
-          $JSONDirectoryName = (Get-Item $JSONfile).Directory.Name
-          Copy-Item -Path $JSONfile.FullName "$baseDir/Translate-Folder/$JSONDirectoryName/$JSONFileName" -Force
+            $JSONFileName = $JSONfile.Name
+            $JSONDirectoryName = (Get-Item $JSONfile).Directory.Name
+            Copy-Item -Path $JSONfile.FullName "$baseDir/Translate-Folder/$JSONDirectoryName/$JSONFileName" -Force
           }
           $YMLFiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.yml" -ErrorAction Stop 
           foreach ($YMLfile in $YMLFiles){
-          $JYMLFileName = $YMLfile.Name
-          $YMLDirectoryName = (Get-Item $YMLfile).Directory.Name
-          Copy-Item -Path $YMLfile.FullName "$baseDir/Translate-Folder/$YMLDirectoryName/$JYMLFileName" -Force
+            $JYMLFileName = $YMLfile.Name
+            $YMLDirectoryName = (Get-Item $YMLfile).Directory.Name
+            Copy-Item -Path $YMLfile.FullName "$baseDir/Translate-Folder/$YMLDirectoryName/$JYMLFileName" -Force
           }
           Copy-Item "./README.md" "$baseDir/README.md"
           
       - name: Check Help
         shell: bash
-        run: |
-          vpk pack --help
+        run: vpk pack --help
           
       - name: Pack with Velopack Windows
         shell: bash
@@ -196,11 +196,23 @@ jobs:
           path: ./Releases/*
           
   build-android:
-    name: Build for PrimeOS / Bliss OS (x64 & arm64)
+    name: Build for PrimeOS / Bliss OS (x64)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+
+      - name: Checkout External Dependency (Scratch-Format-Converter)
+        uses: actions/checkout@v4
+        with:
+          repository: 'DaikoGames/Scratch-Format-Converter'
+          path: Scratch-Format-Converter
+          
+      - name: Checkout External Dependency (Translator)
+        uses: actions/checkout@v4
+        with:
+          repository: 'DaikoGames/Translate-Folder'
+          path: Translate-Folder
 
       - name: Setup .NET 10.0
         uses: actions/setup-dotnet@v4
@@ -226,11 +238,11 @@ jobs:
             -p:AndroidPackageFormat=apk \
             -p:ApplicationTitle="Converter-android-x64"
 
-      - name: Upload Artifacts
+      - name: Upload Android Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: vpk-artifacts-${{ matrix.runtime }}
-          path: ./Releases/*
+          name: vpk-artifacts-android-x64
+          path: ./Releases/*.apk
 
   release:
     needs: [build, build-android]
@@ -247,18 +259,17 @@ jobs:
         with:
           tag_name: v0.9.${{ github.run_number }}
           files: |
-                 ./all-assets/Converter-win-x86-Setup.exe
-                 ./all-assets/Converter-win-x64-Setup.exe
-                 ./all-assets/Converter-win-arm64-Setup.exe
-                 ./all-assets/Converter-osx-x64-Setup.pkg
-                 ./all-assets/Converter-osx-arm64-Setup.pkg
-                 ./all-assets/Converter-linux-x86.AppImage
-                 ./all-assets/Converter-linux-x64.AppImage
-                 ./all-assets/Converter-linux-arm64.AppImage
-                 ./all-assets/Converter-osx-x86.dmg
-                 ./all-assets/Converter-win-x86-Portable.zip
-                 ./all-assets/Converter-win-x64-Portable.zip
-                 ./all-assets/Converter-win-arm64-Portable.zip
-                 ./all-assets/Converter-osx-x64-Portable.zip
-                 ./all-assets/Converter-osx-arm64-Portable.zip
-                 ./all-assets/Converter-android-x64
+            ./all-assets/Converter-win-x86-Setup.exe
+            ./all-assets/Converter-win-x64-Setup.exe
+            ./all-assets/Converter-win-arm64-Setup.exe
+            ./all-assets/Converter-osx-x64-Setup.pkg
+            ./all-assets/Converter-osx-arm64-Setup.pkg
+            ./all-assets/Converter-linux-x64-Setup.deb
+            ./all-assets/Converter-linux-arm64-Setup.deb
+            ./all-assets/Converter-win-x86-Portable.zip
+            ./all-assets/Converter-win-x64-Portable.zip
+            ./all-assets/Converter-win-arm64-Portable.zip
+            ./all-assets/Converter-osx-x64-Portable.zip
+            ./all-assets/Converter-osx-arm64-Portable.zip
+            ./all-assets/*.dmg
+            ./all-assets/*.apk
