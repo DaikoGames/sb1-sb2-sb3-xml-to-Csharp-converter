@@ -1,23 +1,23 @@
 <Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-		<!-- DER FIX: Android wird NUR hinzugefügt, wenn -p:BuildAndroid=true übergeben wird -->
 		<TargetFrameworks Condition=" '$(BuildAndroid)' == 'true' ">net10.0;net10.0-android</TargetFrameworks>
 		<TargetFrameworks Condition=" '$(BuildAndroid)' != 'true' ">net10.0</TargetFrameworks>
 		
-		<OutputType>WinExe</OutputType>
+		<!-- DER FIX: WinExe für Desktop, Exe für Android! -->
+		<OutputType Condition="!$(TargetFramework.Contains('-android'))">WinExe</OutputType>
+		<OutputType Condition="$(TargetFramework.Contains('-android'))">Exe</OutputType>
+		
 		<Nullable>enable</Nullable>
-		<BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+		<BuiltInComInteropSupport Condition="!$(TargetFramework.Contains('-android'))">true</BuiltInComInteropSupport>
 		<ApplicationManifest Condition="!$(TargetFramework.Contains('-android'))">app.manifest</ApplicationManifest>
 		<AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
 		<AssemblyName>Converter</AssemblyName>
 		<AssemblyTitle>Converter</AssemblyTitle>
 		<RootNamespace>Converter</RootNamespace>
 		
-		<!-- Unterdrücke bekannte, harmlose Warnungen -->
 		<NoWarn>NU1701;NU1605;NETSDK1202;NU1510</NoWarn>
 	</PropertyGroup>
 
-	<!-- ANDROID SPEZIFISCHE EINSTELLUNGEN -->
 	<PropertyGroup Condition="$(TargetFramework.Contains('-android'))">
 		<SupportedOSPlatformVersion>21.0</SupportedOSPlatformVersion>
 		<ApplicationTitle>Converter</ApplicationTitle>
@@ -33,7 +33,6 @@
 		<GeneratePackageOnBuild>False</GeneratePackageOnBuild>
 	</PropertyGroup>
 
-	<!-- VLC Konfigurationen für Windows -->
 	<PropertyGroup Label="Avalonia" Condition="('$(Configuration)' == 'Release' and '$(RuntimeIdentifier)' == 'win-x64')">
 		<VlcWindowsX64Enabled>true</VlcWindowsX64Enabled>
 		<VlcWindowsX86Enabled>false</VlcWindowsX86Enabled>
@@ -51,7 +50,6 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<!-- ALLE DEINE PACKAGES (Harmonisiert auf Avalonia 12.1.1) -->
 		<PackageReference Include="Avalonia" Version="12.1.1" />
 		<PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.1" />
 		<PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.1" />
@@ -71,7 +69,6 @@
 		<PackageReference Include="BergamotTranslatorSharp" Version="0.5.1" />
 		<PackageReference Include="SharpCompress" Version="0.50.4" />
 		
-		<!-- SkiaSharp 3.116.1 ist die aktuellste, existierende Version -->
 		<PackageReference Include="SkiaSharp" Version="3.116.1" />
 		<PackageReference Include="SkiaSharp.Svg" Version="1.60.0" />
 
