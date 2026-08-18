@@ -1,5 +1,4 @@
 name: Deploy to GitHub Releases
-
 on: 
   schedule:
      - cron: '30 14 * * 6' 
@@ -46,16 +45,15 @@ jobs:
           repository: 'DaikoGames/Translate-Folder'
           path: Translate-Folder
           
-      - name: Setup .NET 10.0
+      - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: 9.0.x
 
       - name: Build and Publish App
         shell: bash
         run: |
           dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" \
-            -f net10.0 \
             -c Release \
             -r ${{ matrix.runtime }} \
             -o "./publish/${{ matrix.runtime }}" \
@@ -74,53 +72,121 @@ jobs:
         if: contains(matrix.runtime, 'win')  
         run: |
           $baseDir = "./publish/${{ matrix.runtime }}"
-          New-Item -ItemType Directory -Force -Path "$baseDir/ConverterIcon", "$baseDir/Scratch-Format-Converter", "$baseDir/Install", "$baseDir/svg_library_ScratchJnr", "$baseDir/wav_library_ScratchJnr"
-          Copy-Item "./ConverterIcon/Converter.ico", "./ConverterIcon/Converter.png" "$baseDir/ConverterIcon/"
-          Copy-Item "./Scratch-Format-Converter/Convert.js", "./Scratch-Format-Converter/package.json", "./Scratch-Format-Converter/package-lock.json" "$baseDir/Scratch-Format-Converter/"
-          Copy-Item "./Install/dotnet-install.ps1" "$baseDir/Install/"
-          Copy-Item -Path "./svg_library_ScratchJnr/*" "$baseDir/svg_library_ScratchJnr/"
-          Copy-Item "./wav_library_ScratchJnr/*" "$baseDir/wav_library_ScratchJnr/" 
-          Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.gz" | ForEach-Object { 
-            $dn = $_.Directory.Name; New-Item -ItemType Directory -Force -Path "$baseDir/Translate-Folder/$dn" | Out-Null
-            $out = $_.Name -replace '\.gz$', ''; gzip -d -c $_.FullName > "$baseDir/Translate-Folder/$dn/$out"; Remove-Item $_.FullName -Force 
+          New-Item -ItemType Directory -Force -Path "$baseDir/ConverterIcon"
+          Copy-Item "./ConverterIcon/Converter.ico" "$baseDir/ConverterIcon/Converter.ico"
+          Copy-Item "./ConverterIcon/Converter.png" "$baseDir/ConverterIcon/Converter.png"
+          New-Item -ItemType Directory -Force -Path "$baseDir/Scratch-Format-Converter"
+          Copy-Item "./Scratch-Format-Converter/Convert.js" "$baseDir/Scratch-Format-Converter/Convert.js"
+          Copy-Item "./Scratch-Format-Converter/package.json" "$baseDir/Scratch-Format-Converter/package.json"
+          Copy-Item "./Scratch-Format-Converter/package-lock.json" "$baseDir/Scratch-Format-Converter/package-lock.json"
+          New-Item -ItemType Directory -Force -Path "$baseDir/Install"
+          Copy-Item "./Install/dotnet-install.ps1" "$baseDir/Install/dotnet-install.ps1"
+          New-Item -ItemType Directory -Force -Path "$baseDir/svg_library_ScratchJnr"
+          Copy-Item -Path "./svg_library_ScratchJnr/*" "$baseDir/svg_library_ScratchJnr"
+          New-Item -ItemType Directory -Force -Path "$baseDir/wav_library_ScratchJnr"
+          Copy-Item "./wav_library_ScratchJnr/*" "$baseDir/wav_library_ScratchJnr" 
+          $GZfiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.gz" -ErrorAction Stop
+          foreach ($GZfile in $GZfiles) {
+          $GZDirectoryName = $GZfile.Directory.Name
+          New-Item -ItemType Directory -Force -Path "$baseDir/Translate-Folder/$GZDirectoryName" | Out-Null
+          $OutFileName = $GZfile.Name -replace '\.gz$', ''
+          gzip -d -c $GZfile.FullName > "$baseDir/Translate-Folder/$GZDirectoryName/$OutFileName"
+          Remove-Item $GZfile.FullName -Force
           }
-          Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.json" | ForEach-Object { Copy-Item $_.FullName "$baseDir/Translate-Folder/$($_.Directory.Name)/" -Force }
-          Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.yml" | ForEach-Object { Copy-Item $_.FullName "$baseDir/Translate-Folder/$($_.Directory.Name)/" -Force }
-          Copy-Item "./README.md" "$baseDir/"
+          $JSONFiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.json" -ErrorAction Stop 
+          foreach ($JSONfile in $JSONFiles){
+          $JSONFileName = $JSONfile.Name
+          $JSONDirectoryName = (Get-Item $JSONfile).Directory.Name
+          Copy-Item -Path $JSONfile.FullName "$baseDir/Translate-Folder/$JSONDirectoryName/$JSONFileName" -Force
+          }
+          $YMLFiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.yml" -ErrorAction Stop 
+          foreach ($YMLfile in $YMLFiles){
+          $JYMLFileName = $YMLfile.Name
+          $YMLDirectoryName = (Get-Item $YMLfile).Directory.Name
+          Copy-Item -Path $YMLfile.FullName "$baseDir/Translate-Folder/$YMLDirectoryName/$JYMLFileName" -Force
+          }
+          Copy-Item "./README.md" "$baseDir/README.md"
   
       - name: Add Files (Linux, MacOS)
         shell: pwsh
         if: contains(matrix.runtime, 'linux') || contains(matrix.runtime, 'osx')
         run: |
           $baseDir = "./publish/${{ matrix.runtime }}"
-          New-Item -ItemType Directory -Force -Path "$baseDir/ConverterIcon", "$baseDir/Scratch-Format-Converter", "$baseDir/Install", "$baseDir/svg_library_ScratchJnr", "$baseDir/wav_library_ScratchJnr"
-          Copy-Item "./ConverterIcon/Converter.ico", "./ConverterIcon/Converter.png" "$baseDir/ConverterIcon/"
-          Copy-Item "./Scratch-Format-Converter/Convert.js", "./Scratch-Format-Converter/package.json", "./Scratch-Format-Converter/package-lock.json" "$baseDir/Scratch-Format-Converter/"
-          Copy-Item "./Install/dotnet-install.sh" "$baseDir/Install/"
-          Copy-Item -Path "./svg_library_ScratchJnr/*" "$baseDir/svg_library_ScratchJnr/" 
-          Copy-Item "./wav_library_ScratchJnr/*" "$baseDir/wav_library_ScratchJnr/" 
-          Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.gz" | ForEach-Object { 
-            $dn = $_.Directory.Name; New-Item -ItemType Directory -Force -Path "$baseDir/Translate-Folder/$dn" | Out-Null
-            $out = $_.Name -replace '\.gz$', ''; gzip -d -c $_.FullName > "$baseDir/Translate-Folder/$dn/$out"; Remove-Item $_.FullName -Force 
+          New-Item -ItemType Directory -Force -Path "$baseDir/ConverterIcon"
+          Copy-Item "./ConverterIcon/Converter.ico" "$baseDir/ConverterIcon/Converter.ico"
+          Copy-Item "./ConverterIcon/Converter.png" "$baseDir/ConverterIcon/Converter.png"
+          New-Item -ItemType Directory -Force -Path "$baseDir/Scratch-Format-Converter"
+          Copy-Item "./Scratch-Format-Converter/Convert.js" "$baseDir/Scratch-Format-Converter/Convert.js"
+          Copy-Item "./Scratch-Format-Converter/package.json" "$baseDir/Scratch-Format-Converter/package.json"
+          Copy-Item "./Scratch-Format-Converter/package-lock.json" "$baseDir/Scratch-Format-Converter/package-lock.json"
+          New-Item -ItemType Directory -Force -Path "$baseDir/Install"
+          Copy-Item "./Install/dotnet-install.sh" "$baseDir/Install/dotnet-install.sh"
+          New-Item -ItemType Directory -Force -Path "$baseDir/svg_library_ScratchJnr"
+          Copy-Item "./svg_library_ScratchJnr/*" "$baseDir/svg_library_ScratchJnr" 
+          New-Item -ItemType Directory -Force -Path "$baseDir/wav_library_ScratchJnr"
+          Copy-Item "./wav_library_ScratchJnr/*" "$baseDir/wav_library_ScratchJnr" 
+          $GZfiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.gz" -ErrorAction Stop
+          foreach ($GZfile in $GZfiles) {
+          $GZDirectoryName = $GZfile.Directory.Name
+          New-Item -ItemType Directory -Force -Path "$baseDir/Translate-Folder/$GZDirectoryName" | Out-Null
+          $OutFileName = $GZfile.Name -replace '\.gz$', ''
+          gzip -d -c $GZfile.FullName > "$baseDir/Translate-Folder/$GZDirectoryName/$OutFileName"
+          Remove-Item $GZfile.FullName -Force
           }
-          Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.json" | ForEach-Object { Copy-Item $_.FullName "$baseDir/Translate-Folder/$($_.Directory.Name)/" -Force }
-          Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.yml" | ForEach-Object { Copy-Item $_.FullName "$baseDir/Translate-Folder/$($_.Directory.Name)/" -Force }
-          Copy-Item "./README.md" "$baseDir/"
+          $JSONFiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.json" -ErrorAction Stop 
+          foreach ($JSONfile in $JSONFiles){
+          $JSONFileName = $JSONfile.Name
+          $JSONDirectoryName = (Get-Item $JSONfile).Directory.Name
+          Copy-Item -Path $JSONfile.FullName "$baseDir/Translate-Folder/$JSONDirectoryName/$JSONFileName" -Force
+          }
+          $YMLFiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.yml" -ErrorAction Stop 
+          foreach ($YMLfile in $YMLFiles){
+          $JYMLFileName = $YMLfile.Name
+          $YMLDirectoryName = (Get-Item $YMLfile).Directory.Name
+          Copy-Item -Path $YMLfile.FullName "$baseDir/Translate-Folder/$YMLDirectoryName/$JYMLFileName" -Force
+          }
+          Copy-Item "./README.md" "$baseDir/README.md"
+          
+      - name: Check Help
+        shell: bash
+        run: |
+          vpk pack --help
           
       - name: Pack with Velopack Windows
         shell: bash
         if: contains(matrix.runtime, 'win')
-        run: vpk pack -u "Converter" -v "0.9.${{ github.run_number }}" --packDir "./publish/${{ matrix.runtime }}" --outputDir "./Releases" --icon "./ConverterIcon/Converter.ico" --channel "${{ matrix.runtime }}"
+        run: |
+          vpk pack \
+            -u "Converter" \
+            -v "0.9.${{ github.run_number }}" \
+            --packDir "./publish/${{ matrix.runtime }}" \
+            --outputDir "./Releases" \
+            --icon "./ConverterIcon/Converter.ico" \
+            --channel "${{ matrix.runtime }}"
             
       - name: Pack with Velopack Linux
         shell: bash
         if: contains(matrix.runtime, 'linux')
-        run: vpk pack -u "Converter" -v "0.9.${{ github.run_number }}" --packDir "./publish/${{ matrix.runtime }}" --outputDir "./Releases" --icon "./ConverterIcon/Converter.png" --channel "${{ matrix.runtime }}"
+        run: |
+          vpk pack \
+            -u "Converter" \
+            -v "0.9.${{ github.run_number }}" \
+            --packDir "./publish/${{ matrix.runtime }}" \
+            --outputDir "./Releases" \
+            --icon "./ConverterIcon/Converter.png" \
+            --channel "${{ matrix.runtime }}"
             
       - name: Pack with Velopack MacOS
         shell: bash
         if: contains(matrix.runtime, 'osx')
-        run: vpk pack -u "Converter" -v "0.9.${{ github.run_number }}" --packDir "./publish/${{ matrix.runtime }}" --outputDir "./Releases" --icon "./ConverterIcon/Converter.icns" --channel "${{ matrix.runtime }}"
+        run: |
+          vpk pack \
+            -u "Converter" \
+            -v "0.9.${{ github.run_number }}" \
+            --packDir "./publish/${{ matrix.runtime }}" \
+            --outputDir "./Releases" \
+            --icon "./ConverterIcon/Converter.icns" \
+            --channel "${{ matrix.runtime }}"
             
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
@@ -128,10 +194,10 @@ jobs:
           name: vpk-artifacts-${{ matrix.runtime }}
           path: ./Releases/*
           
-  build-android:
-    name: Build for PrimeOS / Bliss OS (x64)
-    runs-on: ubuntu-latest
-    steps:
+  build_ubuntu-latest_linux-x86:
+   needs: build
+   runs-on: ubuntu-latest
+   steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
@@ -146,67 +212,176 @@ jobs:
         with:
           repository: 'DaikoGames/Translate-Folder'
           path: Translate-Folder
-
-      - name: Setup .NET 10.0
+          
+      - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: 9.0.x
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install Android Workload
-        run: |
-          dotnet workload install android
-          dotnet workload restore
-
-      - name: Build Android x64 APK
+      - name: Build and Publish App
         shell: bash
         run: |
           dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" \
-            -p:BuildAndroid=true \
-            -f net10.0-android \
             -c Release \
-            -r android-x64 \
-            -o "./publish/android" \
-            -p:AndroidPackageFormat=apk
-
-      - name: Debug - Show all APKs in workspace
+            -r win-x86 \
+            -o "./publish/linux-x86" \
+            -p:SelfContained=true \
+            -p:PublishSingleFile=true
+  
+      - name: Add Wine and Build AppImage - (Linux x86)
         shell: bash
         run: |
-          echo "🔍 Searching for ALL .apk files in the entire workspace:"
-          find . -type f -name "*.apk" -ls
-
-      - name: Upload ALL APKs as Artifact
+          cd "./publish/linux-x86"
+          curl -sLf --retry 5 --retry-connrefused -O "https://github.com/Kron4ek/Wine-Builds/releases/download/11.11/wine-11.11-x86.tar.xz"
+          tar -xf wine-11.11-x86.tar.xz --no-same-owner || true
+          rm wine-11.11-x86.tar.xz
+          echo '#!/bin/bash' > ./AppRun
+          echo 'HERE="$(dirname "$(readlink -f "${0}")")"' >> ./AppRun
+          echo '"$HERE/wine-11.11-x86/bin/wine" "$HERE/Converter.exe"' >> ./AppRun
+          chmod +x ./AppRun   
+          echo "[Desktop Entry]" > Converter.desktop
+          echo "Name=Converter" >> Converter.desktop
+          echo "Exec=AppRun" >> Converter.desktop
+          echo "Type=Application" >> Converter.desktop
+          echo "Icon=Converter" >> Converter.desktop
+          echo "Categories=Utility;" >> Converter.desktop
+          cp ./ConverterIcon/Converter.png ./Converter.png || cp ./ConverterIcon/*.png ./Converter.png || touch Converter.png
+          curl -L -O "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage"
+          chmod +x appimagetool-x86_64.AppImage
+          cd ..
+          ARCH=i686 ./linux-x86/appimagetool-x86_64.AppImage --appimage-extract-and-run ./linux-x86 Converter-linux-x86.AppImage
+      
+      - name: Upload Artifact (linux x86)
         uses: actions/upload-artifact@v4
         with:
-          name: android-apk-artifact
-          # NUKLEARE OPTION: Lädt JEDE .apk hoch, die irgendwo im Workspace existiert
-          path: |
-            **/*.apk
-          if-no-files-found: error
+          name: vpk-artifact-linux_x86
+          path: ./publish/Converter-linux-x86.AppImage
+
+  build_macos-latest_osx-x86:
+   needs: build
+   runs-on: macos-latest
+   steps: 
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Checkout External Dependency (Scratch-Format-Converter)
+        uses: actions/checkout@v4
+        with:
+          repository: 'DaikoGames/Scratch-Format-Converter'
+          path: Scratch-Format-Converter
+          
+      - name: Checkout External Dependency (Translator)
+        uses: actions/checkout@v4
+        with:
+          repository: 'DaikoGames/Translate-Folder'
+          path: Translate-Folder
+          
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Build and Publish App
+        shell: bash
+        run: |
+          dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" \
+            -c Release \
+            -r win-x86 \
+            -o "./publish/macos-x86-app" \
+            -p:SelfContained=true \
+            -p:PublishSingleFile=true
+
+      - name: Build macOS x86 App Bundle with Wine
+        shell: bash
+        run: |
+          mkdir -p "Converter.app/Contents/MacOS"
+          mkdir -p "Converter.app/Contents/Resources/wine"
+          mkdir -p "Converter.app/Contents/Resources/app"
+          
+          cp -R ./publish/macos-x86-app/* "Converter.app/Contents/Resources/app/"
+          
+          # Wine stabil und nativ über Homebrew Cask auf dem Runner installieren
+          brew install --cask wine-stable
+          
+          # Ermittle dynamisch den installierten Pfad von Wine auf dem Runner
+          WINE_PATH=$(which wine)
+          if [ -z "$WINE_PATH" ]; then
+            WINE_PATH="/Applications/Wine Stable.app/Contents/Resources/wine/bin/wine"
+          fi
+          
+          cat << EOF > "Converter.app/Contents/MacOS/launcher"
+          #!/bin/bash
+          DIR="\$(cd "\$(dirname "\$0")" && pwd)"
+          
+          if [ -f "\$DIR/../Resources/wine/bin/wine" ]; then
+              WINE_BIN="\$DIR/../Resources/wine/bin/wine"
+          else
+              WINE_BIN="$WINE_PATH"
+          fi
+          
+          cd "\$DIR/../Resources/app"
+          env WINEDEBUG=-all "\$WINE_BIN" "Converter.exe"
+          EOF
+          
+          chmod +x "Converter.app/Contents/MacOS/launcher"
+          
+          cat << 'EOF' > "Converter.app/Contents/Info.plist"
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>CFBundleExecutable</key>
+              <string>launcher</string>
+              <key>CFBundleIdentifier</key>
+              <string>com.daikogames.converter.x86</string>
+              <key>CFBundleName</key>
+              <string>Converter</string>
+              <key>CFBundlePackageType</key>
+              <string>APPL</string>
+              <key>CFBundleShortVersionString</key>
+              <string>0.9</string>
+          </dict>
+          </plist>
+          EOF
+
+      - name: Package App Bundle into single DMG
+        shell: bash
+        run: |
+          mkdir ./dist
+          hdiutil create -volname "Converter-osx-x86" -srcfolder "Converter.app" -ov -format UDZO "./dist/Converter-osx-x86.dmg"
+
+      - name: Upload Artifact (macos x86)
+        uses: actions/upload-artifact@v4
+        with:
+          name: vpk-artifact-osx-x86
+          path: ./dist/Converter-osx-x86.dmg
 
   release:
-    needs: [build, build-android]
+    needs: [build, build_ubuntu-latest_linux-x86, build_macos-latest_osx-x86]
     runs-on: ubuntu-latest
     steps:
-      - name: Download All Artifacts
+      - name: Download
         uses: actions/download-artifact@v4
         with:
           path: ./all-assets
           merge-multiple: true
 
-      - name: Debug - Show downloaded files
-        shell: bash
-        run: |
-          echo "📦 All downloaded artifacts:"
-          find ./all-assets -type f -ls
-
-      - name: Push EVERYTHING to GitHub Release
+      - name: Push to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v0.9.${{ github.run_number }}
-          # NUKLEARE OPTION: Lädt ALLE Dateien aus all-assets hoch. 
-          # Kein hartkodiertes Matching mehr. Was gebaut wurde, wird released.
           files: |
-            ./all-assets/**/*
+                 ./all-assets/Converter-win-x86-Setup.exe
+                 ./all-assets/Converter-win-x64-Setup.exe
+                 ./all-assets/Converter-win-arm64-Setup.exe
+                 ./all-assets/Converter-osx-x64-Setup.pkg
+                 ./all-assets/Converter-osx-arm64-Setup.pkg
+                 ./all-assets/Converter-linux-x86.AppImage
+                 ./all-assets/Converter-linux-x64.AppImage
+                 ./all-assets/Converter-linux-arm64.AppImage
+                 ./all-assets/Converter-osx-x86.dmg
+                 ./all-assets/Converter-win-x86-Portable.zip
+                 ./all-assets/Converter-win-x64-Portable.zip
+                 ./all-assets/Converter-win-arm64-Portable.zip
+                 ./all-assets/Converter-osx-x64-Portable.zip
+                 ./all-assets/Converter-osx-arm64-Portable.zip
