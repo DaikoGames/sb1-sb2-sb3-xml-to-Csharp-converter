@@ -207,5 +207,4 @@ jobs:
             ./all-assets/Converter-win-arm64-Portable.zip
             ./all-assets/Converter-osx-x64-Portable.zip
             ./all-assets/Converter-osx-arm64-Portable.zip
-            ./all-assets/*.dmg
-            ./all-assets/*.apk
+            ./all-assets/Converter-android-x64.apk
