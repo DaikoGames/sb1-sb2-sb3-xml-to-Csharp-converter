@@ -50,10 +50,11 @@ jobs:
         with:
           dotnet-version: 9.0.x
 
-      - name: Build and Publish App
+            - name: Build and Publish App
         shell: bash
         run: |
           dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" \
+            -f net10.0 \
             -c Release \
             -r ${{ matrix.runtime }} \
             -o "./publish/${{ matrix.runtime }}" \
@@ -201,22 +202,25 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup .NET 9.0
+      - name: Setup .NET 10.0
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
 
-      - name: Setup Android SDK (Die Magie passiert hier!)
+      - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install .NET Android Workload
-        run: dotnet workload install android
+      - name: Install Android Workload
+        run: |
+          dotnet workload install android
+          dotnet workload restore
 
-      - name: Publish Android APK
+      - name: Build Android x64 APK
+        shell: bash
         run: |
           dotnet publish "./sb1 sb2 sb3 xml to Csharp converter.csproj" \
-            -c Release \
             -f net10.0-android \
+            -c Release \
             -r android-x64 \
             -o "./Releases" \
             -p:AndroidPackageFormat=apk \
@@ -257,4 +261,4 @@ jobs:
                  ./all-assets/Converter-win-arm64-Portable.zip
                  ./all-assets/Converter-osx-x64-Portable.zip
                  ./all-assets/Converter-osx-arm64-Portable.zip
-                 ./all-assets/Converter-android-x64.apk
+                 ./all-assets/Converter-android-x64
