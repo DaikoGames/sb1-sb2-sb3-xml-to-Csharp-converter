@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<!-- 1. INTELLIGENTE ERKENNUNG: Ist das Android SDK installiert oder laufen wir auf GitHub? -->
 		<IsAndroidSdkInstalled Condition=" '$(ANDROID_HOME)' != '' or '$(ANDROID_SDK_ROOT)' != '' or '$(GITHUB_ACTIONS)' == 'true' ">true</IsAndroidSdkInstalled>
@@ -17,9 +17,8 @@
 		<AssemblyTitle>Converter</AssemblyTitle>
 		<RootNamespace>Converter</RootNamespace>
 		
-		<!-- 3. WARNUNGEN UNTERDRÜCKEN: Damit uralte Packages den Build nicht blockieren -->
-		
-
+		<!-- 3. WARNUNGEN UNTERDRÜCKEN: Entfernt die NU1510 und NU1701 Fehler sauber -->
+		<NoWarn>$(NoWarn);NU1510;NU1701;NETSDK1202</NoWarn>
 	</PropertyGroup>
 
 	<!-- ANDROID SPEZIFISCHE EINSTELLUNGEN -->
@@ -56,35 +55,28 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<!-- 4. ALLE DEINE PACKAGES (Harmonisiert auf Avalonia 12.1.1) -->
-		
-		<!-- AVALONIA: Alles muss 12.1.1 sein, damit PopUpWindow funktioniert -->
+		<!-- 4. HARMONISIERTE PACKAGES -->
 		<PackageReference Include="Avalonia" Version="12.1.1" />
 		<PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.1" />
 		<PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.1" />
 		<PackageReference Include="Avalonia.Desktop" Version="12.1.1" Condition="!$(TargetFramework.Contains('-android'))" />
 		<PackageReference Include="Avalonia.Android" Version="12.1.1" Condition="$(TargetFramework.Contains('-android'))" />
 		
-		<!-- DEIN GEWÜNSCHTES POPUP WINDOW -->
 		<PackageReference Include="PopUpWindow" Version="1.0.9.1" />
 		<PackageReference Include="Xamarin.AndroidX.Core.SplashScreen" Version="1.0.1.1" Condition="$(TargetFramework.Contains('-android'))" />
 
-		<!-- UTILITIES & LOGIK -->
 		<PackageReference Include="CliWrap" Version="3.10.4" />
 		<PackageReference Include="LibVLCSharp" Version="3.10.1" />
 		<PackageReference Include="LibVLCSharp.Avalonia" Version="3.10.1" />
 		<PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
-		<PackageReference Include="System.Diagnostics.Process" Version="4.3.0" />
 		
-		<!-- BEHALTEN, ABER WARNUNG UNTERDRÜCKT (durch NoWarn oben) -->
-		<PackageReference Include="System.Xml.Linq" Version="3.5.21022.801" />
-		
+		<!-- System.Diagnostics.Process und System.Xml.Linq wurden entfernt, da sie in .NET 10 bereits eingebaut sind und sonst Warnungen/Errors werfen -->
+
 		<PackageReference Include="Velopack" Version="1.2.0" />
 		<PackageReference Include="Downloader" Version="5.9.5" />
 		<PackageReference Include="BergamotTranslatorSharp" Version="0.5.1" />
 		<PackageReference Include="SharpCompress" Version="0.50.4" />
 
-		<!-- SKIA SHARP: 4.151.1 existiert nicht auf NuGet. 3.116.1 ist die aktuelle, echte Version -->
 		<PackageReference Include="SkiaSharp" Version="3.119.4" />
 		<PackageReference Include="SkiaSharp.Svg" Version="1.60.0" />
 
