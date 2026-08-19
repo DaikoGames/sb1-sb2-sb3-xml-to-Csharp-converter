@@ -21,6 +21,8 @@ jobs:
           - os: ubuntu-latest
             runtime: linux-x64
           - os: ubuntu-latest
+            runtime: linux-x86          # 🆕 ADDED: Linux 32-bit x86
+          - os: ubuntu-latest
             runtime: linux-arm
           - os: ubuntu-latest
             runtime: linux-arm64
@@ -89,23 +91,23 @@ jobs:
           Copy-Item "./wav_library_ScratchJnr/*" "$baseDir/wav_library_ScratchJnr" 
           $GZfiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.gz" -ErrorAction Stop
           foreach ($GZfile in $GZfiles) {
-          $GZDirectoryName = $GZfile.Directory.Name
-          New-Item -ItemType Directory -Force -Path "$baseDir/Translate-Folder/$GZDirectoryName" | Out-Null
-          $OutFileName = $GZfile.Name -replace '\.gz$', ''
-          gzip -d -c $GZfile.FullName > "$baseDir/Translate-Folder/$GZDirectoryName/$OutFileName"
-          Remove-Item $GZfile.FullName -Force
+            $GZDirectoryName = $GZfile.Directory.Name
+            New-Item -ItemType Directory -Force -Path "$baseDir/Translate-Folder/$GZDirectoryName" | Out-Null
+            $OutFileName = $GZfile.Name -replace '\.gz$', ''
+            gzip -d -c $GZfile.FullName > "$baseDir/Translate-Folder/$GZDirectoryName/$OutFileName"
+            Remove-Item $GZfile.FullName -Force
           }
           $JSONFiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.json" -ErrorAction Stop 
           foreach ($JSONfile in $JSONFiles){
-          $JSONFileName = $JSONfile.Name
-          $JSONDirectoryName = (Get-Item $JSONfile).Directory.Name
-          Copy-Item -Path $JSONfile.FullName "$baseDir/Translate-Folder/$JSONDirectoryName/$JSONFileName" -Force
+            $JSONFileName = $JSONfile.Name
+            $JSONDirectoryName = (Get-Item $JSONfile).Directory.Name
+            Copy-Item -Path $JSONfile.FullName "$baseDir/Translate-Folder/$JSONDirectoryName/$JSONFileName" -Force
           }
           $YMLFiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.yml" -ErrorAction Stop 
           foreach ($YMLfile in $YMLFiles){
-          $JYMLFileName = $YMLfile.Name
-          $YMLDirectoryName = (Get-Item $YMLfile).Directory.Name
-          Copy-Item -Path $YMLfile.FullName "$baseDir/Translate-Folder/$YMLDirectoryName/$JYMLFileName" -Force
+            $JYMLFileName = $YMLfile.Name
+            $YMLDirectoryName = (Get-Item $YMLfile).Directory.Name
+            Copy-Item -Path $YMLfile.FullName "$baseDir/Translate-Folder/$YMLDirectoryName/$JYMLFileName" -Force
           }
           Copy-Item "./README.md" "$baseDir/README.md"
   
@@ -129,30 +131,29 @@ jobs:
           Copy-Item "./wav_library_ScratchJnr/*" "$baseDir/wav_library_ScratchJnr" 
           $GZfiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.gz" -ErrorAction Stop
           foreach ($GZfile in $GZfiles) {
-          $GZDirectoryName = $GZfile.Directory.Name
-          New-Item -ItemType Directory -Force -Path "$baseDir/Translate-Folder/$GZDirectoryName" | Out-Null
-          $OutFileName = $GZfile.Name -replace '\.gz$', ''
-          gzip -d -c $GZfile.FullName > "$baseDir/Translate-Folder/$GZDirectoryName/$OutFileName"
-          Remove-Item $GZfile.FullName -Force
+            $GZDirectoryName = $GZfile.Directory.Name
+            New-Item -ItemType Directory -Force -Path "$baseDir/Translate-Folder/$GZDirectoryName" | Out-Null
+            $OutFileName = $GZfile.Name -replace '\.gz$', ''
+            gzip -d -c $GZfile.FullName > "$baseDir/Translate-Folder/$GZDirectoryName/$OutFileName"
+            Remove-Item $GZfile.FullName -Force
           }
           $JSONFiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.json" -ErrorAction Stop 
           foreach ($JSONfile in $JSONFiles){
-          $JSONFileName = $JSONfile.Name
-          $JSONDirectoryName = (Get-Item $JSONfile).Directory.Name
-          Copy-Item -Path $JSONfile.FullName "$baseDir/Translate-Folder/$JSONDirectoryName/$JSONFileName" -Force
+            $JSONFileName = $JSONfile.Name
+            $JSONDirectoryName = (Get-Item $JSONfile).Directory.Name
+            Copy-Item -Path $JSONfile.FullName "$baseDir/Translate-Folder/$JSONDirectoryName/$JSONFileName" -Force
           }
           $YMLFiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.yml" -ErrorAction Stop 
           foreach ($YMLfile in $YMLFiles){
-          $JYMLFileName = $YMLfile.Name
-          $YMLDirectoryName = (Get-Item $YMLfile).Directory.Name
-          Copy-Item -Path $YMLfile.FullName "$baseDir/Translate-Folder/$YMLDirectoryName/$JYMLFileName" -Force
+            $JYMLFileName = $YMLfile.Name
+            $YMLDirectoryName = (Get-Item $YMLfile).Directory.Name
+            Copy-Item -Path $YMLfile.FullName "$baseDir/Translate-Folder/$YMLDirectoryName/$JYMLFileName" -Force
           }
           Copy-Item "./README.md" "$baseDir/README.md"
           
       - name: Check Help
         shell: bash
-        run: |
-          vpk pack --help
+        run: vpk pack --help
           
       - name: Pack with Velopack Windows
         shell: bash
@@ -168,8 +169,8 @@ jobs:
             
       - name: Pack with Velopack Linux
         shell: bash
-        # linux-arm wird hier ausgeschlossen, da Velopack kein AppImage für ARM32 unterstützt
-        if: contains(matrix.runtime, 'linux') && matrix.runtime != 'linux-arm'
+        # 🆕 UPDATED: Exclude BOTH linux-arm and linux-x86, as Velopack doesn't support AppImage for 32-bit
+        if: contains(matrix.runtime, 'linux') && matrix.runtime != 'linux-arm' && matrix.runtime != 'linux-x86'
         run: |
           vpk pack \
             -u "Converter" \
@@ -179,10 +180,10 @@ jobs:
             --icon "./ConverterIcon/Converter.png" \
             --channel "${{ matrix.runtime }}"
 
-      - name: Create Portable Zip for Linux ARM
+      - name: Create Portable Zip for Linux ARM and x86
         shell: bash
-        # Nur für linux-arm: manuelles ZIP erstellen, da Velopack hier kein AppImage baut
-        if: matrix.runtime == 'linux-arm'
+        # 🆕 UPDATED: Handle both 32-bit architectures with a manual ZIP fallback
+        if: matrix.runtime == 'linux-arm' || matrix.runtime == 'linux-x86'
         run: |
           mkdir -p ./Releases
           cd "./publish/${{ matrix.runtime }}"
@@ -236,3 +237,4 @@ jobs:
                  ./all-assets/Converter-linux-x64-Portable.zip
                  ./all-assets/Converter-linux-arm-Portable.zip
                  ./all-assets/Converter-linux-arm64-Portable.zip
+                 ./all-assets/Converter-linux-x86-Portable.zip    # 🆕 ADDED: Release asset for Linux x86
