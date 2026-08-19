@@ -1,6 +1,6 @@
 [submodule "Translate-Folder"]
 	path = Translate-Folder
 	url = https://github.com/DaikoGames/Translate-Folder
-[submodule "Scratch-To-Snap"]
-	path = Scratch-To-Snap
-	url = https://github.com/DaikoGames/Scratch-To-Snap-
+[submodule "libs/scratch-snap-bridge"]
+	path = libs/scratch-snap-bridge
+	url = https://github.com/DaikoGames/scratch-snap-bridge.git
