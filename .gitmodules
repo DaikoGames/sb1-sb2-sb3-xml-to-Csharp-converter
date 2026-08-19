@@ -3,7 +3,7 @@
 	url = https://github.com/DaikoGames/Translate-Folder
 [submodule "libs/scratch-snap-bridge"]
 	path = libs/scratch-snap-bridge
-	url = https://github.com/DaikoGames/scratch-snap-bridge.git
+	url = https://github.com/DaikoGames/scratch-snap-bridge
 [submodule "libs/Scratch-Format-Converter"]
 	path = libs/Scratch-Format-Converter
 	url = https://github.com/DaikoGames/ScratchConverter
