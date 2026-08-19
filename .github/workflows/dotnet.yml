@@ -21,6 +21,8 @@ jobs:
           - os: ubuntu-latest
             runtime: linux-x64
           - os: ubuntu-latest
+            runtime: linux-arm
+          - os: ubuntu-latest
             runtime: linux-arm64
           - os: macos-latest
             runtime: osx-x64
@@ -215,6 +217,7 @@ jobs:
                  ./all-assets/Converter-osx-x64-Setup.pkg
                  ./all-assets/Converter-osx-arm64-Setup.pkg
                  ./all-assets/Converter-linux-x64.AppImage
+                 ./all-assets/Converter-linux-arm.AppImage
                  ./all-assets/Converter-linux-arm64.AppImage
                  ./all-assets/Converter-win-x86-Portable.zip
                  ./all-assets/Converter-win-x64-Portable.zip
