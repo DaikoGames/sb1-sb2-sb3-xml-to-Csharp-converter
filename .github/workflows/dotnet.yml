@@ -21,8 +21,6 @@ jobs:
           - os: ubuntu-latest
             runtime: linux-x64
           - os: ubuntu-latest
-            runtime: linux-x86
-          - os: ubuntu-latest
             runtime: linux-arm
           - os: ubuntu-latest
             runtime: linux-arm64
@@ -53,18 +51,6 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 9.0.x
-
-      - name: Install Linux x86 Runtime Packs (Samsung Port)
-        if: matrix.runtime == 'linux-x86'
-        shell: bash
-        run: |
-          # Install the linux-x86 runtime packs maintained by Samsung
-          dotnet workload install linux-x86 || true
-          # Manually download and install linux-x86 runtime packs if workload doesn't work
-          mkdir -p ~/.dotnet/packs
-          dotnet nuget locals all --list
-          # Install runtime packs for linux-x86
-          dotnet workload update
 
       - name: Build and Publish App
         shell: bash
@@ -182,7 +168,7 @@ jobs:
             
       - name: Pack with Velopack Linux
         shell: bash
-        if: contains(matrix.runtime, 'linux') && matrix.runtime != 'linux-arm' && matrix.runtime != 'linux-x86'
+        if: contains(matrix.runtime, 'linux') && matrix.runtime != 'linux-arm'
         run: |
           vpk pack \
             -u "Converter" \
@@ -192,9 +178,9 @@ jobs:
             --icon "./ConverterIcon/Converter.png" \
             --channel "${{ matrix.runtime }}"
 
-      - name: Create Portable Zip for Linux ARM and x86
+      - name: Create Portable Zip for Linux ARM 
         shell: bash
-        if: matrix.runtime == 'linux-arm' || matrix.runtime == 'linux-x86'
+        if: matrix.runtime == 'linux-arm'
         run: |
           mkdir -p ./Releases
           cd "./publish/${{ matrix.runtime }}"
@@ -248,4 +234,3 @@ jobs:
                  ./all-assets/Converter-linux-x64-Portable.zip
                  ./all-assets/Converter-linux-arm-Portable.zip
                  ./all-assets/Converter-linux-arm64-Portable.zip
-                 ./all-assets/Converter-linux-x86-Portable.zip
