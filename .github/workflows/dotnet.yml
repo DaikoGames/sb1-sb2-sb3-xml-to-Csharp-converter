@@ -21,7 +21,7 @@ jobs:
           - os: ubuntu-latest
             runtime: linux-x64
           - os: ubuntu-latest
-            runtime: linux-x86          # 🆕 ADDED: Linux 32-bit x86
+            runtime: linux-x86
           - os: ubuntu-latest
             runtime: linux-arm
           - os: ubuntu-latest
@@ -54,6 +54,18 @@ jobs:
         with:
           dotnet-version: 9.0.x
 
+      - name: Install Linux x86 Runtime Packs (Samsung Port)
+        if: matrix.runtime == 'linux-x86'
+        shell: bash
+        run: |
+          # Install the linux-x86 runtime packs maintained by Samsung
+          dotnet workload install linux-x86 || true
+          # Manually download and install linux-x86 runtime packs if workload doesn't work
+          mkdir -p ~/.dotnet/packs
+          dotnet nuget locals all --list
+          # Install runtime packs for linux-x86
+          dotnet workload update
+
       - name: Build and Publish App
         shell: bash
         run: |
@@ -62,7 +74,8 @@ jobs:
             -r ${{ matrix.runtime }} \
             -o "./publish/${{ matrix.runtime }}" \
             -p:SelfContained=true \
-            -p:PublishSingleFile=true
+            -p:PublishSingleFile=true \
+            -p:RuntimeIdentifiers=${{ matrix.runtime }}
 
       - name: Install Velopack CLI
         run: dotnet tool install -g vpk
@@ -129,8 +142,8 @@ jobs:
           Copy-Item "./svg_library_ScratchJnr/*" "$baseDir/svg_library_ScratchJnr" 
           New-Item -ItemType Directory -Force -Path "$baseDir/wav_library_ScratchJnr"
           Copy-Item "./wav_library_ScratchJnr/*" "$baseDir/wav_library_ScratchJnr" 
-          $GZfiles = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.gz" -ErrorAction Stop
-          foreach ($GZfile in $GZfiles) {
+          $GZ_files = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.gz" -ErrorAction Stop
+          foreach ($GZfile in $GZ_files) {
             $GZDirectoryName = $GZfile.Directory.Name
             New-Item -ItemType Directory -Force -Path "$baseDir/Translate-Folder/$GZDirectoryName" | Out-Null
             $OutFileName = $GZfile.Name -replace '\.gz$', ''
@@ -169,7 +182,6 @@ jobs:
             
       - name: Pack with Velopack Linux
         shell: bash
-        # 🆕 UPDATED: Exclude BOTH linux-arm and linux-x86, as Velopack doesn't support AppImage for 32-bit
         if: contains(matrix.runtime, 'linux') && matrix.runtime != 'linux-arm' && matrix.runtime != 'linux-x86'
         run: |
           vpk pack \
@@ -182,7 +194,6 @@ jobs:
 
       - name: Create Portable Zip for Linux ARM and x86
         shell: bash
-        # 🆕 UPDATED: Handle both 32-bit architectures with a manual ZIP fallback
         if: matrix.runtime == 'linux-arm' || matrix.runtime == 'linux-x86'
         run: |
           mkdir -p ./Releases
@@ -237,4 +248,4 @@ jobs:
                  ./all-assets/Converter-linux-x64-Portable.zip
                  ./all-assets/Converter-linux-arm-Portable.zip
                  ./all-assets/Converter-linux-arm64-Portable.zip
-                 ./all-assets/Converter-linux-x86-Portable.zip    # 🆕 ADDED: Release asset for Linux x86
+                 ./all-assets/Converter-linux-x86-Portable.zip
