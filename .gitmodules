@@ -7,3 +7,9 @@
 [submodule "libs/Scratch-Format-Converter"]
 	path = libs/Scratch-Format-Converter
 	url = https://github.com/DaikoGames/ScratchConverter
+[submodule "Scratch-To-Snap"]
+	path = Scratch-To-Snap
+	url = https://github.com/DaikoGames/scratch-snap-bridge
+[submodule "Scratch-Format-Converter"]
+	path = Scratch-Format-Converter
+	url = https://github.com/DaikoGames/ScratchConverter
