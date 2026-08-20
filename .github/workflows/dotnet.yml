@@ -41,6 +41,12 @@ jobs:
           repository: 'DaikoGames/Scratch-Format-Converter'
           path: Scratch-Format-Converter
           
+      - name: Checkout External Dependency (Scratch-To-Snap)
+        uses: actions/checkout@v4
+        with:
+          repository: 'DaikoGames/scratch-snap-bridge'
+          path: Translate-Folder
+          
       - name: Checkout External Dependency (Translator)
         uses: actions/checkout@v4
         with:
@@ -125,14 +131,15 @@ jobs:
           Copy-Item "./Scratch-Format-Converter/Convert.js" "$baseDir/Scratch-Format-Converter/Convert.js"
           Copy-Item "./Scratch-Format-Converter/package.json" "$baseDir/Scratch-Format-Converter/package.json"
           Copy-Item "./Scratch-Format-Converter/package-lock.json" "$baseDir/Scratch-Format-Converter/package-lock.json"
+          Copy-Item "./Scratch-To-Snap/public/downloads/converter.js" "$baseDir/Scratch-To-Snap/Convert.js"
+          Copy-Item "./Scratch-To-Snap/README.md" "$baseDir/Scratch-To-Snap/README.md"
+          
           New-Item -ItemType Directory -Force -Path "$baseDir/Install"
           Copy-Item "./Install/dotnet-install.sh" "$baseDir/Install/dotnet-install.sh"
           New-Item -ItemType Directory -Force -Path "$baseDir/svg_library_ScratchJnr"
           Copy-Item "./svg_library_ScratchJnr/*" "$baseDir/svg_library_ScratchJnr" 
           New-Item -ItemType Directory -Force -Path "$baseDir/wav_library_ScratchJnr"
           Copy-Item "./wav_library_ScratchJnr/*" "$baseDir/wav_library_ScratchJnr" 
-          Copy-Item "./Scratch-To-Snap/public/downloads/converter.js" "$baseDir/Scratch-To-Snap/Convert.js"
-          Copy-Item "./Scratch-To-Snap/README.md" "$baseDir/Scratch-To-Snap/README.md"
           $GZ_files = Get-ChildItem -Path "./Translate-Folder" -Recurse -Filter "*.gz" -ErrorAction Stop
           foreach ($GZfile in $GZ_files) {
             $GZDirectoryName = $GZfile.Directory.Name
