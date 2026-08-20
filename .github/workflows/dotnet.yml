@@ -38,14 +38,14 @@ jobs:
       - name: Checkout External Dependency (Scratch-Format-Converter)
         uses: actions/checkout@v4
         with:
-          repository: 'DaikoGames/Scratch-Format-Converter'
+          repository: 'DaikoGames/ScratchConverter'
           path: Scratch-Format-Converter
           
       - name: Checkout External Dependency (Scratch-To-Snap)
         uses: actions/checkout@v4
         with:
-          repository: 'DaikoGames/Scratch-To-Snap'
-          path: Translate-Folder
+          repository: 'DaikoGames/scratch-snap-bridge'
+          path: Scratch-To-Snap
           
       - name: Checkout External Dependency (Translator)
         uses: actions/checkout@v4
