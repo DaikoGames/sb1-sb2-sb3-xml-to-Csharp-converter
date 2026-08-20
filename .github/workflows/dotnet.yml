@@ -88,6 +88,7 @@ jobs:
           Copy-Item "./Scratch-Format-Converter/Convert.js" "$baseDir/Scratch-Format-Converter/Convert.js"
           Copy-Item "./Scratch-Format-Converter/package.json" "$baseDir/Scratch-Format-Converter/package.json"
           Copy-Item "./Scratch-Format-Converter/package-lock.json" "$baseDir/Scratch-Format-Converter/package-lock.json"
+          New-Item -ItemType Directory -Force -Path "$baseDir/Scratch-To-Snap"
           Copy-Item "./Scratch-To-Snap/public/downloads/converter.js" "$baseDir/Scratch-To-Snap/converter.js"
           Copy-Item "./Scratch-To-Snap/README.md" "$baseDir/Scratch-To-Snap/README.md"
           
@@ -131,6 +132,7 @@ jobs:
           Copy-Item "./Scratch-Format-Converter/Convert.js" "$baseDir/Scratch-Format-Converter/Convert.js"
           Copy-Item "./Scratch-Format-Converter/package.json" "$baseDir/Scratch-Format-Converter/package.json"
           Copy-Item "./Scratch-Format-Converter/package-lock.json" "$baseDir/Scratch-Format-Converter/package-lock.json"
+          New-Item -ItemType Directory -Force -Path "$baseDir/Scratch-To-Snap"
           Copy-Item "./Scratch-To-Snap/public/downloads/converter.js" "$baseDir/Scratch-To-Snap/converter.js"
           Copy-Item "./Scratch-To-Snap/README.md" "$baseDir/Scratch-To-Snap/README.md"
           
