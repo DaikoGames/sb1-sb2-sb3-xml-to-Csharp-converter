@@ -13,7 +13,6 @@ Well it is pretty simple, i as a Developer saw Projects like [Turbowarp](https:/
 | Link to Dependency| Link to License|
 | :--- | :--- |
 | [Avalonia](https://github.com/AvaloniaUI/Avalonia) | [MIT-License](https://github.com/AvaloniaUI/Avalonia?tab=MIT-1-ov-file) |
-| [Magick.NET](https://github.com/dlemstra/Magick.NET) | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
 | [Newtonsoft.Json](https://github.com/JamesNK/Newtonsoft.Json) | [MIT-License](https://mit-license.org/) |
 | [LibVLC](https://github.com/videolan/libvlcsharp) | [LGPL 2.1](https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html) |
 | [CliWrap](https://github.com/Tyrrrz/CliWrap) | [MIT-License](https://mit-license.org/) |
@@ -21,8 +20,6 @@ Well it is pretty simple, i as a Developer saw Projects like [Turbowarp](https:/
 | [Avalonia.PopUpWindow](https://github.com/DaikoGames/Avalonia.PopUpWindow) | [MIT-License](https://github.com/DaikoGames/Avalonia.PopUpWindow?tab=MIT-1-ov-file) |
 | [.NET](https://dotnet.microsoft.com/en-us/download/dotnet/10.0) | [Linux](https://mit-license.org/) [Windows](https://qphelp.quest.com/Content/ThirdPartyComponents/MSDotNetLibraryLicense.htm?TocPath=Legal%2525252525252520Notices%252525252525257CLicenses%252525252525257C_____5) | 
 | [Scratch Junior Sprite Pictures & Default Sounds](https://github.com/scratchfoundation/scratchjr) | [BSD-3-Clause](https://github.com/scratchfoundation/scratchjr?tab=BSD-3-Clause-1-ov-file) |
-| [Scratch-Format-Converter](https://github.com/DaikoGames/Scratch-Format-converter) | [APGL-3.0 License](https://github.com/DaikoGames/Scratch-Format-converter?tab=AGPL-3.0-1-ov-file) |
-| [Scratch-To-Snap](https://github.com/DaikoGames/Scratch-To-Snap-) | [MIT-License](https://github.com/DaikoGames/Scratch-To-Snap-?tab=MIT-1-ov-file) |
 | [Downloader](https://www.nuget.org/packages/Downloader/5.5.0?_src=template) | [MIT-License](https://licenses.nuget.org/MIT) |
 | [BergamotTranslatorSharp](https://www.nuget.org/packages/BergamotTranslatorSharp/0.3.4?_src=template) | [MPL 2.0](https://licenses.nuget.org/MPL-2.0) |
 | [SharpCompress](https://github.com/adamhathcock/sharpcompress) | [MIT-License](https://github.com/adamhathcock/sharpcompress?tab=MIT-1-ov-file) |
