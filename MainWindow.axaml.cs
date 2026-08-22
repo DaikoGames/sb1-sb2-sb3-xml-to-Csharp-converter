@@ -2472,7 +2472,7 @@ public partial class MainWindow : Window
                 bool SomethingElseThanRound = false;
                 //ok so i need some things around the edges to detect it, it is possible but hard :3
                 //check if the coordinates of the objects are bigger as the woidth or the height XD
-                var SoundVLC = new LibVLC();
+                var SoundVLC = new LibVLCSharp.Shared.LibVLC();
 
                 int ReceiveMessage = 0;
                 int IF = 0;
