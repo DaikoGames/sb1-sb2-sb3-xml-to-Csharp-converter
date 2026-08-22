@@ -10,7 +10,7 @@ Well it is pretty simple, i as a Developer saw Projects like [Turbowarp](https:/
 
 ## The Dependencies i used for my Project and their licenses:
 
-| Link to Dependency| Link to License|
+| Link to Dependency | Link to License |
 | :--- | :--- |
 | [Avalonia](https://github.com/AvaloniaUI/Avalonia) | [MIT-License](https://github.com/AvaloniaUI/Avalonia?tab=MIT-1-ov-file) |
 | [Newtonsoft.Json](https://github.com/JamesNK/Newtonsoft.Json) | [MIT-License](https://mit-license.org/) |
@@ -30,21 +30,21 @@ I used [ImageMagick](https://imagemagick.org/#gsc.tab=0) for converting the png 
 
 ## What works and what doesnt for compilation: 
 
-| Publish | CPU Architecture | Working? |
+| Publish | CPU Architecture | Done | Obsolete? |
 | :--- | :--- | :--- |
-| Windows | x86 | :white_check_mark: |
-|         | x64 | :white_check_mark: |
-|         | arm32 | :x: |
-|         | arm64 | :white_check_mark: |
-| Linux | x86 | :x: |
-|       | x64 | :white_check_mark: |
-|       | arm32 | :white_check_mark: |
-|       | arm64 | :white_check_mark: |
-| MacOS | x86 | :x: |
-|       | x64 | :white_check_mark: |
-|       | arm32 | :x: |
-|       | arm64 | :white_check_mark: |
-| Web | none | :x: |
+| Windows | x86 | :white_check_mark: | :x: |
+|         | x64 | :white_check_mark: | :x: |
+|         | arm32 | :x: | :white_check_mark: |
+|         | arm64 | :white_check_mark: | :x: |
+| Linux | x86 | :x: | :white_check_mark: |
+|       | x64 | :white_check_mark: | :x: |
+|       | arm32 | :white_check_mark: | :x: |
+|       | arm64 | :white_check_mark: | :x: |
+| MacOS | x86 | :x: | :white_check_mark: |
+|       | x64 | :white_check_mark: | :x: |
+|       | arm32 | :x: | :white_check_mark: |
+|       | arm64 | :white_check_mark: | :x: |
+| Web | none | :x: | :white_check_mark: |
 
 these things will never happen, because they physically can´t run the desktop app
 IOS, ANDROID
