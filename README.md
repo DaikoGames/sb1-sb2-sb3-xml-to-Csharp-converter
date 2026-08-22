@@ -44,7 +44,7 @@ I used [ImageMagick](https://imagemagick.org/#gsc.tab=0) for converting the png 
 |       | x64 | :white_check_mark: | :x: |
 |       | arm32 | :x: | :white_check_mark: |
 |       | arm64 | :white_check_mark: | :x: |
-| Web | none | :x: | :white_check_mark: | :x: |
+| Web | none | :x: | :x: |
 
 these things will never happen, because they physically can´t run the desktop app
 IOS, ANDROID
