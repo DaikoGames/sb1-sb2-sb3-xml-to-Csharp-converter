@@ -17,8 +17,10 @@ using PopUpWindowNamespace;
 using SharpCompress;
 using SharpCompress.Archives;
 using SharpCompress.Common;
+using ShimSkiaSharp;
 using SkiaSharp;
-using SkiaSharp.Extended.Svg;
+using Svg;
+using Svg.Skia;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -1084,7 +1086,66 @@ public partial class MainWindow : Window
 
     //The automation of converting .sb3 Files to .xml FIles isn�t working properly - so the conversion from .sb to .sb3 or .sb2 to .sb3 with Auto Hot Key - its probably because of the path - I will take a closer look to that.
     //Ok so i found out a thing, the thing is that the Neutralino app needs to be full screen and a click needs to be simulated. Gotta tell the user to relax lol XD
+
+    public static void ConvertToIco(string inputPath, string outputPath)
+    {
+        SKBitmap bitmap;
+
+        // 1. Load and scale the image (SVG or Raster)
+        if (inputPath.EndsWith(".svg", StringComparison.OrdinalIgnoreCase))
+        {
+            using var svg = new SKSvg();
+            svg.Load(inputPath);
+            bitmap = new SKBitmap(256, 256);
+            using var canvas = new SkiaSharp.SKCanvas(bitmap);
+            canvas.Clear(SKColors.Transparent);
+
+            // Scale SVG to fit 256x256 while keeping aspect ratio
+            var rect = svg.Picture.CullRect;
+            float scale = Math.Min(256f / rect.Width, 256f / rect.Height);
+            canvas.Translate((256 - rect.Width * scale) / 2, (256 - rect.Height * scale) / 2);
+            canvas.Scale(scale);
+            canvas.DrawPicture(svg.Picture);
+        }
+        else
+        {
+            using var original = SKBitmap.Decode(inputPath);
+            bitmap = new SKBitmap(256, 256);
+            using var canvas = new SkiaSharp.SKCanvas(bitmap);
+            canvas.Clear(SKColors.Transparent);
+
+            // Scale raster image to fit 256x256 while keeping aspect ratio
+            float scale = Math.Min(256f / original.Width, 256f / original.Height);
+            canvas.Translate((256 - original.Width * scale) / 2, (256 - original.Height * scale) / 2);
+            canvas.Scale(scale);
+            canvas.DrawBitmap(original, 0, 0);
+        }
+
+        // 2. Use SkiaSharp to encode the resized image to PNG in memory
+        using var image = SkiaSharp.SKImage.FromBitmap(bitmap);
+        using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+        byte[] pngBytes = data.ToArray();
+
+        // 3. Wrap the PNG bytes in a standard 22-byte ICO header
+        using var stream = new FileStream(outputPath, FileMode.Create);
+        using var writer = new BinaryWriter(stream);
+
+        writer.Write((short)0);             // Reserved
+        writer.Write((short)1);             // Type: 1 = ICO
+        writer.Write((short)1);             // Image count
+        writer.Write((byte)0);              // Width (0 means 256px)
+        writer.Write((byte)0);              // Height (0 means 256px)
+        writer.Write((byte)0);              // Color palette
+        writer.Write((byte)0);              // Reserved
+        writer.Write((short)1);             // Color planes
+        writer.Write((short)32);            // Bits per pixel
+        writer.Write(pngBytes.Length);      // Size of PNG data
+        writer.Write(22);                   // Offset where PNG data starts (6 + 16 = 22)
+        writer.Write(pngBytes);             // The actual SkiaSharp-encoded PNG data
+    }
+
     string newFile;
+
 
     public async Task sbfiles(string Extension) //This doesn�t work bc of Scratch i need to find me failure :/ lol XD
     {
@@ -1348,51 +1409,64 @@ public partial class MainWindow : Window
                             File.AppendAllText(WindowCsFile, "\n " + Path.GetFileNameWithoutExtension(SpriteName) + ".Source = new Bitmap(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, \"" + Path.GetFileName(NewImageName) + "\"));");
                         }*/
 
-                       
+                        // YOUR EXACT VARIABLES - nothing changed
                         string NewImageName = Path.Combine(GameFolder, Path.GetFileNameWithoutExtension(SpriteName) + ".png");
 
-                        var svg = new SkiaSharp.Extended.Svg.SKSvg();
-                        using (var picture = svg.Load(SpriteFolder)) 
+                        // This spawns a background thread instantly. The system cleans it up automatically when done.
+                        _ = Task.Run(() =>
                         {
-                            
-                            var bounds = picture.CullRect;
-                            int width = (int)Math.Ceiling(bounds.Width);
-                            int height = (int)Math.Ceiling(bounds.Height);
+                            string extension = Path.GetExtension(SpriteName).ToLowerInvariant();
+                            double PNGwidth = 0;
+                            double PNGheight = 0;
 
-                            using (var bitmap = new SKBitmap(width, height))
-                            using (var canvas = new SKCanvas(bitmap))
+                            if (extension == ".svg")
                             {
-                                canvas.Clear(SKColors.Transparent);
-                                canvas.DrawPicture(picture);
-                                canvas.Flush();
+                                using var svg = new Svg.Skia.SKSvg();
+                                var picture = svg.Load(SpriteName);
 
-                                
-                                using (var image = SKImage.FromBitmap(bitmap))
-                                using (var data = image.Encode(SKEncodedImageFormat.Png, 100))
-                                using (var stream = File.OpenWrite(NewImageName))
+                                if (picture != null)
                                 {
-                                    data.SaveTo(stream);
+                                    // Skia and Avalonia share the EXACT same (0,0) top-left coordinate system.
+                                    PNGwidth = picture.CullRect.Width;
+                                    PNGheight = picture.CullRect.Height;
+
+                                    int intWidth = (int)Math.Ceiling(PNGwidth);
+                                    int intHeight = (int)Math.Ceiling(PNGheight);
+
+                                    using var bitmap = new SkiaSharp.SKBitmap(intWidth, intHeight);
+                                    using var canvas = new SkiaSharp.SKCanvas(bitmap);
+                                    canvas.Clear(SkiaSharp.SKColors.Transparent);
+                                    canvas.DrawPicture(picture);
+
+                                    using var image = SkiaSharp.SKImage.FromBitmap(bitmap);
+                                    using var data = image.Encode(SkiaSharp.SKEncodedImageFormat.Png, 100);
+                                    File.WriteAllBytes(NewImageName, data.ToArray());
                                 }
                             }
-                        }
-                        using (var PNGimage = SKBitmap.Decode(NewImageName))
-                        {
-                            string RoughPNGwidth = Convert.ToString(PNGimage.Width);
-                            string RoughPNGheight = Convert.ToString(PNGimage.Height);
-                            double PNGwidth = Convert.ToDouble(RoughPNGwidth);
-                            double PNGheight = Convert.ToDouble(RoughPNGheight);
+                            else
+                            {
+                                using var bitmap = SkiaSharp.SKBitmap.Decode(SpriteName);
+                                PNGwidth = bitmap.Width;
+                                PNGheight = bitmap.Height;
+                                using var image = SkiaSharp.SKImage.FromBitmap(bitmap);
+                                using var data = image.Encode(SkiaSharp.SKEncodedImageFormat.Png, 100);
+                                File.WriteAllBytes(NewImageName, data.ToArray());
+                            }
 
-                            File.AppendAllText(WindowEditorFile, "\n <Image");
-                            File.AppendAllText(WindowEditorFile, " Name=\"" + Path.GetFileNameWithoutExtension(SpriteName) + "\"");
-                            File.AppendAllText(WindowEditorFile, "\n                  Width=\"" + (PNGwidth) + "\"");
-                            File.AppendAllText(WindowEditorFile, "\n                  Height=\"" + (PNGheight) + "\"");
-                            //THESE COORDINATE SYSTEMS ARE DIFFERENT -need to understand canvas coordinate system correctly
-                            File.AppendAllText(WindowEditorFile, "\n                  Canvas.Left=\"" + 0 + "\"");
-                            File.AppendAllText(WindowEditorFile, "\n                  Canvas.Top=\"" + 0 + "\"");
-                            File.AppendAllText(WindowEditorFile, ">");
-                            File.AppendAllText(WindowEditorFile, "\n           </Image>");
-                            File.AppendAllText(WindowCsFile, "\n " + Path.GetFileNameWithoutExtension(SpriteName) + ".Source = new Bitmap(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, \"" + Path.GetFileName(NewImageName) + "\"));");
-                        }
+                            // Build string ONCE (saves massive CPU/disk overhead)
+                            string xamlContent = $@" <Image Name=""{Path.GetFileNameWithoutExtension(SpriteName)}""
+  Width=""{PNGwidth}""
+                  Height=""{PNGheight}""
+                  Canvas.Left=""0""
+                  Canvas.Top=""0"">
+           </Image>";
+
+                            string csContent = $"\n {Path.GetFileNameWithoutExtension(SpriteName)}.Source = new Bitmap(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, \"{Path.GetFileName(NewImageName)}\"));";
+
+                            File.AppendAllText(WindowEditorFile, xamlContent);
+                            File.AppendAllText(WindowCsFile, csContent);
+                        }); 
+
                     }
 
                 }
@@ -1711,29 +1785,40 @@ public partial class MainWindow : Window
 
                                     string pngfolder = ImageName.Replace(".svg", ".png");
 
-                                    var svg = new SkiaSharp.Extended.Svg.SKSvg();
-                                    using (var picture = svg.Load(ImageName))
+                                    // Spawns a background thread for this exact job. 
+                                    // The OS cleans it up automatically when it finishes.
+                                    _ = Task.Run(() =>
                                     {
-                                        var bounds = picture.CullRect;
-                                        int width = (int)Math.Ceiling(bounds.Width);
-                                        int height = (int)Math.Ceiling(bounds.Height);
+                                        using var svg = new Svg.Skia.SKSvg();
+                                        var picture = svg.Load(ImageName);
 
-                                        using (var bitmap = new SKBitmap(width, height))
-                                        using (var canvas = new SKCanvas(bitmap))
+                                        if (picture != null)
                                         {
-                                            canvas.Clear(SKColors.Transparent); // Equivalent to PNGImage.BackgroundColor = MagickColors.Transparent;
-                                            canvas.DrawPicture(picture);
-                                            canvas.Flush();
+                                            int width = (int)Math.Ceiling(picture.CullRect.Width);
+                                            int height = (int)Math.Ceiling(picture.CullRect.Height);
 
-                                            using (var image = SKImage.FromBitmap(bitmap))
-                                            using (var data = image.Encode(SKEncodedImageFormat.Png, 100))
-                                            using (var stream = File.Create(pngfolder))
-                                            {
-                                                data.SaveTo(stream); // Equivalent to PNGImage.Write(pngfolder);
-                                            }
+                                            using var bitmap = new SkiaSharp.SKBitmap(width, height);
+                                            using var canvas = new SkiaSharp.SKCanvas(bitmap);
+
+                                            // Replaces: PNGImage.BackgroundColor = MagickColors.Transparent;
+                                            canvas.Clear(SkiaSharp.SKColors.Transparent);
+
+                                            // Draws the SVG onto the transparent canvas
+                                            canvas.DrawPicture(picture);
+
+                                            using var image = SkiaSharp.SKImage.FromBitmap(bitmap);
+                                            using var data = image.Encode(SkiaSharp.SKEncodedImageFormat.Png, 100);
+
+                                            // Replaces: PNGImage.Write(pngfolder);
+                                            // Using a stream here uses less memory than converting to a byte array
+                                            using var stream = File.OpenWrite(pngfolder);
+                                            data.SaveTo(stream);
                                         }
-                                    }
-                                    File.Delete(ImageName);
+
+                                        // Replaces: File.Delete(ImageName);
+                                        File.Delete(ImageName);
+                                    });
+
                                 }
                                 catch (Exception ex)
                                 {
@@ -1912,74 +1997,19 @@ public partial class MainWindow : Window
                         SVGImage.Write(NewImageName);
                     }
                 }*/
-                // Note: SkiaSharp does not natively support encoding .ICO files, which means i will drop support
 
-                if (ICON.Contains("jpg"))
+                string ext = Path.GetExtension(ICON).ToLowerInvariant();
+
+                if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".svg")
                 {
-                    ImageNameN = Path.Combine(GameFolder, "Game.jpg");
-                    // Changed to .png to honor your decision to drop .ico support!
-                    NewImageName = Path.Combine(GameFolder, "GameIcon.png");
-                    File.Copy(ICON, ImageNameN, true);
+                    string tempPath = Path.Combine(GameFolder, $"Game{ext}");
+                    string icoPath = Path.Combine(GameFolder, "GameIcon.ico");
 
-                    // Load JPG and convert to PNG using SkiaSharp
-                    using (var stream = File.OpenRead(ImageNameN))
-                    {
-                        using (var jpgImage = SKBitmap.Decode(stream))
-                        {
-                            using (var image = SKImage.FromBitmap(jpgImage))
-                            {
-                                using (var data = image.Encode(SKEncodedImageFormat.Png, 100))
-                                {
-                                    using (var outStream = File.OpenWrite(NewImageName))
-                                    {
-                                        data.SaveTo(outStream);
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    File.Copy(ICON, tempPath, true);
+
+                    // BOOM. Done. Pure SkiaSharp, cross-platform, no manual work.
+                    ConvertToIco(tempPath, icoPath);
                 }
-
-                //This should work - i am testing it right away :)
-                if (ICON.Contains("svg"))
-                {
-                    ImageNameN = Path.Combine(GameFolder, "Game.svg");
-                    // Changed to .png to honor your decision to drop .ico support!
-                    NewImageName = Path.Combine(GameFolder, "GameIcon.png");
-                    File.Copy(ICON, ImageNameN, true);
-
-                    // Load SVG and convert to PNG using SkiaSharp
-                    var svg = new SkiaSharp.Extended.Svg.SKSvg();
-                    using (var picture = svg.Load(ImageNameN))
-                    {
-                        var bounds = picture.CullRect;
-                        int width = (int)Math.Ceiling(bounds.Width);
-                        int height = (int)Math.Ceiling(bounds.Height);
-
-                        using (var bitmap = new SKBitmap(width, height))
-                        {
-                            using (var canvas = new SKCanvas(bitmap))
-                            {
-                                canvas.Clear(SKColors.Transparent);
-                                canvas.DrawPicture(picture);
-                                canvas.Flush();
-                            }
-
-                            using (var image = SKImage.FromBitmap(bitmap))
-                            {
-                                using (var data = image.Encode(SKEncodedImageFormat.Png, 100))
-                                {
-                                    using (var outStream = File.OpenWrite(NewImageName))
-                                    {
-                                        data.SaveTo(outStream);
-                                    }
-                                }
-                            }
-                        }
-                        
-                    }
-                }
-
             }
 
             if (Scratch == false && Snap == true)
@@ -2231,7 +2261,7 @@ public partial class MainWindow : Window
                         TextNumber = TextNumber + 1;
                         string FileNameTitle = Text.Replace(" ", "_").Replace("�", "").Replace("^", "").Replace("!", "").Replace("\"", "").Replace("�", "").Replace("$", "").Replace("%", "").Replace("&", "").Replace("/", "").Replace("{", "").Replace("(", "").Replace("[", "").Replace(")", "").Replace("]", "").Replace("=", "").Replace("}", "").Replace("?", "").Replace("\\", "").Replace("`", "").Replace("�", "").Replace("@", "").Replace("*", "").Replace("+", "").Replace("~", "").Replace("'", "").Replace("#", "").Replace(">", "").Replace("<", "").Replace("|", "").Replace(";", "").Replace(",", "").Replace(":", "").Replace(".", "").Replace("-", "").Replace("_", "").Trim();
 
-                        //string FileName = Path.Combine(GameFolder, FileNameTitle + ".png");
+                        string FileName = Path.Combine(GameFolder, FileNameTitle + ".png");
                         /*if (!File.Exists(FileName))
                         {
                             using var ImagePath = new MagickImage(MagickColors.Transparent, 480, 360);
@@ -2245,50 +2275,48 @@ public partial class MainWindow : Window
                             ImagePath.Write(FileName);
                         }*/
 
-                        string FileName = Path.Combine(GameFolder, FileNameTitle + ".png");
-                        if (!File.Exists(FileName))
+                        _ = Task.Run(() =>
                         {
-                            // 1. Bitmap und Canvas erstellen (damit 'canvas' im Kontext existiert!)
-                            using (var bitmap = new SKBitmap(480, 360))
-                            using (var canvas = new SKCanvas(bitmap))
+                            using var ImagePath = new SkiaSharp.SKBitmap(480, 360);
+                            using var canvas = new SkiaSharp.SKCanvas(ImagePath);
+                            canvas.Clear(SkiaSharp.SKColors.Transparent);
+
+                            // Moderne SkiaSharp-API: SKFont statt SKPaint-Properties
+                            using var font = new SkiaSharp.SKFont(
+                                SkiaSharp.SKTypeface.FromFamilyName("Calibri"),
+                                size: 67 * 96f / 72f // Punkte zu Pixeln konvertieren
+                            );
+
+                            using var paint = new SkiaSharp.SKPaint
                             {
-                                canvas.Clear(SKColors.Transparent);
+                                IsAntialias = true,
+                                Color = SkiaSharp.SKColors.Black,
+                                Style = SkiaSharp.SKPaintStyle.Fill
+                            };
 
-                                // 2. Typografie definieren (SKFont)
-                                using (var typeface = SKTypeface.FromFamilyName("Calibri"))
-                                using (var font = new SKFont(typeface, 67))
-                                // 3. Visuelles Styling definieren (SKPaint)
-                                using (var paint = new SKPaint())
-                                {
-                                    paint.Color = SKColors.Black;
-                                    paint.IsAntialias = true;
+                            // Text-Blob erstellen für zentrierten Text
+                            using var textBlob = SkiaSharp.SKTextBlob.Create(
+                                Text,
+                                font
+                            );
 
-                                    // 4. X berechnen (Horizontale Zentrierung)
-                                    float textWidth = font.MeasureText(Text, paint);
-                                    float x = 240 - (textWidth / 2f);
+                            // Bounds berechnen für vertikale Zentrierung
+                            var bounds = textBlob.Bounds;
+                            float textWidth = bounds.Width;
+                            float textHeight = bounds.Height;
 
-                                    // 5. Y berechnen (Vertikale Zentrierung)
-                                    SKRect bounds;
-                                    // WICHTIG: Hier muss zwingend 'out' stehen, nicht 'ref'!
-                                    font.MeasureText(Text, out bounds, paint);
+                            // Position berechnen: x=240 ist horizontal zentriert, y=180 ist vertikal zentriert
+                            float x = 240 - (textWidth / 2f);
+                            float y = 180 - (bounds.Top + textHeight / 2f);
 
-                                    float y = 180 - bounds.MidY;
+                            canvas.DrawText(textBlob, x, y, paint);
 
-                                    // 6. Text auf den Canvas zeichnen
-                                    canvas.DrawText(Text, x, y, font, paint);
-                                }
+                            using var image = SkiaSharp.SKImage.FromBitmap(ImagePath);
+                            using var data = image.Encode(SkiaSharp.SKEncodedImageFormat.Png, 100);
+                            using var stream = File.OpenWrite(FileName);
+                            data.SaveTo(stream);
+                        });
 
-                                canvas.Flush();
-
-                                // 7. Als PNG speichern
-                                using (var image = SKImage.FromBitmap(bitmap))
-                                using (var data = image.Encode(SKEncodedImageFormat.Png, 100))
-                                using (var stream = File.OpenWrite(FileName))
-                                {
-                                    data.SaveTo(stream);
-                                }
-                            }
-                        }
 
                         File.AppendAllText(WindowEditorFile, "\n           <Image Name=\"Image" + TextNumber + "\"");
                         File.AppendAllText(WindowEditorFile, "\n                  Width=\"" + 240 + "\"");
