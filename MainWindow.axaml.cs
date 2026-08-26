@@ -346,6 +346,15 @@ public partial class MainWindow : Window
                 Directory.CreateDirectory(ConverterFolder);
             }
 
+            string ScratchToSnapFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Scratch-To-Snap");
+            Trace.WriteLine("Checking Requirements");
+            if (!Directory.Exists(ScratchToSnapFolder))
+            {
+                Trace.WriteLine("Directory Fails");
+                SomethingNotInstalled = true;
+                Directory.CreateDirectory(ScratchToSnapFolder);
+            }
+
             //Initialize Components 
 
             string InstallerFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Install");
@@ -410,14 +419,16 @@ public partial class MainWindow : Window
                 Trace.WriteLine("Convert.icns");
                 await ICNSFileDownloader.DownloadFileTaskAsync("https://github.com/DaikoGames/sb1-sb2-sb3-xml-to-Csharp-converter/raw/refs/heads/main/ConverterIcon/Converter.icns", new DirectoryInfo(IconFolder));
             }
-            Trace.Write("Checking Scratch Converter now");
+
+            Trace.Write("Checking Scratch Format Converter now");
+
             string ConverterFile = Path.Combine(ConverterFolder, "Convert.js");
             if (!File.Exists(ConverterFile))
             {
                 SomethingNotInstalled = true;
                 var ConverterFileDownloader = new DownloadService(DownloadOption);
                 Trace.WriteLine("Convert.js");
-                await ConverterFileDownloader.DownloadFileTaskAsync("https://raw.githubusercontent.com/DaikoGames/Scratch-Format-converter/raw/refs/heads/main/Convert.js", new DirectoryInfo(ConverterFolder));
+                await ConverterFileDownloader.DownloadFileTaskAsync("https://github.com/DaikoGames/ScratchConverter/raw/refs/heads/main/Convert.js", new DirectoryInfo(ConverterFolder));
             }
 
             string NPMpackageJSON = Path.Combine(ConverterFolder, "package.json");
@@ -426,7 +437,7 @@ public partial class MainWindow : Window
                 SomethingNotInstalled = true;
                 var NPMpackageJSONDownloader = new DownloadService(DownloadOption);
                 Trace.WriteLine("Convert -> package.json");
-                await NPMpackageJSONDownloader.DownloadFileTaskAsync("https://raw.githubusercontent.com/DaikoGames/Scratch-Format-converter/raw/refs/heads/main/package.json", new DirectoryInfo(ConverterFolder));
+                await NPMpackageJSONDownloader.DownloadFileTaskAsync("https://github.com/DaikoGames/ScratchConverter/raw/refs/heads/main/package.json", new DirectoryInfo(ConverterFolder));
 
             }
 
@@ -435,54 +446,19 @@ public partial class MainWindow : Window
             {
                 SomethingNotInstalled = true;
                 var NPMpackageLockJSONDownloader = new DownloadService(DownloadOption);
-                Trace.WriteLine("Convert -> package-lock.json");
-                await NPMpackageLockJSONDownloader.DownloadFileTaskAsync("https://github.com/DaikoGames/Scratch-Format-converter/raw/refs/heads/main/package-lock.json", new DirectoryInfo(ConverterFolder));
+                Trace.WriteLine("Converter -> package-lock.json");
+                await NPMpackageLockJSONDownloader.DownloadFileTaskAsync("https://github.com/DaikoGames/ScratchConverter/raw/refs/heads/main/package-lock.json", new DirectoryInfo(ConverterFolder));
             }
 
-            if (Language != "de" && Language != "en")
+            Trace.Write("Checking Scratch to Snap Converter now");
+
+            string ScatchToSnapConverterFile = Path.Combine(ScratchToSnapFolder, "Converter.js");
+            if (!File.Exists(ScatchToSnapConverterFile))
             {
-                //All of these files exist inside the translation folder, so i have to make a script that downloads the  ones that dont exist somehow. 
-
-                foreach (string TranslatorFile in TranslatorFileList)
-                {
-                    if (!Directory.Exists(Path.GetDirectoryName(TranslatorFile)))
-                    {
-                        Directory.CreateDirectory(Path.GetDirectoryName(TranslatorFile));
-                    }
-                    
-                    if (!File.Exists(TranslatorFile))
-                    {
-                        if (TranslatorFile.Contains(".yml") |TranslatorFile.Contains(".json"))
-                        {
-                            var TranslateFileDownloader = new DownloadService(DownloadOption);
-                            string LinkToDownload = Path.Combine("https://github.com/DaikoGames/Translate-Folder/raw/refs/heads/main/" + (Directory.GetParent(TranslatorFile)?.Name).Replace("\\", "/") + "/" + Path.GetFileName(TranslatorFile));
-                            Trace.WriteLine("yml or json");
-                            await TranslateFileDownloader.DownloadFileTaskAsync(LinkToDownload, new DirectoryInfo(Path.GetDirectoryName(TranslatorFile)));
-                        }
-
-                        if (TranslatorFile.Contains(".bin") | TranslatorFile.Contains(".spm"))
-                        {
-                            var TranslateFileDownloader = new DownloadService(DownloadOption);
-                            Trace.WriteLine("bin or spm");
-                            string LinkToDownload = Path.Combine("https://github.com/DaikoGames/Translate-Folder/raw/refs/heads/main/" + (Directory.GetParent(TranslatorFile)?.Name).Replace("\\", "/") + "/" + Path.GetFileName(TranslatorFile) + ".gz");
-                            await TranslateFileDownloader.DownloadFileTaskAsync(LinkToDownload, new DirectoryInfo(Path.GetDirectoryName(TranslatorFile)));
-                            string DownloadedFile = TranslatorFile + ".gz";
-
-                            using (var originalFileStream = new FileStream(DownloadedFile, FileMode.Open, FileAccess.Read, FileShare.Read))
-                            using (var decompressedFileStream = new FileStream(TranslatorFile, FileMode.Create, FileAccess.Write, FileShare.None))
-                            {
-                                // Using standard GZipStream with an explicit buffer size helps prevent unsupported compression method errors on raw binary streams
-                                using (var decompressionStream = new System.IO.Compression.GZipStream(originalFileStream, System.IO.Compression.CompressionMode.Decompress))
-                                {
-                                    decompressionStream.CopyTo(decompressedFileStream);
-                                }
-                            }
-
-                            // Clean up the .gz file afterwards
-                            File.Delete(DownloadedFile);
-                        }
-                    }
-                }
+                SomethingNotInstalled = true;
+                var ConverterFileDownloader = new DownloadService(DownloadOption);
+                Trace.WriteLine("converter.js");
+                await ConverterFileDownloader.DownloadFileTaskAsync("https://raw.githubusercontent.com/DaikoGames/scratch-snap-bridge/refs/heads/main/public/downloads/converter.js", new DirectoryInfo(ScratchToSnapFolder));
             }
 
 
@@ -663,6 +639,52 @@ public partial class MainWindow : Window
             await (Cli.Wrap("npm").WithArguments(args => args.Add("install")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync());
             //
             await Task.Delay(6000);
+
+            if (Language != "de" && Language != "en")
+            {
+                //All of these files exist inside the translation folder, so i have to make a script that downloads the  ones that dont exist somehow. 
+
+                foreach (string TranslatorFile in TranslatorFileList)
+                {
+                    if (!Directory.Exists(Path.GetDirectoryName(TranslatorFile)))
+                    {
+                        Directory.CreateDirectory(Path.GetDirectoryName(TranslatorFile));
+                    }
+
+                    if (!File.Exists(TranslatorFile))
+                    {
+                        if (TranslatorFile.Contains(".yml") | TranslatorFile.Contains(".json"))
+                        {
+                            var TranslateFileDownloader = new DownloadService(DownloadOption);
+                            string LinkToDownload = Path.Combine("https://github.com/DaikoGames/Translate-Folder/raw/refs/heads/main/" + (Directory.GetParent(TranslatorFile)?.Name).Replace("\\", "/") + "/" + Path.GetFileName(TranslatorFile));
+                            Trace.WriteLine("yml or json");
+                            await TranslateFileDownloader.DownloadFileTaskAsync(LinkToDownload, new DirectoryInfo(Path.GetDirectoryName(TranslatorFile)));
+                        }
+
+                        if (TranslatorFile.Contains(".bin") | TranslatorFile.Contains(".spm"))
+                        {
+                            var TranslateFileDownloader = new DownloadService(DownloadOption);
+                            Trace.WriteLine("bin or spm");
+                            string LinkToDownload = Path.Combine("https://github.com/DaikoGames/Translate-Folder/raw/refs/heads/main/" + (Directory.GetParent(TranslatorFile)?.Name).Replace("\\", "/") + "/" + Path.GetFileName(TranslatorFile) + ".gz");
+                            await TranslateFileDownloader.DownloadFileTaskAsync(LinkToDownload, new DirectoryInfo(Path.GetDirectoryName(TranslatorFile)));
+                            string DownloadedFile = TranslatorFile + ".gz";
+
+                            using (var originalFileStream = new FileStream(DownloadedFile, FileMode.Open, FileAccess.Read, FileShare.Read))
+                            using (var decompressedFileStream = new FileStream(TranslatorFile, FileMode.Create, FileAccess.Write, FileShare.None))
+                            {
+                                // Using standard GZipStream with an explicit buffer size helps prevent unsupported compression method errors on raw binary streams
+                                using (var decompressionStream = new System.IO.Compression.GZipStream(originalFileStream, System.IO.Compression.CompressionMode.Decompress))
+                                {
+                                    decompressionStream.CopyTo(decompressedFileStream);
+                                }
+                            }
+
+                            // Clean up the .gz file afterwards
+                            File.Delete(DownloadedFile);
+                        }
+                    }
+                }
+            }
         }
         catch (Exception ex)
         {
@@ -1455,11 +1477,11 @@ public partial class MainWindow : Window
 
                             // Build string ONCE (saves massive CPU/disk overhead)
                             string xamlContent = $@" <Image Name=""{Path.GetFileNameWithoutExtension(SpriteName)}""
-  Width=""{PNGwidth}""
-                  Height=""{PNGheight}""
-                  Canvas.Left=""0""
-                  Canvas.Top=""0"">
-           </Image>";
+                            Width=""{PNGwidth}""
+                            Height=""{PNGheight}""
+                            Canvas.Left=""0""
+                            Canvas.Top=""0"">
+                            </Image>";
 
                             string csContent = $"\n {Path.GetFileNameWithoutExtension(SpriteName)}.Source = new Bitmap(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, \"{Path.GetFileName(NewImageName)}\"));";
 
