@@ -1,0 +1,12 @@
+[submodule "Translate-Folder"]
+	path = Translate-Folder
+	url = https://github.com/DaikoGames/Translate-Folder
+[submodule "Scratch-To-Snap"]
+	path = Scratch-To-Snap
+	url = https://github.com/DaikoGames/scratch-snap-bridge
+[submodule "Catrobat-To-Snap"]
+	path = Catrobat-To-Snap
+	url = https://github.com/DaikoGames/snap-ify-project-converter
+[submodule "Scratch-Format-Converter"]
+	path = Scratch-Format-Converter
+	url = https://github.com/DaikoGames/ScratchConverter
