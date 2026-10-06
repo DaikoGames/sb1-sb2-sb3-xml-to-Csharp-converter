@@ -33,6 +33,8 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 //using Microsoft.Win32.SafeHandles;
+
+using LibVLC.Linux;
 using System.Threading.Tasks;
 using System.Xml;
 using Velopack;
@@ -89,6 +91,7 @@ public partial class MainWindow : Window
         CheckRequirements();
 
         InitializeComponent();
+        
         Core.Initialize();
         //Task.Run(() => CheckRequirements());
 
@@ -317,382 +320,415 @@ public partial class MainWindow : Window
     }
 
     public async Task CheckRequirements()
+{
+    if (OperatingSystem.IsLinux())
     {
-        CultureInfo LanguageOfUser = CultureInfo.CurrentUICulture;
-        string Language = LanguageOfUser.TwoLetterISOLanguageName;
         try
         {
-            StillDoing = true;
-            var DownloadOption = new DownloadConfiguration
-            {
-                ParallelDownload = true,
-                ChunkCount = 1
-            };
-           
-            string IconFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ConverterIcon");
-            if (!Directory.Exists(IconFolder))
-            {
-                Trace.WriteLine("Directory Fails");
-                SomethingNotInstalled = true;
-                Directory.CreateDirectory(IconFolder);
-            }
-
-            string ConverterFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Scratch-Format-converter");
-            Trace.WriteLine("Checking Requirements");
-            if (!Directory.Exists(ConverterFolder))
-            {
-                Trace.WriteLine("Directory Fails");
-                SomethingNotInstalled = true;
-                Directory.CreateDirectory(ConverterFolder);
-            }
-
-            string ScratchToSnapFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Scratch-To-Snap");
-            Trace.WriteLine("Checking Requirements");
-            if (!Directory.Exists(ScratchToSnapFolder))
-            {
-                Trace.WriteLine("Directory Fails");
-                SomethingNotInstalled = true;
-                Directory.CreateDirectory(ScratchToSnapFolder);
-            }
-
-            //Initialize Components 
-
-            string InstallerFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Install");
-
-            if (!Directory.Exists(InstallerFolder))
-            {
-                Trace.WriteLine("Directory Fails");
-                SomethingNotInstalled = true;
-                Directory.CreateDirectory(InstallerFolder);
-            }
-
-            string SVGFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr");
-
-            if (!Directory.Exists(SVGFolder))
-            {
-                SomethingNotInstalled = true;
-                Trace.WriteLine("Directory Fails");
-                Directory.CreateDirectory(SVGFolder);
-            }
-            // i somehow didn´t includdee all sounds into the github
-            string SOUNDfolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wav_library_ScratchJnr");
-
-            if (!Directory.Exists(SOUNDfolder))
-            {
-                SomethingNotInstalled = true;
-                Trace.WriteLine("Directory Fails");
-                Directory.CreateDirectory(SOUNDfolder);
-            }
-
-            string TranslationFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder");
-            if (!Directory.Exists(TranslationFolder))
-            {
-                SomethingNotInstalled = true;
-                Trace.WriteLine("Directory Fails");
-                Directory.CreateDirectory(TranslationFolder);
-            }
-
-            Trace.Write("Checking Images");
-            string PNGFile = Path.Combine(IconFolder, "Convert.png");
-            if (!File.Exists(PNGFile))
-            {
-                SomethingNotInstalled = true;
-                var PNGFileDownloader = new DownloadService(DownloadOption);
-                Trace.WriteLine("Convert.png");
-                await PNGFileDownloader.DownloadFileTaskAsync("https://github.com/DaikoGames/sb1-sb2-sb3-xml-to-Csharp-converter/raw/refs/heads/main/ConverterIcon/Converter.png", new DirectoryInfo(IconFolder));
-            }
-
-            string ICOfile = Path.Combine(IconFolder, "Convert.ico");
-            if (!File.Exists(ICOfile))
-            {
-                SomethingNotInstalled = true;
-                var ICOFileDownloader = new DownloadService(DownloadOption);
-                Trace.WriteLine("Convert.ico");
-                await ICOFileDownloader.DownloadFileTaskAsync("https://github.com/DaikoGames/sb1-sb2-sb3-xml-to-Csharp-converter/raw/refs/heads/main/ConverterIcon/Converter.ico", new DirectoryInfo(IconFolder));
-            }
-
-            string IcnsFile = Path.Combine(IconFolder, "Convert.icns");
-            if (!File.Exists(IcnsFile))
-            {
-                SomethingNotInstalled = true;
-                var ICNSFileDownloader = new DownloadService(DownloadOption);
-                Trace.WriteLine("Convert.icns");
-                await ICNSFileDownloader.DownloadFileTaskAsync("https://github.com/DaikoGames/sb1-sb2-sb3-xml-to-Csharp-converter/raw/refs/heads/main/ConverterIcon/Converter.icns", new DirectoryInfo(IconFolder));
-            }
-
-            Trace.Write("Checking Scratch Format Converter now");
-
-            string ConverterFile = Path.Combine(ConverterFolder, "Convert.js");
-            if (!File.Exists(ConverterFile))
-            {
-                SomethingNotInstalled = true;
-                var ConverterFileDownloader = new DownloadService(DownloadOption);
-                Trace.WriteLine("Convert.js");
-                await ConverterFileDownloader.DownloadFileTaskAsync("https://github.com/DaikoGames/ScratchConverter/raw/refs/heads/main/Convert.js", new DirectoryInfo(ConverterFolder));
-            }
-
-            string NPMpackageJSON = Path.Combine(ConverterFolder, "package.json");
-            if (!File.Exists(NPMpackageJSON))
-            {
-                SomethingNotInstalled = true;
-                var NPMpackageJSONDownloader = new DownloadService(DownloadOption);
-                Trace.WriteLine("Convert -> package.json");
-                await NPMpackageJSONDownloader.DownloadFileTaskAsync("https://github.com/DaikoGames/ScratchConverter/raw/refs/heads/main/package.json", new DirectoryInfo(ConverterFolder));
-
-            }
-
-            string NPMpackageLockJSON = Path.Combine(ConverterFolder, "package-lock.json");
-            if (!File.Exists(NPMpackageLockJSON))
-            {
-                SomethingNotInstalled = true;
-                var NPMpackageLockJSONDownloader = new DownloadService(DownloadOption);
-                Trace.WriteLine("Converter -> package-lock.json");
-                await NPMpackageLockJSONDownloader.DownloadFileTaskAsync("https://github.com/DaikoGames/ScratchConverter/raw/refs/heads/main/package-lock.json", new DirectoryInfo(ConverterFolder));
-            }
-
-            Trace.Write("Checking Scratch to Snap Converter now");
-
-            string ScatchToSnapConverterFile = Path.Combine(ScratchToSnapFolder, "Converter.js");
-            if (!File.Exists(ScatchToSnapConverterFile))
-            {
-                SomethingNotInstalled = true;
-                var ConverterFileDownloader = new DownloadService(DownloadOption);
-                Trace.WriteLine("converter.js");
-                await ConverterFileDownloader.DownloadFileTaskAsync("https://raw.githubusercontent.com/DaikoGames/scratch-snap-bridge/refs/heads/main/public/downloads/converter.js", new DirectoryInfo(ScratchToSnapFolder));
-            }
-
-
-            foreach (string ScratchJnrFile in ScratchJnrFiles)
-            {
-                if (!File.Exists(ScratchJnrFile))
-                {
-                    SomethingNotInstalled = true;
-                    Trace.WriteLine("File Fails - SVGLibrary");
-                    var SVGDownloader = new DownloadService(DownloadOption);
-                    await SVGDownloader.DownloadFileTaskAsync("https://github.com/DaikoGames/sb1-sb2-sb3-xml-to-Csharp-converter/raw/refs/heads/main/svg_library_ScratchJnr/" + Path.GetFileName(ScratchJnrFile), new DirectoryInfo(SVGFolder));
-                }
-            }
-
-            foreach (string ScratchJnrFile in ScratchJnrSoundFiles)
-            {
-                if (!File.Exists(ScratchJnrFile))
-                {
-                    SomethingNotInstalled = true;
-                    var WAVDownloader = new DownloadService(DownloadOption);
-                    Trace.WriteLine("File Fails - WAVLibrary");
-                    await WAVDownloader.DownloadFileTaskAsync("https://github.com/DaikoGames/sb1-sb2-sb3-xml-to-Csharp-converter/raw/refs/heads/main/wav_library_ScratchJnr/" + Path.GetFileName(ScratchJnrFile), new DirectoryInfo(AppDomain.CurrentDomain.BaseDirectory));
-                }
-            }
-
-            if (OperatingSystem.IsWindows())
-            {
-                string DotnetInstallerFile = Path.Combine(InstallerFolder, "dotnet-install.ps1");
-                if (!File.Exists(DotnetInstallerFile))
-                {
-
-                    SomethingNotInstalled = true;
-                    var DotnetInstallerFileDownloader = new DownloadService(DownloadOption);
-                    await DotnetInstallerFileDownloader.DownloadFileTaskAsync("https://dot.net/v1/dotnet-install.ps1", new DirectoryInfo(InstallerFolder));
-                }
-
-                //First check if winget exist
-                var WingetVersion = await Cli.Wrap("winget").WithArguments(args => args.Add("--version")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync();
-                if (WingetVersion.ExitCode != 0)
-                {
-                    SomethingNotInstalled = true;
-                    Trace.WriteLine("Dependency Fails - winget");
-                    var DownloadWinget = new DownloadService(DownloadOption);
-                    await DownloadWinget.DownloadFileTaskAsync("https://github.com/microsoft/winget-cli/releases/download/v1.28.240/Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle", new DirectoryInfo(InstallerFolder));
-                    string FileDownload = Path.Combine(InstallerFolder, "Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle");
-                    Process.Start(new ProcessStartInfo(FileDownload) { UseShellExecute = true });
-                }
-
-                var PowershellVersion = await Cli.Wrap("pwsh").WithArguments(args => args.Add("-Version")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync();
-                if (PowershellVersion.ExitCode != 0)
-                {
-                    SomethingNotInstalled = true;
-                    Trace.WriteLine("Dependency Fails powershell");
-                    await Cli.Wrap("winget").WithArguments(args => args.Add("install").Add("--id").Add("Microsoft.PowerShell").Add("--source").Add("winget")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync();
-                }
-
-                var ChocolateyVersion = await Cli.Wrap("choco").WithArguments(args => args.Add("--version")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync();
-                if (ChocolateyVersion.ExitCode != 0)
-                {
-                    SomethingNotInstalled = true;
-                    Trace.WriteLine("Dependency Fails choco");
-                    await Cli.Wrap("pwsh").WithArguments(args => args.Add("-c").Add("irm https://community.chocolatey.org/install.ps1|iex")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync();
-                }
-
-                var DotnetVersion = await Cli.Wrap("dotnet").WithArguments(args => args.Add("--version")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync();
-                if (DotnetVersion.ExitCode != 0)
-                {
-                    SomethingNotInstalled = true;
-                    Trace.WriteLine("Dependency Fails dotnet");
-                    //install Dotnet, and Avalonia Template too
-                    await Cli.Wrap("pwsh").WithArguments(args => args.Add("./dotnet-install.ps1").Add("-Runtime").Add("dotnet").Add("-Version").Add("10.0.0")).ExecuteBufferedAsync(); ;
-                    await Cli.Wrap("dotnet").WithArguments(args => args.Add("new").Add("install").Add("Avalonia.Templates")).ExecuteBufferedAsync();
-                }
-
-                var CheckNodeJS = await Cli.Wrap("node").WithArguments(args => args.Add("--version")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync();
-                if (CheckNodeJS.ExitCode != 0)
-                {
-                    SomethingNotInstalled = true;
-                    Trace.WriteLine("Dependency Fails node");
-                    await Cli.Wrap("choco").WithArguments(args => args.Add("install").Add("nodejs")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync();
-                }
-
-                Trace.WriteLine("Nothing Fails anymore");
-                SomethingNotInstalled = false;
-                StillDoing = false;
-            }
-
-            if (OperatingSystem.IsLinux() && !OperatingSystem.IsWindows())
-            {
-                var OSName = await (Cli.Wrap("hostnamectl").ExecuteBufferedAsync());
-                string OSNameText = OSName.ToString();
-                string[] ALlLines = File.ReadAllLines(OSNameText);
-                foreach (string Lines in ALlLines)
-                {
-                    if (Lines.Contains("Operating System:"))
-                    {
-
-                        if (Lines.Contains("Debian"))
-                        {
-                            //I don´t need powershell on Linux to install dotnet runtime
-                            var DotnetVersion = await Cli.Wrap("dotnet").WithArguments(args => args.Add("--version")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync();
-                            if (DotnetVersion.ExitCode != 0)
-                            {
-                                await Cli.Wrap("sudo").WithArguments(args => args.Add("apt-get").Add("install").Add("-y").Add("dotnet-sdk" + DotnetVersion)).ExecuteBufferedAsync();
-                            }
-
-                            //I need homebrew to install npm and nodeJS
-                            var CheckCurl = await Cli.Wrap("curl").WithArguments(args => args.Add("--version")).ExecuteBufferedAsync();
-                            if (CheckCurl.ExitCode != 0)
-                            {
-                                await Cli.Wrap("sudo").WithArguments(args => args.Add("apt").Add("install").Add("curl")).ExecuteBufferedAsync();
-                            }
-
-                            var CheckHomebrew = await Cli.Wrap("brew").WithArguments(args => args.Add("--version")).ExecuteBufferedAsync();
-                            if (CheckHomebrew.ExitCode != 0)
-                            {
-                                await Cli.Wrap("curl").WithArguments(args => args.Add("-o-").Add("https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh | bash")).WithEnvironmentVariables(env => env.Set("NONINTERACTIVE", "1")).ExecuteBufferedAsync();
-                            }
-                            await Cli.Wrap("brew").WithArguments(args => args.Add("install").Add("node@25")).ExecuteBufferedAsync();
-                        }
-
-                        if (Lines.Contains("Ubuntu"))
-                        {
-                            var DotnetVersion = await Cli.Wrap("dotnet").WithArguments(args => args.Add("--version")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync();
-                            if (DotnetVersion.ExitCode != 0)
-                            {
-                                await Cli.Wrap("sudo").WithArguments(args => args.Add("apt-get").Add("install").Add("-y").Add("dotnet-sdk" + DotnetVersion)).ExecuteBufferedAsync();
-                            }
-
-                            //I need homebrew to install npm and nodeJS
-                            var CheckCurl = await Cli.Wrap("curl").WithArguments(args => args.Add("--version")).ExecuteBufferedAsync();
-                            if (CheckCurl.ExitCode != 0)
-                            {
-                                await Cli.Wrap("sudo").WithArguments(args => args.Add("apt").Add("install").Add("curl")).ExecuteBufferedAsync();
-                            }
-
-                            var CheckHomebrew = await Cli.Wrap("brew").WithArguments(args => args.Add("--version")).ExecuteBufferedAsync();
-                            if (CheckHomebrew.ExitCode != 0)
-                            {
-                                await Cli.Wrap("curl").WithArguments(args => args.Add("-o-").Add("https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh | bash")).WithEnvironmentVariables(env => env.Set("NONINTERACTIVE", "1")).ExecuteBufferedAsync();
-                            }
-                            await Cli.Wrap("brew").WithArguments(args => args.Add("install").Add("node@25")).ExecuteBufferedAsync();
-                        }
-                        if (Lines.Contains("Arch"))
-                        {
-
-                        }
-
-                    }
-                }
-            }
-
-            if (OperatingSystem.IsMacOS())
-            {
-                //I don´t need powershell on Linux to install dotnet runtime
-                var DotnetVersion = await Cli.Wrap("dotnet").WithArguments(args => args.Add("--version")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync();
-                if (DotnetVersion.ExitCode != 0)
-                {
-                    await Cli.Wrap("sudo").WithArguments(args => args.Add("apt-get").Add("install").Add("-y").Add("dotnet-sdk-9.0")).ExecuteBufferedAsync();
-                }
-
-                //I need homebrew to install npm and nodeJS
-                var CheckCurl = await Cli.Wrap("curl").WithArguments(args => args.Add("--version")).ExecuteBufferedAsync();
-                if (CheckCurl.ExitCode != 0)
-                {
-                    await Cli.Wrap("sudo").WithArguments(args => args.Add("apt").Add("install").Add("curl")).ExecuteBufferedAsync();
-                }
-
-                var CheckHomebrew = await Cli.Wrap("brew").WithArguments(args => args.Add("--version")).ExecuteBufferedAsync();
-                if (CheckHomebrew.ExitCode != 0)
-                {
-                    await Cli.Wrap("curl").WithArguments(args => args.Add("-o-").Add("https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh | bash")).WithEnvironmentVariables(env => env.Set("NONINTERACTIVE", "1")).ExecuteBufferedAsync();
-                }
-                await Cli.Wrap("brew").WithArguments(args => args.Add("install").Add("node@25")).ExecuteBufferedAsync();
-            }
-
-            //Check if npm is installed at the location of ScratchConverter
-            await (Cli.Wrap("npm").WithArguments(args => args.Add("install")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync());
-            //
-            await Task.Delay(6000);
-
-            if (Language != "de" && Language != "en")
-            {
-                //All of these files exist inside the translation folder, so i have to make a script that downloads the  ones that dont exist somehow. 
-
-                foreach (string TranslatorFile in TranslatorFileList)
-                {
-                    if (!Directory.Exists(Path.GetDirectoryName(TranslatorFile)))
-                    {
-                        Directory.CreateDirectory(Path.GetDirectoryName(TranslatorFile));
-                    }
-
-                    if (!File.Exists(TranslatorFile))
-                    {
-                        if (TranslatorFile.Contains(".yml") | TranslatorFile.Contains(".json"))
-                        {
-                            var TranslateFileDownloader = new DownloadService(DownloadOption);
-                            string LinkToDownload = Path.Combine("https://github.com/DaikoGames/Translate-Folder/raw/refs/heads/main/" + (Directory.GetParent(TranslatorFile)?.Name).Replace("\\", "/") + "/" + Path.GetFileName(TranslatorFile));
-                            Trace.WriteLine("yml or json");
-                            await TranslateFileDownloader.DownloadFileTaskAsync(LinkToDownload, new DirectoryInfo(Path.GetDirectoryName(TranslatorFile)));
-                        }
-
-                        if (TranslatorFile.Contains(".bin") | TranslatorFile.Contains(".spm"))
-                        {
-                            var TranslateFileDownloader = new DownloadService(DownloadOption);
-                            Trace.WriteLine("bin or spm");
-                            string LinkToDownload = Path.Combine("https://github.com/DaikoGames/Translate-Folder/raw/refs/heads/main/" + (Directory.GetParent(TranslatorFile)?.Name).Replace("\\", "/") + "/" + Path.GetFileName(TranslatorFile) + ".gz");
-                            await TranslateFileDownloader.DownloadFileTaskAsync(LinkToDownload, new DirectoryInfo(Path.GetDirectoryName(TranslatorFile)));
-                            string DownloadedFile = TranslatorFile + ".gz";
-
-                            using (var originalFileStream = new FileStream(DownloadedFile, FileMode.Open, FileAccess.Read, FileShare.Read))
-                            using (var decompressedFileStream = new FileStream(TranslatorFile, FileMode.Create, FileAccess.Write, FileShare.None))
-                            {
-                                // Using standard GZipStream with an explicit buffer size helps prevent unsupported compression method errors on raw binary streams
-                                using (var decompressionStream = new System.IO.Compression.GZipStream(originalFileStream, System.IO.Compression.CompressionMode.Decompress))
-                                {
-                                    decompressionStream.CopyTo(decompressedFileStream);
-                                }
-                            }
-
-                            // Clean up the .gz file afterwards
-                            File.Delete(DownloadedFile);
-                        }
-                    }
-                }
-            }
+            Debug.WriteLine("Checking for VLC...");
+            await Cli.Wrap("vlc").WithArguments("--version").ExecuteAsync();
+            Debug.WriteLine("VLC found!");
         }
         catch (Exception ex)
         {
-            Trace.WriteLine(ex);
+            Debug.WriteLine($"VLC not found, installing... Error: {ex.Message}");
+            try
+            {
+                var installer = new LibVLCLinux();
+                installer.InstallVLC();
+                Debug.WriteLine("Installation complete!");
+            }
+            catch (Exception installEx)
+            {
+                Debug.WriteLine($"Installation failed: {installEx.Message}");
+            }
+        }
+    }
+
+    CultureInfo LanguageOfUser = CultureInfo.CurrentUICulture;
+    string Language = LanguageOfUser.TwoLetterISOLanguageName;
+    
+    try
+    {
+        //WAV IS MAKING PROBLEMS
+        StillDoing = true;
+        var DownloadOption = new DownloadConfiguration
+        {
+            ParallelDownload = true,
+            ChunkCount = 1
+        };
+
+        string IconFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ConverterIcon");
+        if (!Directory.Exists(IconFolder))
+        {
+            Trace.WriteLine("Directory Fails: ConverterIcon");
+            SomethingNotInstalled = true;
+            Directory.CreateDirectory(IconFolder);
         }
 
+        string ConverterFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Scratch-Format-converter");
+        if (!Directory.Exists(ConverterFolder))
+        {
+            Trace.WriteLine("Directory Fails: Scratch-Format-converter");
+            SomethingNotInstalled = true;
+            Directory.CreateDirectory(ConverterFolder);
+        }
 
+        string ScratchToSnapFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Scratch-To-Snap");
+        if (!Directory.Exists(ScratchToSnapFolder))
+        {
+            Trace.WriteLine("Directory Fails: Scratch-To-Snap");
+            SomethingNotInstalled = true;
+            Directory.CreateDirectory(ScratchToSnapFolder);
+        }
+
+        string InstallerFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Install");
+        if (!Directory.Exists(InstallerFolder))
+        {
+            Trace.WriteLine("Directory Fails: Install");
+            SomethingNotInstalled = true;
+            Directory.CreateDirectory(InstallerFolder);
+        }
+
+        string SVGFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "svg_library_ScratchJnr");
+        if (!Directory.Exists(SVGFolder))
+        {
+            SomethingNotInstalled = true;
+            Trace.WriteLine("Directory Fails: svg_library_ScratchJnr");
+            Directory.CreateDirectory(SVGFolder);
+        }
+
+        string SOUNDfolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wav_library_ScratchJnr");
+        if (!Directory.Exists(SOUNDfolder))
+        {
+            SomethingNotInstalled = true;
+            Trace.WriteLine("Directory Fails: wav_library_ScratchJnr");
+            Directory.CreateDirectory(SOUNDfolder);
+        }
+
+        string TranslationFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Translate-Folder");
+        if (!Directory.Exists(TranslationFolder))
+        {
+            SomethingNotInstalled = true;
+            Trace.WriteLine("Directory Fails: Translate-Folder");
+            Directory.CreateDirectory(TranslationFolder);
+        }
+
+        Trace.WriteLine("Checking Images...");
+        string PNGFile = Path.Combine(IconFolder, "Convert.png");
+        if (!File.Exists(PNGFile))
+        {
+            SomethingNotInstalled = true;
+            var PNGFileDownloader = new DownloadService(DownloadOption);
+            await PNGFileDownloader.DownloadFileTaskAsync("https://github.com/DaikoGames/sb1-sb2-sb3-xml-to-Csharp-converter/raw/refs/heads/main/ConverterIcon/Converter.png", new DirectoryInfo(IconFolder));
+        }
+
+        string ICOfile = Path.Combine(IconFolder, "Convert.ico");
+        if (!File.Exists(ICOfile))
+        {
+            SomethingNotInstalled = true;
+            var ICOFileDownloader = new DownloadService(DownloadOption);
+            await ICOFileDownloader.DownloadFileTaskAsync("https://github.com/DaikoGames/sb1-sb2-sb3-xml-to-Csharp-converter/raw/refs/heads/main/ConverterIcon/Converter.ico", new DirectoryInfo(IconFolder));
+        }
+
+        string IcnsFile = Path.Combine(IconFolder, "Convert.icns");
+        if (!File.Exists(IcnsFile))
+        {
+            SomethingNotInstalled = true;
+            var ICNSFileDownloader = new DownloadService(DownloadOption);
+            await ICNSFileDownloader.DownloadFileTaskAsync("https://github.com/DaikoGames/sb1-sb2-sb3-xml-to-Csharp-converter/raw/refs/heads/main/ConverterIcon/Converter.icns", new DirectoryInfo(IconFolder));
+        }
+
+        Trace.WriteLine("Checking Scratch Format Converter now...");
+        string ConverterFile = Path.Combine(ConverterFolder, "Convert.js");
+        if (!File.Exists(ConverterFile))
+        {
+            SomethingNotInstalled = true;
+            var ConverterFileDownloader = new DownloadService(DownloadOption);
+            await ConverterFileDownloader.DownloadFileTaskAsync("https://github.com/DaikoGames/ScratchConverter/raw/refs/heads/main/Convert.js", new DirectoryInfo(ConverterFolder));
+        }
+
+        string NPMpackageJSON = Path.Combine(ConverterFolder, "package.json");
+        if (!File.Exists(NPMpackageJSON))
+        {
+            SomethingNotInstalled = true;
+            var NPMpackageJSONDownloader = new DownloadService(DownloadOption);
+            await NPMpackageJSONDownloader.DownloadFileTaskAsync("https://github.com/DaikoGames/ScratchConverter/raw/refs/heads/main/package.json", new DirectoryInfo(ConverterFolder));
+        }
+
+        string NPMpackageLockJSON = Path.Combine(ConverterFolder, "package-lock.json");
+        if (!File.Exists(NPMpackageLockJSON))
+        {
+            SomethingNotInstalled = true;
+            var NPMpackageLockJSONDownloader = new DownloadService(DownloadOption);
+            await NPMpackageLockJSONDownloader.DownloadFileTaskAsync("https://github.com/DaikoGames/ScratchConverter/raw/refs/heads/main/package-lock.json", new DirectoryInfo(ConverterFolder));
+        }
+
+        Trace.WriteLine("Checking Scratch to Snap Converter now...");
+        string ScatchToSnapConverterFile = Path.Combine(ScratchToSnapFolder, "Converter.js");
+        if (!File.Exists(ScatchToSnapConverterFile))
+        {
+            SomethingNotInstalled = true;
+            var ConverterFileDownloader = new DownloadService(DownloadOption);
+            await ConverterFileDownloader.DownloadFileTaskAsync("https://github.com/DaikoGames/scratch-snap-bridge/raw/refs/heads/main/public/downloads/converter.js", new DirectoryInfo(ScratchToSnapFolder));
+        }
+
+        Trace.WriteLine("Checking SVG Library now...");
+        foreach (string ScratchJnrFile in ScratchJnrFiles)
+        {
+            if (!File.Exists(ScratchJnrFile))
+            {
+                string ScratchjnrSVGFile = Path.GetFileName(ScratchJnrFile);
+                var ScratchJnrFileDownloader = new DownloadService(DownloadOption);
+                await ScratchJnrFileDownloader.DownloadFileTaskAsync("https://github.com/DaikoGames/sb1-sb2-sb3-xml-to-Csharp-converter/tree/main/svg_library_ScratchJnr/" + ScratchjnrSVGFile , new DirectoryInfo(SVGFolder));
+            }
+        }
+
+        Trace.WriteLine("Checking WAV Library now...");
+        foreach (string ScratchJnrFile in ScratchJnrSoundFiles)
+        {
+            if (!File.Exists(ScratchJnrFile))
+            {
+                string ScratchjnrWAVFile = Path.GetFileName(ScratchJnrFile);
+                var ScratchJnrFileDownloader = new DownloadService(DownloadOption);
+                await ScratchJnrFileDownloader.DownloadFileTaskAsync("https://github.com/DaikoGames/sb1-sb2-sb3-xml-to-Csharp-converter/tree/main/wav_library_ScratchJnr/" + ScratchjnrWAVFile , new DirectoryInfo(SOUNDfolder));
+            }
+        }
+
+        if (OperatingSystem.IsWindows())
+        {
+            string DotnetInstallerFile = Path.Combine(InstallerFolder, "dotnet-install.ps1");
+            if (!File.Exists(DotnetInstallerFile))
+            {
+                SomethingNotInstalled = true;
+                var DotnetInstallerFileDownloader = new DownloadService(DownloadOption);
+                await DotnetInstallerFileDownloader.DownloadFileTaskAsync("https://dot.net/v1/dotnet-install.ps1", new DirectoryInfo(InstallerFolder));
+            }
+
+            var WingetVersion = await Cli.Wrap("winget").WithArguments(args => args.Add("--version")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync();
+            if (WingetVersion.ExitCode != 0)
+            {
+                SomethingNotInstalled = true;
+                Trace.WriteLine("Dependency Fails - winget");
+                var DownloadWinget = new DownloadService(DownloadOption);
+                await DownloadWinget.DownloadFileTaskAsync("https://github.com/microsoft/winget-cli/releases/download/v1.28.240/Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle", new DirectoryInfo(InstallerFolder));
+                string FileDownload = Path.Combine(InstallerFolder, "Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle");
+                Process.Start(new ProcessStartInfo(FileDownload) { UseShellExecute = true });
+            }
+
+            var PowershellVersion = await Cli.Wrap("pwsh").WithArguments(args => args.Add("-Version")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync();
+            if (PowershellVersion.ExitCode != 0)
+            {
+                SomethingNotInstalled = true;
+                Trace.WriteLine("Dependency Fails powershell");
+                await Cli.Wrap("winget").WithArguments(args => args.Add("install").Add("--id").Add("Microsoft.PowerShell").Add("--source").Add("winget")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync();
+            }
+
+            var ChocolateyVersion = await Cli.Wrap("choco").WithArguments(args => args.Add("--version")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync();
+            if (ChocolateyVersion.ExitCode != 0)
+            {
+                SomethingNotInstalled = true;
+                Trace.WriteLine("Dependency Fails choco");
+                await Cli.Wrap("pwsh").WithArguments(args => args.Add("-c").Add("irm https://community.chocolatey.org/install.ps1|iex")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync();
+            }
+
+            var DotnetVersion = await Cli.Wrap("dotnet").WithArguments(args => args.Add("--version")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync();
+            if (DotnetVersion.ExitCode != 0)
+            {
+                SomethingNotInstalled = true;
+                Trace.WriteLine("Dependency Fails dotnet");
+                await Cli.Wrap("pwsh").WithArguments(args => args.Add("./dotnet-install.ps1").Add("-Runtime").Add("dotnet").Add("-Version").Add("9.0.0")).ExecuteBufferedAsync();
+                await Cli.Wrap("dotnet").WithArguments(args => args.Add("new").Add("install").Add("Avalonia.Templates")).ExecuteBufferedAsync();
+            }
+
+            var CheckNodeJS = await Cli.Wrap("node").WithArguments(args => args.Add("--version")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync();
+            if (CheckNodeJS.ExitCode != 0)
+            {
+                SomethingNotInstalled = true;
+                Trace.WriteLine("Dependency Fails node");
+                await Cli.Wrap("choco").WithArguments(args => args.Add("install").Add("nodejs")).WithWorkingDirectory(ConverterFolder).ExecuteBufferedAsync();
+            }
+        }
+
+        if (OperatingSystem.IsLinux() && !OperatingSystem.IsWindows())
+        {
+            try
+            {
+                var osInfo = await Cli.Wrap("hostnamectl").ExecuteBufferedAsync();
+                string osOutput = osInfo.StandardOutput; // FIX: StandardOutput statt ToString()
+
+                if (osOutput.Contains("Debian") || osOutput.Contains("Ubuntu") || osOutput.Contains("Mint"))
+                {
+                    Trace.WriteLine("Linux Mint/Ubuntu detected. Checking dependencies...");
+
+                    var dotnetCheck = await Cli.Wrap("dotnet").WithArguments("--version").ExecuteBufferedAsync();
+                    if (dotnetCheck.ExitCode != 0)
+                    {
+                        Trace.WriteLine("Installing dotnet-sdk-9.0...");
+                        await Cli.Wrap("sudo").WithArguments("apt-get install -y dotnet-sdk-9.0").ExecuteBufferedAsync();
+                    }
+
+                    var curlCheck = await Cli.Wrap("curl").WithArguments("--version").ExecuteBufferedAsync();
+                    var gitCheck = await Cli.Wrap("git").WithArguments("--version").ExecuteBufferedAsync();
+                    
+                    if (curlCheck.ExitCode != 0 || gitCheck.ExitCode != 0)
+                    {
+                        Trace.WriteLine("Installing curl and git (required for Homebrew)...");
+                        await Cli.Wrap("sudo").WithArguments("apt-get install -y curl git").ExecuteBufferedAsync();
+                    }
+
+                    var brewCheck = await Cli.Wrap("brew").WithArguments("--version").ExecuteBufferedAsync();
+                    var brewCheckAlt = await Cli.Wrap("/home/linuxbrew/.linuxbrew/bin/brew").WithArguments("--version").ExecuteBufferedAsync();
+
+                    if (brewCheck.ExitCode != 0 && brewCheckAlt.ExitCode != 0)
+                    {
+                        Trace.WriteLine("Installing Homebrew (this might take a moment)...");
+                        // FIX: Saubere CliWrap-Syntax ohne Escaping-Hölle für die Pipe
+                        await Cli.Wrap("bash")
+                            .WithArguments(args => args.Add("-c").Add("curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh | bash"))
+                            .WithEnvironmentVariables(env => env.Set("NONINTERACTIVE", "1"))
+                            .ExecuteBufferedAsync();
+                        Trace.WriteLine("Homebrew installed. (Note: You may need to restart the app for PATH updates to take effect).");
+                    }
+                    else
+                    {
+                        Trace.WriteLine("Homebrew is already installed.");
+                    }
+
+                    // FIX: Node.js prüfen, BEVOR wir es installieren (verhindert ständiges Neu-Installieren)
+                    var nodeCheck = await Cli.Wrap("node").WithArguments("--version").ExecuteBufferedAsync();
+                    if (nodeCheck.ExitCode != 0)
+                    {
+                        Trace.WriteLine("Installing Node.js via Homebrew...");
+                        await Cli.Wrap("brew").WithArguments("install node").ExecuteBufferedAsync();
+                    }
+                    else
+                    {
+                        Trace.WriteLine($"Node.js is already installed ({nodeCheck.StandardOutput.Trim()}).");
+                    }
+                }
+                else if (osOutput.Contains("Arch"))
+                {
+                    Trace.WriteLine("Arch Linux detected. Please ensure dotnet-sdk, curl, git and nodejs are installed via pacman.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Trace.WriteLine($"Linux setup failed: {ex.Message}");
+                SomethingNotInstalled = true;
+            }
+        }
+
+        if (OperatingSystem.IsMacOS())
+        {
+            try
+            {
+                var dotnetCheck = await Cli.Wrap("dotnet").WithArguments("--version").ExecuteBufferedAsync();
+                if (dotnetCheck.ExitCode != 0)
+                {
+                    Trace.WriteLine("Installing dotnet-sdk via brew...");
+                    await Cli.Wrap("brew").WithArguments("install --cask dotnet-sdk").ExecuteBufferedAsync();
+                }
+
+                var brewCheck = await Cli.Wrap("brew").WithArguments("--version").ExecuteBufferedAsync();
+                if (brewCheck.ExitCode != 0)
+                {
+                    Trace.WriteLine("Installing Homebrew...");
+                    await Cli.Wrap("bash")
+                        .WithArguments(args => args.Add("-c").Add("curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh | bash"))
+                        .WithEnvironmentVariables(env => env.Set("NONINTERACTIVE", "1"))
+                        .ExecuteBufferedAsync();
+                }
+
+                var nodeCheck = await Cli.Wrap("node").WithArguments("--version").ExecuteBufferedAsync();
+                if (nodeCheck.ExitCode != 0)
+                {
+                    Trace.WriteLine("Installing Node.js...");
+                    await Cli.Wrap("brew").WithArguments("install node").ExecuteBufferedAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                Trace.WriteLine($"macOS setup failed: {ex.Message}");
+                SomethingNotInstalled = true;
+            }
+        }
+
+        string nodeModulesFolder = Path.Combine(ConverterFolder, "node_modules");
+        if (!Directory.Exists(nodeModulesFolder))
+        {
+            Trace.WriteLine("Running npm install (first time setup)...");
+            await Cli.Wrap("npm")
+                .WithArguments(args => args.Add("install"))
+                .WithWorkingDirectory(ConverterFolder)
+                .ExecuteBufferedAsync();
+        }
+        else
+        {
+            Trace.WriteLine("node_modules folder exists, skipping npm install to save time.");
+        }
+
+        await Task.Delay(2000);
+
+        if (Language != "de" && Language != "en")
+        {
+            foreach (string TranslatorFile in TranslatorFileList)
+            {
+                if (!Directory.Exists(Path.GetDirectoryName(TranslatorFile)))
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(TranslatorFile));
+                }
+
+                if (!File.Exists(TranslatorFile))
+                {
+                    if (TranslatorFile.Contains(".yml") || TranslatorFile.Contains(".json"))
+                    {
+                        var TranslateFileDownloader = new DownloadService(DownloadOption);
+                        string parentFolderName = (Directory.GetParent(TranslatorFile)?.Name)?.Replace("\\", "/") ?? "";
+                        // FIX: String-Interpolation statt Path.Combine für URLs (verhindert Windows-Backslashes in URLs)
+                        string LinkToDownload = $"https://github.com/DaikoGames/Translate-Folder/raw/refs/heads/main/{parentFolderName}/{Path.GetFileName(TranslatorFile)}";
+                        
+                        Trace.WriteLine("Downloading yml or json: " + Path.GetFileName(TranslatorFile));
+                        await TranslateFileDownloader.DownloadFileTaskAsync(LinkToDownload, new DirectoryInfo(Path.GetDirectoryName(TranslatorFile)));
+                    }
+
+                    if (TranslatorFile.Contains(".bin") || TranslatorFile.Contains(".spm"))
+                    {
+                        var TranslateFileDownloader = new DownloadService(DownloadOption);
+                        string parentFolderName = (Directory.GetParent(TranslatorFile)?.Name)?.Replace("\\", "/") ?? "";
+                        string LinkToDownload = $"https://github.com/DaikoGames/Translate-Folder/raw/refs/heads/main/{parentFolderName}/{Path.GetFileName(TranslatorFile)}.gz";
+                        
+                        Trace.WriteLine("Downloading bin or spm: " + Path.GetFileName(TranslatorFile));
+                        await TranslateFileDownloader.DownloadFileTaskAsync(LinkToDownload, new DirectoryInfo(Path.GetDirectoryName(TranslatorFile)));
+                        string DownloadedFile = TranslatorFile + ".gz";
+
+                        using (var originalFileStream = new FileStream(DownloadedFile, FileMode.Open, FileAccess.Read, FileShare.Read))
+                        using (var decompressedFileStream = new FileStream(TranslatorFile, FileMode.Create, FileAccess.Write, FileShare.None))
+                        {
+                            using (var decompressionStream = new System.IO.Compression.GZipStream(originalFileStream, System.IO.Compression.CompressionMode.Decompress))
+                            {
+                                decompressionStream.CopyTo(decompressedFileStream);
+                            }
+                        }
+                        File.Delete(DownloadedFile);
+                    }
+                }
+            }
+        }
+
+        // FIX: Am Ende erfolgreich durchgelaufen -> Status zurücksetzen
+        Trace.WriteLine("Nothing Fails anymore. Requirements check complete.");
+        SomethingNotInstalled = false;
+        StillDoing = false;
     }
+    catch (Exception ex)
+    {
+        Trace.WriteLine($"Critical Error in CheckRequirements: {ex.Message}");
+        Trace.WriteLine($"Stack: {ex.StackTrace}");
+        SomethingNotInstalled = true;
+        StillDoing = false;
+    }
+}
 
     public async Task ThemeChange()
     {
