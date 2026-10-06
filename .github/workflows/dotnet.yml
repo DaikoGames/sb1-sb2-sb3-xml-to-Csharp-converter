@@ -211,6 +211,113 @@ jobs:
             --outputDir "./Releases" \
             --icon "./ConverterIcon/Converter.icns" \
             --channel "${{ matrix.runtime }}"
+
+      # ==========================================
+      # FLATPAK BUILD STEPS (Linux x64 & ARM64)
+      # ==========================================
+      - name: Install Flatpak tools
+        if: contains(matrix.runtime, 'linux') && matrix.runtime != 'linux-arm'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder
+
+      - name: Setup Flatpak
+        if: contains(matrix.runtime, 'linux') && matrix.runtime != 'linux-arm'
+        run: |
+          sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+          sudo flatpak install -y flathub org.freedesktop.Platform//23.08 org.freedesktop.Sdk//23.08
+
+      - name: Prepare Flatpak Files
+        if: contains(matrix.runtime, 'linux') && matrix.runtime != 'linux-arm'
+        run: |
+          mkdir -p flatpak-files
+          cp -r ./publish/${{ matrix.runtime }}/* flatpak-files/
+          
+          # Rename executable to 'Converter' if it still has the default csproj name with spaces
+          if [ -f "flatpak-files/sb1 sb2 sb3 xml to Csharp converter" ]; then
+            mv "flatpak-files/sb1 sb2 sb3 xml to Csharp converter" flatpak-files/Converter
+          fi
+          
+          cat <<'EOF' > flatpak-files/com.daikogames.Converter.desktop
+          [Desktop Entry]
+          Name=Converter
+          Exec=Converter
+          Icon=com.daikogames.Converter
+          Type=Application
+          Categories=Utility;Development;
+          EOF
+
+          cat <<'EOF' > flatpak-files/com.daikogames.Converter.metainfo.xml
+          <?xml version="1.0" encoding="UTF-8"?>
+          <component type="desktop-application">
+            <id>com.daikogames.Converter</id>
+            <name>Converter</name>
+            <summary>Scratch to C# Converter</summary>
+            <metadata_license>CC0-1.0</metadata_license>
+            <project_license>MIT</project_license>
+            <description>
+              <p>Converts Scratch projects to C#.</p>
+            </description>
+            <launchable type="desktop-id">com.daikogames.Converter.desktop</launchable>
+          </component>
+          EOF
+
+          cat <<'EOF' > flatpak-manifest.yml
+          app-id: com.daikogames.Converter
+          runtime: org.freedesktop.Platform
+          runtime-version: '23.08'
+          sdk: org.freedesktop.Sdk
+          sdk-extensions:
+            - org.freedesktop.Sdk.Extension.node20
+          command: Converter
+          finish-args:
+            - --share=ipc
+            - --share=network
+            - --socket=fallback-x11
+            - --socket=wayland
+            - --device=dri
+            - --filesystem=home
+          modules:
+            - name: Converter
+              buildsystem: simple
+              build-commands:
+                # 1. Install main executable
+                - install -Dm755 Converter /app/bin/Converter
+                
+                # 2. Install icons and metadata
+                - install -Dm644 ConverterIcon/Converter.png /app/share/icons/hicolor/256x256/apps/com.daikogames.Converter.png
+                - install -Dm644 com.daikogames.Converter.desktop /app/share/applications/com.daikogames.Converter.desktop
+                - install -Dm644 com.daikogames.Converter.metainfo.xml /app/share/metainfo/com.daikogames.Converter.metainfo.xml
+                
+                # 3. Bundle .NET 9 SDK (so Cli.Wrap("dotnet") works inside the sandbox)
+                - mkdir -p /app/dotnet
+                - curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel 9.0 --install-dir /app/dotnet
+                - ln -s /app/dotnet/dotnet /app/bin/dotnet
+                
+                # 4. Symlink Node.js and npm from the Freedesktop SDK Extension
+                - ln -s /usr/lib/sdk/node20/bin/node /app/bin/node
+                - ln -s /usr/lib/sdk/node20/bin/npm /app/bin/npm
+                
+                # 5. Create a dummy 'brew' command that returns success. 
+                # This prevents your C# code from attempting 'sudo apt-get install brew', 
+                # allowing it to skip that block and successfully find the bundled 'node'.
+                - echo '#!/bin/sh' > /app/bin/brew
+                - echo 'echo "Homebrew is simulated in Flatpak (Node.js is already bundled)"' >> /app/bin/brew
+                - echo 'exit 0' >> /app/bin/brew
+                - chmod +x /app/bin/brew
+                
+                # Note: 'curl' and 'git' are already natively provided by the Freedesktop SDK.
+              sources:
+                - type: dir
+                  path: flatpak-files
+          EOF
+
+      - name: Build Flatpak
+        if: contains(matrix.runtime, 'linux') && matrix.runtime != 'linux-arm'
+        run: |
+          flatpak-builder --repo=flatpak-repo --force-clean flatpak-build flatpak-manifest.yml
+          flatpak build-bundle flatpak-repo ./Releases/Converter-${{ matrix.runtime }}.flatpak com.daikogames.Converter
+      # ==========================================
      
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
@@ -248,3 +355,5 @@ jobs:
                  ./all-assets/Converter-linux-x64-Portable.zip
                  ./all-assets/Converter-linux-arm-Portable.zip
                  ./all-assets/Converter-linux-arm64-Portable.zip
+                 ./all-assets/Converter-linux-x64.flatpak
+                 ./all-assets/Converter-linux-arm64.flatpak
