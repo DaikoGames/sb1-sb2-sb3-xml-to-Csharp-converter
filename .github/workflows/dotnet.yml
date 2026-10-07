@@ -180,7 +180,7 @@ jobs:
             --icon "./ConverterIcon/Converter.ico" \
             --channel "${{ matrix.runtime }}"
             
-      - name: Pack with Velopack Linux
+      - name: Pack with Velopack Linux (AppImage)
         shell: bash
         if: contains(matrix.runtime, 'linux') && matrix.runtime != 'linux-arm'
         run: |
@@ -213,7 +213,7 @@ jobs:
             --channel "${{ matrix.runtime }}"
 
       # ==========================================
-      # FLATPAK BUILD STEPS (Linux x64 & ARM64)
+      # FLATPAK BUILD (Linux x64 & ARM64)
       # ==========================================
       - name: Install Flatpak tools
         if: contains(matrix.runtime, 'linux') && matrix.runtime != 'linux-arm'
@@ -221,23 +221,27 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y flatpak flatpak-builder
 
-      - name: Setup Flatpak
+      - name: Setup Flatpak Runtimes
         if: contains(matrix.runtime, 'linux') && matrix.runtime != 'linux-arm'
         run: |
           sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-          sudo flatpak install -y flathub org.freedesktop.Platform//23.08 org.freedesktop.Sdk//23.08
+          sudo flatpak install -y flathub \
+            org.freedesktop.Platform//23.08 \
+            org.freedesktop.Sdk//23.08 \
+            org.freedesktop.Sdk.Extension.node20//23.08
 
       - name: Prepare Flatpak Files
         if: contains(matrix.runtime, 'linux') && matrix.runtime != 'linux-arm'
         run: |
           mkdir -p flatpak-files
           cp -r ./publish/${{ matrix.runtime }}/* flatpak-files/
-          
-          # Rename executable to 'Converter' if it still has the default csproj name with spaces
+
+          # Executable umbenennen falls sie noch den Projektnamen mit Leerzeichen hat
           if [ -f "flatpak-files/sb1 sb2 sb3 xml to Csharp converter" ]; then
             mv "flatpak-files/sb1 sb2 sb3 xml to Csharp converter" flatpak-files/Converter
           fi
-          
+
+          # Desktop-Datei
           cat <<'EOF' > flatpak-files/com.daikogames.Converter.desktop
           [Desktop Entry]
           Name=Converter
@@ -247,6 +251,7 @@ jobs:
           Categories=Utility;Development;
           EOF
 
+          # AppStream Metainfo
           cat <<'EOF' > flatpak-files/com.daikogames.Converter.metainfo.xml
           <?xml version="1.0" encoding="UTF-8"?>
           <component type="desktop-application">
@@ -262,6 +267,7 @@ jobs:
           </component>
           EOF
 
+          # Flatpak Manifest
           cat <<'EOF' > flatpak-manifest.yml
           app-id: com.daikogames.Converter
           runtime: org.freedesktop.Platform
@@ -281,32 +287,31 @@ jobs:
             - name: Converter
               buildsystem: simple
               build-commands:
-                # 1. Install main executable
+                # 1. Hauptexecutable installieren
                 - install -Dm755 Converter /app/bin/Converter
-                
-                # 2. Install icons and metadata
+
+                # 2. Icons und Metadaten
                 - install -Dm644 ConverterIcon/Converter.png /app/share/icons/hicolor/256x256/apps/com.daikogames.Converter.png
                 - install -Dm644 com.daikogames.Converter.desktop /app/share/applications/com.daikogames.Converter.desktop
                 - install -Dm644 com.daikogames.Converter.metainfo.xml /app/share/metainfo/com.daikogames.Converter.metainfo.xml
-                
-                # 3. Bundle .NET 9 SDK (so Cli.Wrap("dotnet") works inside the sandbox)
+
+                # 3. .NET 9 SDK bundlen (damit Cli.Wrap("dotnet") in der Sandbox funktioniert)
                 - mkdir -p /app/dotnet
                 - curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel 9.0 --install-dir /app/dotnet
                 - ln -s /app/dotnet/dotnet /app/bin/dotnet
-                
-                # 4. Symlink Node.js and npm from the Freedesktop SDK Extension
+
+                # 4. Node.js und npm aus der Freedesktop SDK Extension symlinken
                 - ln -s /usr/lib/sdk/node20/bin/node /app/bin/node
                 - ln -s /usr/lib/sdk/node20/bin/npm /app/bin/npm
-                
-                # 5. Create a dummy 'brew' command that returns success. 
-                # This prevents your C# code from attempting 'sudo apt-get install brew', 
-                # allowing it to skip that block and successfully find the bundled 'node'.
-                - echo '#!/bin/sh' > /app/bin/brew
-                - echo 'echo "Homebrew is simulated in Flatpak (Node.js is already bundled)"' >> /app/bin/brew
-                - echo 'exit 0' >> /app/bin/brew
+
+                # 5. Dummy 'brew' Script erstellen.
+                #    Verhindert dass der C#-Code 'sudo apt-get install brew' ausführt.
+                #    Der Code denkt brew ist installiert und findet dann das gebundelte node.
+                - |
+                  printf '#!/bin/sh\necho "Homebrew is simulated in Flatpak (Node.js is already bundled)"\nexit 0\n' > /app/bin/brew
                 - chmod +x /app/bin/brew
-                
-                # Note: 'curl' and 'git' are already natively provided by the Freedesktop SDK.
+
+                # Hinweis: 'curl' und 'git' sind bereits im Freedesktop SDK enthalten.
               sources:
                 - type: dir
                   path: flatpak-files
@@ -315,7 +320,7 @@ jobs:
       - name: Build Flatpak
         if: contains(matrix.runtime, 'linux') && matrix.runtime != 'linux-arm'
         run: |
-          flatpak-builder --repo=flatpak-repo --force-clean flatpak-build flatpak-manifest.yml
+          flatpak-builder --repo=flatpak-repo --force-clean --install-deps-from=flathub flatpak-build flatpak-manifest.yml
           flatpak build-bundle flatpak-repo ./Releases/Converter-${{ matrix.runtime }}.flatpak com.daikogames.Converter
       # ==========================================
      
