@@ -317,7 +317,7 @@ jobs:
                   path: flatpak-files
           EOF
 
-          - name: Build Flatpak
+      - name: Build Flatpak
         if: contains(matrix.runtime, 'linux') && matrix.runtime != 'linux-arm'
         run: |
           flatpak-builder --repo=flatpak-repo --force-clean --install-deps-from=flathub flatpak-build flatpak-manifest.yml
