@@ -317,11 +317,17 @@ jobs:
                   path: flatpak-files
           EOF
 
-      - name: Build Flatpak
+          - name: Build Flatpak
         if: contains(matrix.runtime, 'linux') && matrix.runtime != 'linux-arm'
         run: |
           flatpak-builder --repo=flatpak-repo --force-clean --install-deps-from=flathub flatpak-build flatpak-manifest.yml
-          flatpak build-bundle flatpak-repo ./Releases/Converter-${{ matrix.runtime }}.flatpak com.daikogames.Converter
+          
+          # This just tells the installer where to get the background Linux libraries if missing
+          flatpak build-bundle \
+            --runtime-repo=https://flathub.org/repo/flathub.flatpakrepo \
+            flatpak-repo \
+            ./Releases/Converter-${{ matrix.runtime }}.flatpak \
+            com.daikogames.Converter
       # ==========================================
      
       - name: Upload Artifacts
