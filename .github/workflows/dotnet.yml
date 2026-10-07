@@ -267,7 +267,7 @@ jobs:
           </component>
           EOF
 
-          # Flatpak Manifest
+                    # Flatpak Manifest
           cat <<'EOF' > flatpak-manifest.yml
           app-id: com.daikogames.Converter
           runtime: org.freedesktop.Platform
@@ -281,7 +281,9 @@ jobs:
             - --share=network
             - --socket=fallback-x11
             - --socket=wayland
-            - --device=dri
+            - --socket=pulseaudio         # <-- REQUIRED for LibVLC audio
+            - --socket=session-bus        # <-- Recommended for Avalonia/Linux DBus
+            - --device=dri                # <-- Hardware acceleration for video/UI
             - --filesystem=home
           modules:
             - name: Converter
@@ -295,7 +297,7 @@ jobs:
                 - install -Dm644 com.daikogames.Converter.desktop /app/share/applications/com.daikogames.Converter.desktop
                 - install -Dm644 com.daikogames.Converter.metainfo.xml /app/share/metainfo/com.daikogames.Converter.metainfo.xml
 
-                # 3. .NET 9 SDK bundlen (damit Cli.Wrap("dotnet") in der Sandbox funktioniert)
+                # 3. .NET 9 SDK bundlen
                 - mkdir -p /app/dotnet
                 - curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel 9.0 --install-dir /app/dotnet
                 - ln -s /app/dotnet/dotnet /app/bin/dotnet
@@ -304,14 +306,16 @@ jobs:
                 - ln -s /usr/lib/sdk/node20/bin/node /app/bin/node
                 - ln -s /usr/lib/sdk/node20/bin/npm /app/bin/npm
 
-                # 5. Dummy 'brew' Script erstellen.
-                #    Verhindert dass der C#-Code 'sudo apt-get install brew' ausführt.
-                #    Der Code denkt brew ist installiert und findet dann das gebundelte node.
+                # 5. Dummy 'brew' Script erstellen
                 - |
-                  printf '#!/bin/sh\necho "Homebrew is simulated in Flatpak (Node.js is already bundled)"\nexit 0\n' > /app/bin/brew
+                  printf '#!/bin/sh\necho "Homebrew is simulated in Flatpak"\nexit 0\n' > /app/bin/brew
                 - chmod +x /app/bin/brew
 
-                # Hinweis: 'curl' und 'git' sind bereits im Freedesktop SDK enthalten.
+                # 6. LibVLC Native Libraries Fix
+                # Ensure the published libvlc .so files are findable by the dynamic linker
+                - ln -s /app/lib/libvlc.so /app/bin/libvlc.so || true
+                - ln -s /app/lib/libvlccore.so /app/bin/libvlccore.so || true
+
               sources:
                 - type: dir
                   path: flatpak-files
