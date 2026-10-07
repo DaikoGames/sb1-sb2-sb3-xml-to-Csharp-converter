@@ -234,12 +234,8 @@ jobs:
         if: contains(matrix.runtime, 'linux') && matrix.runtime != 'linux-arm'
         run: |
           mkdir -p flatpak-files
+          # Copy EVERYTHING from the publish folder (Executable, DLLs, .so files, etc.)
           cp -r ./publish/${{ matrix.runtime }}/* flatpak-files/
-
-          # Executable umbenennen falls sie noch den Projektnamen mit Leerzeichen hat
-          if [ -f "flatpak-files/sb1 sb2 sb3 xml to Csharp converter" ]; then
-            mv "flatpak-files/sb1 sb2 sb3 xml to Csharp converter" flatpak-files/Converter
-          fi
 
           # Desktop-Datei
           cat <<'EOF' > flatpak-files/com.daikogames.Converter.desktop
@@ -248,7 +244,7 @@ jobs:
           Exec=Converter
           Icon=com.daikogames.Converter
           Type=Application
-          Categories=Utility;Development;
+          Categories=Utility;Development;AudioVideo;
           EOF
 
           # AppStream Metainfo
@@ -267,7 +263,7 @@ jobs:
           </component>
           EOF
 
-                    # Flatpak Manifest
+          # Flatpak Manifest
           cat <<'EOF' > flatpak-manifest.yml
           app-id: com.daikogames.Converter
           runtime: org.freedesktop.Platform
@@ -281,46 +277,58 @@ jobs:
             - --share=network
             - --socket=fallback-x11
             - --socket=wayland
-            - --socket=pulseaudio         # <-- REQUIRED for LibVLC audio
-            - --socket=session-bus        # <-- Recommended for Avalonia/Linux DBus
-            - --device=dri                # <-- Hardware acceleration for video/UI
+            - --socket=pulseaudio
+            - --socket=session-bus
+            - --device=dri
             - --filesystem=home
           modules:
             - name: Converter
               buildsystem: simple
               build-commands:
-                # 1. Hauptexecutable installieren
-                - install -Dm755 Converter /app/bin/Converter
-
-                # 2. Icons und Metadaten
+                # 1. Create a dedicated directory for ALL the app's files
+                - mkdir -p /app/Converter
+                
+                # 2. Copy EVERYTHING (Executable, Avalonia DLLs, LibVLC .so files, etc.)
+                - cp -r . /app/Converter/
+                
+                # 3. Ensure the main executable has execute permissions
+                - chmod +x /app/Converter/Converter
+                
+                # 4. Create a wrapper script in /app/bin. 
+                # This is CRUCIAL: it sets the working directory and LD_LIBRARY_PATH 
+                # so LibVLC and SkiaSharp can find their native .so files!
+                - |
+                  cat << 'WRAPPER' > /app/bin/Converter
+                  #!/bin/sh
+                  export LD_LIBRARY_PATH="/app/Converter:\$LD_LIBRARY_PATH"
+                  cd /app/Converter
+                  exec ./Converter "\$@"
+                  WRAPPER
+                - chmod +x /app/bin/Converter
+                
+                # 5. Install Desktop and Metadata files
                 - install -Dm644 ConverterIcon/Converter.png /app/share/icons/hicolor/256x256/apps/com.daikogames.Converter.png
                 - install -Dm644 com.daikogames.Converter.desktop /app/share/applications/com.daikogames.Converter.desktop
                 - install -Dm644 com.daikogames.Converter.metainfo.xml /app/share/metainfo/com.daikogames.Converter.metainfo.xml
-
-                # 3. .NET 9 SDK bundlen
+                
+                # 6. Bundle .NET 9 SDK (for your Cli.Wrap "dotnet" calls)
                 - mkdir -p /app/dotnet
                 - curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel 9.0 --install-dir /app/dotnet
                 - ln -s /app/dotnet/dotnet /app/bin/dotnet
-
-                # 4. Node.js und npm aus der Freedesktop SDK Extension symlinken
+                
+                # 7. Symlink Node.js and npm
                 - ln -s /usr/lib/sdk/node20/bin/node /app/bin/node
                 - ln -s /usr/lib/sdk/node20/bin/npm /app/bin/npm
-
-                # 5. Dummy 'brew' Script erstellen
+                
+                # 8. Dummy 'brew' script to prevent sudo errors in your C# code
                 - |
                   printf '#!/bin/sh\necho "Homebrew is simulated in Flatpak"\nexit 0\n' > /app/bin/brew
                 - chmod +x /app/bin/brew
-
-                # 6. LibVLC Native Libraries Fix
-                # Ensure the published libvlc .so files are findable by the dynamic linker
-                - ln -s /app/lib/libvlc.so /app/bin/libvlc.so || true
-                - ln -s /app/lib/libvlccore.so /app/bin/libvlccore.so || true
-
               sources:
                 - type: dir
                   path: flatpak-files
           EOF
-
+          
       - name: Build Flatpak
         if: contains(matrix.runtime, 'linux') && matrix.runtime != 'linux-arm'
         run: |
