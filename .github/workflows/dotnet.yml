@@ -56,7 +56,6 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          # Updated to 10.0.x to match your .csproj <TargetFramework>net10.0</TargetFramework>
           dotnet-version: 10.0.x
 
       - name: Build and Publish App
@@ -212,26 +211,82 @@ jobs:
             --outputDir "./Releases" \
             --icon "./ConverterIcon/Converter.icns" \
             --channel "${{ matrix.runtime }}"
-            
+
+      # --- FLATPAK BUILD STEPS FOR LINUX X64 ---
       - name: Install Flatpak tools (Linux x64)
         if: matrix.runtime == 'linux-x64'
         run: |
           sudo apt-get update
           sudo apt-get install -y flatpak flatpak-builder
-          # Use sudo for system-wide remote addition to avoid permission errors in CI
           sudo flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-          # Pre-install the required runtime and SDK to prevent build failures
-          sudo flatpak install -y flathub org.freedesktop.Platform//24.08 org.freedesktop.Sdk//24.08
+          sudo flatpak install -y flathub org.freedesktop.Platform//23.08 org.freedesktop.Sdk//23.08
 
-      - name: Build Flatpak (Linux x64)
+      - name: Generate Flatpak Files and Build (Linux x64)
         if: matrix.runtime == 'linux-x64'
         run: |
+          # 1. Generate Desktop Entry on the fly
+          cat << 'EOF' > com.daikogames.Converter.desktop
+          [Desktop Entry]
+          Name=Converter
+          Comment=SB1/SB2/SB3/XML to C# Converter
+          Exec=Converter
+          Icon=com.daikogames.Converter
+          Terminal=false
+          Type=Application
+          Categories=Development;Utility;
+          EOF
+
+          # 2. Generate AppStream Metadata on the fly (required for clean builds)
+          cat << 'EOF' > com.daikogames.Converter.appdata.xml
+          <?xml version="1.0" encoding="UTF-8"?>
+          <component type="desktop-application">
+            <id>com.daikogames.Converter</id>
+            <name>Converter</name>
+            <summary>SB1/SB2/SB3/XML to C# Converter</summary>
+            <metadata_license>CC0-1.0</metadata_license>
+            <project_license>MIT</project_license>
+            <description><p>Converts Scratch projects to C#.</p></description>
+          </component>
+          EOF
+
+          # 3. Copy them into the publish dir so flatpak-builder can see them
+          cp com.daikogames.Converter.desktop publish/linux-x64/
+          cp com.daikogames.Converter.appdata.xml publish/linux-x64/
+
+          # 4. Generate Flatpak Manifest on the fly
+          cat << 'EOF' > com.daikogames.Converter.yml
+          app-id: com.daikogames.Converter
+          runtime: org.freedesktop.Platform
+          runtime-version: '23.08'
+          sdk: org.freedesktop.Sdk
+          command: Converter
+          finish-args:
+            - --share=ipc
+            - --socket=x11
+            - --socket=wayland
+            - --device=dri
+            - --filesystem=host
+            - --share=network
+          modules:
+            - name: converter
+              buildsystem: simple
+              build-commands:
+                - install -Dm755 Converter /app/bin/Converter
+                - install -Dm644 com.daikogames.Converter.desktop /app/share/applications/com.daikogames.Converter.desktop
+                - install -Dm644 com.daikogames.Converter.appdata.xml /app/share/metainfo/com.daikogames.Converter.appdata.xml
+                - install -Dm644 ConverterIcon/Converter.png /app/share/icons/hicolor/256x256/apps/com.daikogames.Converter.png
+                - cp -r --no-preserve=ownership Scratch-Format-Converter Scratch-To-Snap Translate-Folder svg_library_ScratchJnr wav_library_ScratchJnr Install /app/bin/ || true
+              sources:
+                - type: dir
+                  path: publish/linux-x64
+          EOF
+
+          # 5. Build the Flatpak
           mkdir -p ./Releases
-          # IMPORTANT: You MUST have a Flatpak manifest file (e.g., com.daikogames.Converter.yml) in your repository root.
-          # Replace 'com.daikogames.Converter.yml' with your actual manifest filename if it differs.
           flatpak-builder --user --install-deps-from=flathub --force-clean flatpak-build com.daikogames.Converter.yml
           flatpak build-bundle flatpak-repo ./Releases/Converter-linux.flatpak com.daikogames.Converter
-
+      # -----------------------------------------------
+     
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
