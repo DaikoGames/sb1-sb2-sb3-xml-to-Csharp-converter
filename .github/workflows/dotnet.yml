@@ -56,7 +56,8 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 9.0.x
+          # Updated to 10.0.x to match your .csproj <TargetFramework>net10.0</TargetFramework>
+          dotnet-version: 10.0.x
 
       - name: Build and Publish App
         shell: bash
@@ -217,15 +218,18 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y flatpak flatpak-builder
-          flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          # Use sudo for system-wide remote addition to avoid permission errors in CI
+          sudo flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          # Pre-install the required runtime and SDK to prevent build failures
+          sudo flatpak install -y flathub org.freedesktop.Platform//24.08 org.freedesktop.Sdk//24.08
 
       - name: Build Flatpak (Linux x64)
         if: matrix.runtime == 'linux-x64'
         run: |
           mkdir -p ./Releases
-          # NOTE: You must have a Flatpak manifest (e.g., com.daikogames.Converter.yml) in your repo root.
-          # If you don't have one, Flatpak cannot be built. 
-          flatpak-builder --repo=flatpak-repo --force-clean flatpak-build com.daikogames.Converter.yml
+          # IMPORTANT: You MUST have a Flatpak manifest file (e.g., com.daikogames.Converter.yml) in your repository root.
+          # Replace 'com.daikogames.Converter.yml' with your actual manifest filename if it differs.
+          flatpak-builder --user --install-deps-from=flathub --force-clean flatpak-build com.daikogames.Converter.yml
           flatpak build-bundle flatpak-repo ./Releases/Converter-linux.flatpak com.daikogames.Converter
 
       - name: Upload Artifacts
