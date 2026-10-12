@@ -211,7 +211,23 @@ jobs:
             --outputDir "./Releases" \
             --icon "./ConverterIcon/Converter.icns" \
             --channel "${{ matrix.runtime }}"
-     
+            
+      - name: Install Flatpak tools (Linux x64)
+        if: matrix.runtime == 'linux-x64'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder
+          flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+
+      - name: Build Flatpak (Linux x64)
+        if: matrix.runtime == 'linux-x64'
+        run: |
+          mkdir -p ./Releases
+          # NOTE: You must have a Flatpak manifest (e.g., com.daikogames.Converter.yml) in your repo root.
+          # If you don't have one, Flatpak cannot be built. 
+          flatpak-builder --repo=flatpak-repo --force-clean flatpak-build com.daikogames.Converter.yml
+          flatpak build-bundle flatpak-repo ./Releases/Converter-linux.flatpak com.daikogames.Converter
+
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -240,6 +256,7 @@ jobs:
                  ./all-assets/Converter-osx-arm64-Setup.pkg
                  ./all-assets/Converter-linux-x64.AppImage
                  ./all-assets/Converter-linux-arm64.AppImage
+                 ./all-assets/Converter-linux.flatpak
                  ./all-assets/Converter-win-x86-Portable.zip
                  ./all-assets/Converter-win-x64-Portable.zip
                  ./all-assets/Converter-win-arm64-Portable.zip
@@ -248,5 +265,3 @@ jobs:
                  ./all-assets/Converter-linux-x64-Portable.zip
                  ./all-assets/Converter-linux-arm-Portable.zip
                  ./all-assets/Converter-linux-arm64-Portable.zip
-                 ./all-assets/Converter-linux-x64.flatpak
-                 ./all-assets/Converter-linux-arm64.flatpak
