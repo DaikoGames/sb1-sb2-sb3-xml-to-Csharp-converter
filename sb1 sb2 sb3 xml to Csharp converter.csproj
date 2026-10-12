@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <ApplicationManifest>app.manifest</ApplicationManifest>
@@ -40,17 +40,17 @@
 	 <PackageReference Include="Avalonia.Desktop" Version="12.1.1" />
 	 <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.1" />
 	 <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.1" />
-     <PackageReference Include="CliWrap" Version="3.10.5" />
+   <PackageReference Include="CliWrap" Version="3.10.5" />
 	 <PackageReference Include="LibVLCSharp" Version="3.10.1" />
 	 <PackageReference Include="LibVLCSharp.Avalonia" Version="3.10.1" />
 	 <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
 	 <PackageReference Include="SkiaSharp" Version="4.151.1" />
 	 <PackageReference Include="Svg.Controls.Skia.Avalonia" Version="12.0.0.17" />
-     <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="4.151.1" />
+   <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="4.151.1" />
 	 <PackageReference Include="System.Diagnostics.Process" Version="4.3.0" />
 	 <PackageReference Include="System.Xml.Linq" Version="3.5.21022.801" />
 	 <PackageReference Include="Velopack" Version="1.2.0" />
-     <PackageReference Include="LibVLC.Linux" Version="1.0.0.16" />
+   <PackageReference Include="LibVLC.Linux" Version="1.0.0.16" />
 	 <PackageReference Include="VideoLAN.LibVLC.Windows" Version="3.0.23.1" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
 	 <PackageReference Include="VideoLAN.LibVLC.Mac" Version="3.1.3.1" Condition="$([MSBuild]::IsOSPlatform('MacOS'))" />
 	 <PackageReference Include="Downloader" Version="5.9.6" />

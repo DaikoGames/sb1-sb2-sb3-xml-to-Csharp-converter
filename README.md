@@ -3,7 +3,7 @@
 
 This project converts [Scratch](https://scratch.mit.edu/), and [Snap!](https://snap.berkeley.edu/) Projects to [Avalonia](https://avaloniaui.net/) Projects (C#)
 
-## The app is programmed with the Help of AI (a little), if used - mostly Qwen AI, Gemini, or Grok, maybe Chat GPT too.
+## The app is programmed with the Help of AI (a little), if used - mostly Claude
 ## What is the Story about this Project:
 
 Well it is pretty simple, i as a Developer saw Projects like [Turbowarp](https://packager.turbowarp.org/) and I was interested into the Topic. Originally it started as a [Windows Forms](https://github.com/dotnet/winforms) Project
