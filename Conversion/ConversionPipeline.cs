@@ -79,7 +79,7 @@ public static class ConversionPipeline
         Step(70);
 
         foreach (var kv in report.Unsupported) Log($"Nicht umgesetzt: {kv.Key} (x{kv.Value})");
-        Log($"{report.Scripts} Skripte übersetzt, {report.IgnoredScripts} ohne Hut-Block übersprungen, " +
+        Log($"{report.Scripts} Skripte und {report.CustomBlocks} eigene Blöcke übersetzt, {report.IgnoredScripts} ohne Hut-Block übersprungen, " +
             $"{assets.Written} Dateien geschrieben, {assets.Reused} wiederverwendet");
 
         return new ConversionResult

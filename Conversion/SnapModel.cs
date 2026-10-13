@@ -68,11 +68,14 @@ public sealed class SnapObject
     public List<SoundData> Sounds = new();
     public List<Variable> Locals = new();
     public List<JNode> Scripts = new();
+    public List<JNode> Blocks = new();            // eigene Blöcke (block-definition), nur für dieses Objekt
 }
 
 public sealed class SnapProject
 {
     public string Name = "Project";
+    public string StageName = "Stage";
+    public List<JNode> Blocks = new();            // globale eigene Blöcke
     public int Width = 480, Height = 360;
     public List<Variable> Globals = new();
     public SnapObject Stage = new() { IsStage = true, Name = "Stage" };

@@ -24,6 +24,8 @@ public static class SnapJsonReader
         p.Height = (int)D(stage.Attr("height"), 360);
 
         ReadObject(stage, p.Stage);
+        p.StageName = p.Stage.Name;
+        p.Blocks.AddRange(root.First("blocks")?.Each("block-definition") ?? Enumerable.Empty<JNode>());
         p.Stage.Name = "Stage";               // Stage heisst im Code immer gleich, egal wie sie in Snap heisst
         p.Stage.X = 0; p.Stage.Y = 0;
 
@@ -62,6 +64,7 @@ public static class SnapJsonReader
             if (sn != null) o.Sounds.Add(new SoundData(sn.Attr("name", "sound"), sn.Attr("sound")));
         }
         o.Locals.AddRange(ReadVariables(n.First("variables")));
+        o.Blocks.AddRange(n.First("blocks")?.Each("block-definition") ?? Enumerable.Empty<JNode>());
         o.Scripts.AddRange(n.First("scripts")?.Each("script") ?? Enumerable.Empty<JNode>());
     }
 

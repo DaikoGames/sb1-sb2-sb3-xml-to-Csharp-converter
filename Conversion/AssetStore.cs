@@ -29,6 +29,7 @@ public sealed class AssetStore
     public string? Save(string dataUri, string baseName)
     {
         if (!TryParse(dataUri, out string mime, out byte[] bytes)) return null;
+        if (mime.StartsWith("audio/") && bytes.Length < 64) return null;      // leere/kaputte Sounds: VLC meldet sonst "cannot peek"
 
         string ext = mime switch
         {
@@ -41,6 +42,8 @@ public sealed class AssetStore
             _ when mime.StartsWith("audio/") => ".wav",
             _ => ".bin"
         };
+
+        if (mime != "image/svg+xml") ext = Sniff(bytes) ?? ext;                // der Inhalt zählt, nicht der angegebene MIME-Typ
 
         if (mime == "image/svg+xml")
         {
@@ -60,6 +63,19 @@ public sealed class AssetStore
         byHash[hash] = name;
         Written++;
         return name;
+    }
+
+    /// <summary>Erkennt das Dateiformat an den ersten Bytes.</summary>
+    static string? Sniff(byte[] b)
+    {
+        if (b.Length >= 8 && b[0] == 0x89 && b[1] == 0x50 && b[2] == 0x4E && b[3] == 0x47) return ".png";
+        if (b.Length >= 3 && b[0] == 0xFF && b[1] == 0xD8) return ".jpg";
+        if (b.Length >= 4 && b[0] == 'G' && b[1] == 'I' && b[2] == 'F') return ".gif";
+        if (b.Length >= 12 && b[0] == 'R' && b[1] == 'I' && b[2] == 'F' && b[3] == 'F' && b[8] == 'W' && b[9] == 'A' && b[10] == 'V' && b[11] == 'E') return ".wav";
+        if (b.Length >= 4 && b[0] == 'O' && b[1] == 'g' && b[2] == 'g' && b[3] == 'S') return ".ogg";
+        if (b.Length >= 3 && b[0] == 'I' && b[1] == 'D' && b[2] == '3') return ".mp3";
+        if (b.Length >= 2 && b[0] == 0xFF && (b[1] & 0xE0) == 0xE0) return ".mp3";
+        return null;
     }
 
     static bool TryParse(string dataUri, out string mime, out byte[] bytes)

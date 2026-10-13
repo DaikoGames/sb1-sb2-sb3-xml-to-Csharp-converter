@@ -27,20 +27,30 @@ public static class ProjectGenerator
         Directory.CreateDirectory(projectDir);
 
         var names = new NameRegistry();
+        var customs = new CustomRegistry();
         var fields = new StringBuilder();
         var build = new StringBuilder();
         var methods = new StringBuilder();
         var starts = new StringBuilder();
 
-        // Globale Variablen einmal initialisieren, lokale pro Objekt (Schlüssel "Objekt::Name").
-        foreach (var v in p.Globals) build.AppendLine("        " + VarInit(v.Name, v));
+        // Erst alle eigenen Blöcke registrieren, damit Aufrufe unabhängig von der Reihenfolge gefunden werden.
+        foreach (var def in p.Blocks) customs.Add(null, def, names);
+        foreach (var o in p.AllObjects)
+            foreach (var def in o.Blocks) customs.Add(o, def, names);
 
+        // Globale Variablen einmal initialisieren, lokale pro Objekt (liegen in sprite.Vars, Klone bekommen eine Kopie).
+        foreach (var v in p.Globals) build.AppendLine("        " + VarInit("Rt.Vars", v.Name, v));
+
+        var fieldOf = new Dictionary<SnapObject, string>();
         foreach (var o in p.AllObjects)
         {
             string field = names.Get("spr", o.Name);
+            fieldOf[o] = field;
             fields.AppendLine($"    private Sprite {field} = null!;");
 
             build.AppendLine($"        {field} = Rt.AddSprite({BlockTranslator.Esc(o.Name)}, {(o.IsStage ? "true" : "false")});");
+            if (o.IsStage && p.StageName != "Stage")
+                build.AppendLine($"        Rt.Sprites[{BlockTranslator.Esc(p.StageName)}] = {field};");
             foreach (var c in o.Costumes)
             {
                 string? file = assets.Save(c.Data, o.Name + "_" + c.Name);
@@ -53,11 +63,15 @@ public static class ProjectGenerator
                 if (file == null) { report.Add("Sound ungültig: " + o.Name + "/" + s.Name); continue; }
                 build.AppendLine($"        {field}.AddSound({BlockTranslator.Esc(s.Name)}, {BlockTranslator.Esc(file)});");
             }
-            foreach (var v in o.Locals) build.AppendLine("        " + VarInit(o.Name + "::" + v.Name, v));
+            foreach (var v in o.Locals) build.AppendLine("        " + VarInit(field + ".Vars", v.Name, v));
             build.AppendLine($"        {field}.Init({Inv(o.X)}, {Inv(o.Y)}, {Inv(o.Heading)}, {Inv(o.Scale)}, {o.Rotation}, {o.Costume}, {(o.Hidden ? "true" : "false")});");
             build.AppendLine();
+        }
 
-            var tr = new BlockTranslator(o, field, report);
+        foreach (var o in p.AllObjects)
+        {
+            string field = fieldOf[o];
+            var tr = new BlockTranslator(o, field, report, customs);
             int n = 0;
             foreach (var script in o.Scripts)
             {
@@ -68,6 +82,12 @@ public static class ProjectGenerator
                 methods.AppendLine(r.Value.Method);
                 starts.AppendLine("        " + r.Value.Registration);
             }
+        }
+
+        foreach (var info in customs.All)
+        {
+            string ownerField = info.Owner != null ? fieldOf[info.Owner] : "";
+            methods.AppendLine(new BlockTranslator(info.Owner, ownerField, report, customs).TranslateCustom(info));
         }
 
         string w = p.Width.ToString(CultureInfo.InvariantCulture), h = p.Height.ToString(CultureInfo.InvariantCulture);
@@ -97,7 +117,8 @@ public static class ProjectGenerator
             cs.AppendLine("        if (File.Exists(iconFile)) Icon = new WindowIcon(iconFile);");
         }
         cs.AppendLine($"        var stage = new Canvas {{ Width = {w}, Height = {h}, Background = Brushes.White, ClipToBounds = true }};");
-        cs.AppendLine("        Content = stage;");
+        cs.AppendLine("        // Viewbox skaliert die Bühne gleichmäßig auf das Fenster und zentriert sie (Letterbox wie bei Ruffle).");
+        cs.AppendLine("        Content = new Viewbox { Stretch = Stretch.Uniform, Child = stage };");
         cs.AppendLine($"        Rt.Attach(this, stage, {w}, {h});");
         cs.AppendLine("        BuildObjects();");
         cs.AppendLine("        Opened += (_, _) => StartScripts();");
@@ -121,8 +142,8 @@ public static class ProjectGenerator
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="{{appName}}.MainWindow"
-        Width="{{w}}" Height="{{h}}" CanResize="False"
-        RequestedThemeVariant="Light">
+        Width="{{w}}" Height="{{h}}" MinWidth="160" MinHeight="120"
+        Background="Black" RequestedThemeVariant="Light">
 </Window>
 """);
         Write(projectDir, "App.axaml", $$"""
@@ -198,8 +219,8 @@ internal static class Program
 """);
     }
 
-    static string VarInit(string key, Variable v) =>
-        $"Rt.Vars[{BlockTranslator.Esc(key)}] = " +
+    static string VarInit(string dict, string name, Variable v) =>
+        $"{dict}[{BlockTranslator.Esc(name)}] = " +
         (v.IsList ? "new List<object?>();" : BlockTranslator.LiteralCode(v.Initial) + ";");
 
     static void Write(string dir, string file, string text) =>
