@@ -1,7 +1,5 @@
 name: Deploy to GitHub Releases
-on: 
-  schedule:
-     - cron: '30 14 * * 6' 
+on:  
   workflow_dispatch:
      
 permissions:
